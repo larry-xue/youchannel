@@ -1,8 +1,15 @@
-import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  redirect,
+  useRouter,
+} from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import ThemeToggle from "~/lib/components/ThemeToggle";
+import { cn } from "~/lib/utils";
 
 interface OAuthPayload {
   code: string;
@@ -172,7 +179,7 @@ export const Route = createFileRoute("/dashboard")({
     };
   },
   component: DashboardLayout,
-  loader: async ({ context }) => {
+  loader: async ({ context, location }) => {
     await context.queryClient.invalidateQueries({ queryKey: ["dashboard-auth"] });
 
     const result = await context.queryClient.fetchQuery({
@@ -191,9 +198,35 @@ export const Route = createFileRoute("/dashboard")({
       });
     }
 
+    const search = location.search as { code?: string; state?: string };
+    const isOauthCallback = Boolean(search?.code && search?.state);
+
+    if (!isOauthCallback) {
+      const { getSupabaseServerClient } = await import("~/lib/server/auth");
+      const supabase = getSupabaseServerClient();
+      const { data: account } = await supabase
+        .from("youtube_accounts")
+        .select("id")
+        .eq("user_id", result.user.id)
+        .maybeSingle();
+
+      if (!account) {
+        throw redirect({
+          to: "/connect-youtube",
+        });
+      }
+    }
+
     return { user: result.user };
   },
 });
+
+const DASHBOARD_NAV_ITEMS = [
+  { label: "Channels", to: "/dashboard/channels" },
+  { label: "Videos", to: "/dashboard/videos" },
+  { label: "Analyses", to: "/dashboard/analyses" },
+  { label: "Conversations", to: "/dashboard/conversations" },
+];
 
 function DashboardLayout() {
   const { user } = Route.useLoaderData();
@@ -269,7 +302,31 @@ function DashboardLayout() {
         </div>
       )}
 
-      <Outlet />
+      <div className="border-b border-border/60 bg-background/80">
+        <div className="container mx-auto flex flex-wrap items-center gap-2 px-6 py-4">
+          {DASHBOARD_NAV_ITEMS.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              activeOptions={{ exact: true }}
+              className={cn(
+                "rounded-full border px-4 py-2 text-sm font-medium transition",
+                "border-border/60 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+              )}
+              activeProps={{
+                className:
+                  "rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground shadow-sm",
+              }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <main className="container mx-auto max-w-7xl px-6 py-10">
+        <Outlet />
+      </main>
     </div>
   );
 }

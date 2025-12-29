@@ -1,0 +1,13 @@
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+bun.lock
+
+routeTree.gen.ts
+.drizzle/
+
+node_modules
+dist
+.env
+.env.*
+!.env.example

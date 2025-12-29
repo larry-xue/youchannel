@@ -1,0 +1,2 @@
+-- Seed data placeholder for the YouTube + Gemini workspace.
+-- Replace user_id with a real auth.users id if you want to seed records.

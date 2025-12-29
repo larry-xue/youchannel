@@ -1,0 +1,205 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@import "tailwindcss" source("../../");
+
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --md-primary: #1a5da3;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #d7e3ff;
+  --md-on-primary-container: #001c3b;
+  --md-secondary: #00696b;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #98f0ef;
+  --md-on-secondary-container: #002021;
+  --md-tertiary: #7c4e00;
+  --md-on-tertiary: #ffffff;
+  --md-tertiary-container: #ffddb4;
+  --md-on-tertiary-container: #271900;
+  --md-surface: #f8faff;
+  --md-surface-container: #eff2f8;
+  --md-surface-container-high: #e5e8ef;
+  --md-on-surface: #1a1c1e;
+  --md-outline: #74777f;
+  --md-outline-variant: #c4c7d0;
+  --md-error: #ba1a1a;
+  --md-on-error: #ffffff;
+  --app-gradient-a: rgba(26, 93, 163, 0.18);
+  --app-gradient-b: rgba(0, 105, 107, 0.16);
+  --app-gradient-base: #f8faff;
+  --app-gradient-mid: #eef3fb;
+  --app-gradient-end: #f6f8ff;
+
+  --background: var(--md-surface);
+  --foreground: var(--md-on-surface);
+  --card: var(--md-surface-container);
+  --card-foreground: var(--md-on-surface);
+  --popover: var(--md-surface-container);
+  --popover-foreground: var(--md-on-surface);
+  --primary: var(--md-primary);
+  --primary-foreground: var(--md-on-primary);
+  --secondary: var(--md-secondary-container);
+  --secondary-foreground: var(--md-on-secondary-container);
+  --muted: var(--md-surface-container-high);
+  --muted-foreground: #4e5358;
+  --accent: var(--md-primary-container);
+  --accent-foreground: var(--md-on-primary-container);
+  --destructive: var(--md-error);
+  --destructive-foreground: var(--md-on-error);
+  --border: var(--md-outline-variant);
+  --input: var(--md-surface);
+  --ring: var(--md-primary);
+  --chart-1: #1a5da3;
+  --chart-2: #00696b;
+  --chart-3: #7c4e00;
+  --chart-4: #7a52c7;
+  --chart-5: #e38400;
+  --radius: 1rem;
+  --sidebar: var(--md-surface-container);
+  --sidebar-foreground: var(--md-on-surface);
+  --sidebar-primary: var(--md-primary);
+  --sidebar-primary-foreground: var(--md-on-primary);
+  --sidebar-accent: var(--md-primary-container);
+  --sidebar-accent-foreground: var(--md-on-primary-container);
+  --sidebar-border: var(--md-outline-variant);
+  --sidebar-ring: var(--md-primary);
+}
+
+.dark {
+  --md-primary: #aec6ff;
+  --md-on-primary: #002f66;
+  --md-primary-container: #00458f;
+  --md-on-primary-container: #d7e3ff;
+  --md-secondary: #4fd7d6;
+  --md-on-secondary: #003738;
+  --md-secondary-container: #004f50;
+  --md-on-secondary-container: #98f0ef;
+  --md-tertiary: #ffb959;
+  --md-on-tertiary: #422c00;
+  --md-tertiary-container: #604200;
+  --md-on-tertiary-container: #ffddb4;
+  --md-surface: #111318;
+  --md-surface-container: #1d2026;
+  --md-surface-container-high: #2a2d34;
+  --md-on-surface: #e2e2e6;
+  --md-outline: #8e9199;
+  --md-outline-variant: #44474f;
+  --md-error: #ffb4ab;
+  --md-on-error: #690005;
+  --app-gradient-a: rgba(174, 198, 255, 0.16);
+  --app-gradient-b: rgba(79, 215, 214, 0.14);
+  --app-gradient-base: #0f1116;
+  --app-gradient-mid: #171a20;
+  --app-gradient-end: #111318;
+
+  --background: var(--md-surface);
+  --foreground: var(--md-on-surface);
+  --card: var(--md-surface-container);
+  --card-foreground: var(--md-on-surface);
+  --popover: var(--md-surface-container);
+  --popover-foreground: var(--md-on-surface);
+  --primary: var(--md-primary);
+  --primary-foreground: var(--md-on-primary);
+  --secondary: var(--md-secondary-container);
+  --secondary-foreground: var(--md-on-secondary-container);
+  --muted: var(--md-surface-container-high);
+  --muted-foreground: #b6bcc4;
+  --accent: var(--md-primary-container);
+  --accent-foreground: var(--md-on-primary-container);
+  --destructive: var(--md-error);
+  --destructive-foreground: var(--md-on-error);
+  --border: var(--md-outline-variant);
+  --input: var(--md-surface);
+  --ring: var(--md-primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  }
+  .app-shell {
+    min-height: 100vh;
+    background: radial-gradient(
+        1200px 800px at 12% -10%,
+        var(--app-gradient-a),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 700px at 110% 0%,
+        var(--app-gradient-b),
+        transparent 55%
+      ),
+      linear-gradient(
+        180deg,
+        var(--app-gradient-base) 0%,
+        var(--app-gradient-mid) 55%,
+        var(--app-gradient-end) 100%
+      );
+  }
+  .animate-rise {
+    animation: rise 0.6s ease-out both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

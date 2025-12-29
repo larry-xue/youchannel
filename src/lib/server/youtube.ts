@@ -84,19 +84,10 @@ export async function exchangeCodeForTokens(code: string) {
 
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(
-      payload?.error_description || "Failed to exchange OAuth code",
-    );
+    throw new Error(payload?.error_description || "Failed to exchange OAuth code");
   }
 
-  // 验证返回�?scope 是否包含所需的权�?  const tokenResponse = payload as OAuthTokenResponse;
-  if (tokenResponse.scope && !tokenResponse.scope.includes("youtube.readonly")) {
-    throw new Error(
-      "OAuth scope 不足。请确保授权时选择�?YouTube 数据访问权限，并重新授权�?,
-    );
-  }
-
-  return tokenResponse;
+  return payload as OAuthTokenResponse;
 }
 
 export async function refreshAccessToken(refreshToken: string) {
@@ -123,7 +114,7 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 async function fetchYouTube<T>(url: string, accessToken: string): Promise<T> {
-  // 记录请求 URL（不包含 token）以便调�?  const urlForLog = new URL(url);
+  const urlForLog = new URL(url);
   await writeYouTubeLog({
     event: "youtube.api.request",
     url: urlForLog.toString(),
@@ -139,8 +130,9 @@ async function fetchYouTube<T>(url: string, accessToken: string): Promise<T> {
 
   const text = await response.text();
   if (!response.ok) {
-    // 记录详细的错误信息以便调�?    let errorMessage = text || "YouTube API request failed";
+    let errorMessage = text || "YouTube API request failed";
     let errorDetails: Record<string, unknown> = {};
+
     try {
       const errorData = JSON.parse(text);
       if (errorData?.error) {
@@ -152,12 +144,9 @@ async function fetchYouTube<T>(url: string, accessToken: string): Promise<T> {
           status: response.status,
           statusText: response.statusText,
         };
-        // 如果�?403 错误，提供更详细的提�?        if (response.status === 403) {
-          errorMessage += " (可能的原因：OAuth scope 不足�?token 权限不正确，请重新授�?";
-        }
       }
     } catch {
-      // 如果无法解析 JSON，使用原始文�?      errorDetails = { rawResponse: text, status: response.status };
+      errorDetails = { rawResponse: text, status: response.status };
     }
 
     await writeYouTubeLog({
@@ -283,14 +272,31 @@ async function fetchPlaylistItems(
 
     const data = await fetchYouTube<{
       nextPageToken?: string;
+      pageInfo?: { totalResults?: number; resultsPerPage?: number };
       items?: Array<{
         snippet?: Record<string, unknown>;
         contentDetails?: { videoId?: string };
       }>;
     }>(url.toString(), accessToken);
 
+    const sampleVideoIds = (data.items || [])
+      .slice(0, 3)
+      .map((item) => {
+        const snippet = item.snippet as { resourceId?: { videoId?: string } } | undefined;
+        return item.contentDetails?.videoId || snippet?.resourceId?.videoId || null;
+      });
+    await writeYouTubeLog({
+      event: "playlistItems.list",
+      playlistId,
+      pageToken,
+      itemCount: data.items?.length || 0,
+      pageInfo: data.pageInfo || null,
+      sampleVideoIds,
+    });
+
     for (const item of data.items || []) {
-      const videoId = item.contentDetails?.videoId;
+      const snippet = item.snippet as { resourceId?: { videoId?: string } } | undefined;
+      const videoId = item.contentDetails?.videoId || snippet?.resourceId?.videoId;
       if (!videoId) continue;
       collected.push({
         videoId,

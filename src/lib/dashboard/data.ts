@@ -109,7 +109,7 @@ export const syncChannelsFn = createServerFn({ method: "POST" }).handler(
     const { fetchChannelSummaries } = await import("~/lib/server/youtube");
     const channelSummaries = await fetchChannelSummaries(accessToken);
     if (channelSummaries.length === 0) {
-      throw new Error("No YouTube channels found for this account");
+      throw new Error("No YouTube playlists found for this account");
     }
 
     const { data: existingChannels, error: existingError } = await supabase
@@ -263,9 +263,9 @@ export const syncChannelFn = createServerFn({ method: "POST" }).handler(
       .eq("user_id", user.id)
       .single();
 
-    if (channelError || !channel) throw channelError || new Error("Channel not found");
+    if (channelError || !channel) throw channelError || new Error("Playlist not found");
     if (!channel.youtube_account_id)
-      throw new Error("Channel is not connected to YouTube");
+      throw new Error("Playlist is not connected to YouTube");
 
     const { data: account, error: accountError } = await supabase
       .from("youtube_accounts")
@@ -312,7 +312,7 @@ export const syncChannelFn = createServerFn({ method: "POST" }).handler(
       channelSummaries[0];
 
     if (!summary?.uploadsPlaylistId)
-      throw new Error("Unable to fetch channel uploads");
+      throw new Error("Unable to fetch playlist items");
 
     const fetchedVideos = await fetchChannelVideos(
       accessToken,

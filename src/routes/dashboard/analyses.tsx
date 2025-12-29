@@ -155,9 +155,9 @@ function DashboardAnalyses() {
 
       {!channelsQuery.isLoading && !activeChannel && channels.length > 0 && (
         <div className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          Choose a channel to track first.{" "}
+          Choose a playlist to track first.{" "}
           <Link to="/dashboard/channels" className="text-primary hover:underline">
-            Go to channels
+            Go to playlists
           </Link>
           .
         </div>
@@ -166,7 +166,7 @@ function DashboardAnalyses() {
       {channels.length > 0 && (
         <div className="rounded-3xl border border-border/60 bg-background/70 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Channels
+            Playlists
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
@@ -220,11 +220,11 @@ function DashboardAnalyses() {
               <p className="text-sm text-muted-foreground">Loading videos...</p>
             ) : sortedChannelIds.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Select at least one channel to see its videos.
+                Select at least one playlist to see its videos.
               </p>
             ) : videos.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No videos found yet. Sync your channel to fetch uploads.
+                No videos found yet. Sync your playlist to fetch uploads.
               </p>
             ) : (
               videos.map((video) => (

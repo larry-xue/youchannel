@@ -133,11 +133,11 @@ function DashboardChannels() {
           Dashboard
         </p>
         <h1 className="font-display text-3xl font-semibold text-foreground">
-          Channel control
+          Playlist control
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Manage your YouTube connection, sync cadence, and the default analysis
-          prompt.
+          prompt for playlists.
         </p>
       </div>
 
@@ -150,14 +150,14 @@ function DashboardChannels() {
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Channel</CardTitle>
+            <CardTitle>Playlists</CardTitle>
             <CardDescription>
-              Connect and pick the channel you want to analyze.
+              Connect and pick the playlist you want to analyze.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {channelsQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading channels...</p>
+              <p className="text-sm text-muted-foreground">Loading playlists...</p>
             ) : (
               <>
                 {activeChannel ? (
@@ -166,7 +166,7 @@ function DashboardChannels() {
                       {activeChannel.thumbnail_url ? (
                         <img
                           src={activeChannel.thumbnail_url}
-                          alt={activeChannel.title || "Channel thumbnail"}
+                          alt={activeChannel.title || "Playlist thumbnail"}
                           className="h-12 w-12 rounded-2xl object-cover"
                         />
                       ) : (
@@ -176,7 +176,7 @@ function DashboardChannels() {
                       )}
                       <div>
                         <p className="text-sm font-semibold text-foreground">
-                          {activeChannel.title || "Untitled channel"}
+                          {activeChannel.title || "Untitled playlist"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {activeChannel.custom_url || activeChannel.channel_id}
@@ -225,7 +225,7 @@ function DashboardChannels() {
                 ) : (
                   <>
                     <div className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                      No channels found yet. Sync your YouTube account to load
+                      No playlists found yet. Sync your YouTube account to load
                       them, then pick one to start tracking.
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -236,7 +236,7 @@ function DashboardChannels() {
                       >
                         {syncChannelsMutation.isPending
                           ? "Syncing..."
-                          : "Sync channels"}
+                          : "Sync playlists"}
                       </Button>
                       <Button
                         type="button"
@@ -254,7 +254,7 @@ function DashboardChannels() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <Label>Channels</Label>
+                    <Label>Playlists</Label>
                     <Button
                       type="button"
                       variant="outline"
@@ -262,9 +262,9 @@ function DashboardChannels() {
                       onClick={() => syncChannelsMutation.mutate()}
                       disabled={syncChannelsMutation.isPending}
                     >
-                      {syncChannelsMutation.isPending
+                        {syncChannelsMutation.isPending
                         ? "Syncing..."
-                        : "Sync channels"}
+                        : "Sync playlists"}
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -281,7 +281,7 @@ function DashboardChannels() {
                         onClick={() => setActiveMutation.mutate(channel.id)}
                       >
                         <span className="font-medium">
-                          {channel.title || "Untitled channel"}
+                          {channel.title || "Untitled playlist"}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
                           {channel.is_active ? "Tracking" : "Track"}
@@ -290,7 +290,7 @@ function DashboardChannels() {
                     ))}
                     {channels.length === 0 && (
                       <div className="rounded-2xl border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
-                        No channels synced yet.
+                        No playlists synced yet.
                       </div>
                     )}
                   </div>

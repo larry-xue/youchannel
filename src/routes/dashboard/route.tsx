@@ -136,7 +136,7 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" }).handler
 
     const channelSummaries = await fetchChannelSummaries(token.access_token);
     if (channelSummaries.length === 0) {
-      throw new Error("No YouTube channels found for this account");
+      throw new Error("No YouTube playlists found for this account");
     }
 
     const { data: existingChannels } = await supabase
@@ -222,7 +222,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const DASHBOARD_NAV_ITEMS = [
-  { label: "Channels", to: "/dashboard/channels" },
+  { label: "Playlists", to: "/dashboard/channels" },
   { label: "Videos", to: "/dashboard/videos" },
   { label: "Analyses", to: "/dashboard/analyses" },
   { label: "Conversations", to: "/dashboard/conversations" },

@@ -66,7 +66,7 @@ function ConnectYouTube() {
           <CardHeader>
             <CardTitle>Connect YouTube</CardTitle>
             <CardDescription>
-              Link your YouTube account to unlock channel sync and analysis.
+              Link your YouTube account to unlock playlist sync and analysis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -74,7 +74,7 @@ function ConnectYouTube() {
               Signed in as <span className="text-foreground">{email}</span>
             </div>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>We will request read-only access to your channels.</p>
+              <p>We will request read-only access to your playlists.</p>
               <p>You can revoke access anytime in your Google account settings.</p>
             </div>
             {actionError && (

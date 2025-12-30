@@ -223,8 +223,6 @@ export const Route = createFileRoute("/dashboard")({
 
 const DASHBOARD_NAV_ITEMS = [
   { label: "Playlists", to: "/dashboard/channels" },
-  { label: "Videos", to: "/dashboard/videos" },
-  { label: "Analyses", to: "/dashboard/analyses" },
   { label: "Conversations", to: "/dashboard/conversations" },
 ];
 

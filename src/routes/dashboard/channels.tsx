@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
@@ -9,19 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
-import { Label } from "~/lib/components/ui/label";
 import { Separator } from "~/lib/components/ui/separator";
 import {
   CHANNELS_QUERY_KEY,
-  DEFAULT_ANALYSIS_PROMPT,
+  CONVERSATIONS_QUERY_KEY,
+  createConversationFn,
   getChannelsFn,
-  saveChannelPromptFn,
+  getVideoAnalysesFn,
+  getVideosFn,
   setActiveChannelFn,
   startYouTubeOAuthFn,
   syncChannelsFn,
   syncChannelFn,
 } from "~/lib/dashboard/data";
-import { formatDateTime } from "~/lib/dashboard/utils";
+import { formatDate, formatDateTime, truncate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/dashboard/channels")({
@@ -30,10 +31,9 @@ export const Route = createFileRoute("/dashboard/channels")({
 
 function DashboardChannels() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [channelPromptDraft, setChannelPromptDraft] = useState(
-    DEFAULT_ANALYSIS_PROMPT,
-  );
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<{
     created: number;
     skipped: number;
@@ -48,11 +48,7 @@ function DashboardChannels() {
 
   const channels = channelsQuery.data || [];
   const activeChannel = channels.find((channel) => channel.is_active) || null;
-
-  useEffect(() => {
-    if (!activeChannel) return;
-    setChannelPromptDraft(activeChannel.analysis_prompt || DEFAULT_ANALYSIS_PROMPT);
-  }, [activeChannel?.id]);
+  const activeChannelId = activeChannel?.id;
 
   const connectMutation = useMutation({
     mutationFn: () => startYouTubeOAuthFn({ data: {} }),
@@ -62,6 +58,56 @@ function DashboardChannels() {
     onError: (error) => {
       setActionError(
         error instanceof Error ? error.message : "Unable to start OAuth",
+      );
+    },
+  });
+
+  const videosQuery = useQuery({
+    queryKey: ["videos", activeChannelId],
+    queryFn: () =>
+      getVideosFn({
+        data: { channelIds: activeChannelId ? [activeChannelId] : [] },
+      }),
+    enabled: Boolean(activeChannelId),
+  });
+
+  const videos = videosQuery.data || [];
+  const selectedVideo =
+    videos.find((video) => video.id === selectedVideoId) || videos[0] || null;
+
+  useEffect(() => {
+    if (videos.length === 0) {
+      setSelectedVideoId(null);
+      return;
+    }
+    if (!selectedVideoId || !videos.some((video) => video.id === selectedVideoId)) {
+      setSelectedVideoId(videos[0].id);
+    }
+  }, [selectedVideoId, videos]);
+
+  const analysesQuery = useQuery({
+    queryKey: ["analyses", selectedVideo?.id],
+    queryFn: () =>
+      getVideoAnalysesFn({ data: { videoId: selectedVideo?.id || "" } }),
+    enabled: Boolean(selectedVideo?.id),
+  });
+
+  const analysisRecords = analysesQuery.data || [];
+  const latestAnalysis = analysisRecords[0] || null;
+
+  const createConversationMutation = useMutation({
+    mutationFn: (payload: {
+      channelId?: string | null;
+      title?: string;
+      selections: Array<{ videoId: string; analysisId?: string | null }>;
+    }) => createConversationFn({ data: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+      router.navigate({ to: "/dashboard/conversations" });
+    },
+    onError: (error) => {
+      setActionError(
+        error instanceof Error ? error.message : "Unable to create conversation",
       );
     },
   });
@@ -101,19 +147,6 @@ function DashboardChannels() {
     return () => clearInterval(interval);
   }, [autoSyncEnabled, activeChannel, syncMutation]);
 
-  const savePromptMutation = useMutation({
-    mutationFn: (payload: { channelId: string; prompt: string }) =>
-      saveChannelPromptFn({ data: payload }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
-    },
-    onError: (error) => {
-      setActionError(
-        error instanceof Error ? error.message : "Prompt update failed",
-      );
-    },
-  });
-
   const setActiveMutation = useMutation({
     mutationFn: (channelId: string) => setActiveChannelFn({ data: { channelId } }),
     onSuccess: () => {
@@ -136,8 +169,8 @@ function DashboardChannels() {
           Playlist control
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Manage your YouTube connection, sync cadence, and the default analysis
-          prompt for playlists.
+          Manage your YouTube connection, sync cadence, and the playlist you
+          want to track.
         </p>
       </div>
 
@@ -152,7 +185,7 @@ function DashboardChannels() {
           <CardHeader>
             <CardTitle>Playlists</CardTitle>
             <CardDescription>
-              Connect and pick the playlist you want to analyze.
+              Connect and pick the playlist you want to track.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -254,7 +287,9 @@ function DashboardChannels() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <Label>Playlists</Label>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Playlists
+                    </p>
                     <Button
                       type="button"
                       variant="outline"
@@ -302,34 +337,147 @@ function DashboardChannels() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Analysis prompt</CardTitle>
+            <CardTitle>Active videos</CardTitle>
             <CardDescription>
-              Default prompt used for sync and manual analyses.
+              Browse uploads for the active playlist and review analyses.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Label htmlFor="channel-prompt">Prompt</Label>
-            <textarea
-              id="channel-prompt"
-              rows={6}
-              className="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
-              value={channelPromptDraft}
-              onChange={(event) => setChannelPromptDraft(event.target.value)}
-              disabled={!activeChannel}
-            />
-            <Button
-              type="button"
-              onClick={() =>
-                activeChannel &&
-                savePromptMutation.mutate({
-                  channelId: activeChannel.id,
-                  prompt: channelPromptDraft,
-                })
-              }
-              disabled={!activeChannel || savePromptMutation.isPending}
-            >
-              {savePromptMutation.isPending ? "Saving..." : "Save prompt"}
-            </Button>
+          <CardContent className="space-y-4">
+            {!activeChannel ? (
+              <p className="text-sm text-muted-foreground">
+                Pick a playlist on the left to load its videos.
+              </p>
+            ) : videosQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading videos...</p>
+            ) : videos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No videos yet. Sync the playlist to fetch recent uploads.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {videos.map((video) => (
+                  <button
+                    key={video.id}
+                    type="button"
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
+                      video.id === selectedVideo?.id
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border/60 bg-background/70 hover:border-primary/30",
+                    )}
+                    onClick={() => setSelectedVideoId(video.id)}
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {truncate(video.title || "Video", 26)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(video.published_at)}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {video.analysis_count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <Separator />
+
+            {!selectedVideo ? (
+              <p className="text-sm text-muted-foreground">
+                Select a video to review its analyses.
+              </p>
+            ) : analysesQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading analyses...</p>
+            ) : analysisRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No analyses yet for this video.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Analyses
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      latestAnalysis &&
+                      createConversationMutation.mutate({
+                        title: `Chat: ${selectedVideo?.title || "Video"}`,
+                        selections: [
+                          {
+                            videoId: latestAnalysis.video_id,
+                            analysisId: latestAnalysis.id,
+                          },
+                        ],
+                      })
+                    }
+                    disabled={!latestAnalysis || createConversationMutation.isPending}
+                  >
+                    Chat latest
+                  </Button>
+                </div>
+                {analysisRecords.map((analysis) => (
+                  <div
+                    key={analysis.id}
+                    className="rounded-3xl border border-border/60 bg-background/70 px-3 py-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(analysis.created_at)}
+                      </p>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-1 text-[11px]",
+                          analysis.status === "failed"
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-secondary/15 text-secondary-foreground",
+                        )}
+                      >
+                        {analysis.status}
+                      </span>
+                    </div>
+                    {analysis.status === "failed" ? (
+                      <p className="mt-2 text-xs text-destructive">
+                        {analysis.error || "Analysis failed"}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-foreground">
+                        {truncate(analysis.analysis_text, 180)}
+                      </p>
+                    )}
+                    <div className="mt-3 flex items-center justify-between">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          createConversationMutation.mutate({
+                            title: `Chat: ${selectedVideo?.title || "Video"}`,
+                            selections: [
+                              {
+                                videoId: analysis.video_id,
+                                analysisId: analysis.id,
+                              },
+                            ],
+                          })
+                        }
+                        disabled={createConversationMutation.isPending}
+                      >
+                        Chat from analysis
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        {truncate(analysis.model || "Model", 18)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

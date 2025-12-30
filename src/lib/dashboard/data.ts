@@ -534,28 +534,10 @@ export const createConversationFn = createServerFn({ method: "POST" }).handler(
 
     if (videoError) throw videoError;
 
-    const { data: analyses } = await supabase
-      .from("video_analyses")
-      .select("id, video_id, created_at")
-      .in("video_id", videoIds)
-      .order("created_at", { ascending: false });
-
-    const latestByVideo = new Map<string, string>();
-    for (const analysis of analyses || []) {
-      if (!latestByVideo.has(analysis.video_id)) {
-        latestByVideo.set(analysis.video_id, analysis.id);
-      }
-    }
-
     const selectionRows = data.selections.map((selection) => ({
       video_id: selection.videoId,
-      analysis_id: selection.analysisId || latestByVideo.get(selection.videoId) || null,
+      analysis_id: selection.analysisId || null,
     }));
-
-    const missing = selectionRows.filter((row) => !row.analysis_id);
-    if (missing.length > 0) {
-      throw new Error("Run analysis for all selected videos first");
-    }
 
     const trimmedTitle = data.title?.trim();
     const sortedTitles = (videos || []).map((video) => video.title || "Video");
@@ -652,49 +634,63 @@ export const sendConversationMessageFn = createServerFn({ method: "POST" }).hand
       .map((selection) => selection.analysis_id)
       .filter(Boolean) as string[];
 
-    if (analysisIds.length === 0)
-      throw new Error("Conversation has no analysis records");
+    let videoMap = new Map<string, { id: string; title: string | null; youtube_video_id: string | null }>();
+    let analysisMap = new Map<
+      string,
+      { id: string; video_id: string; prompt: string | null; analysis_text: string | null }
+    >();
 
-    const { data: analyses } = await supabase
-      .from("video_analyses")
-      .select("id, video_id, prompt, analysis_text")
-      .in("id", analysisIds);
+    if (analysisIds.length > 0) {
+      const { data: analyses } = await supabase
+        .from("video_analyses")
+        .select("id, video_id, prompt, analysis_text")
+        .in("id", analysisIds);
 
-    const { data: videos } = await supabase
-      .from("videos")
-      .select("id, title, youtube_video_id")
-      .in(
-        "id",
-        (selections || []).map((selection) => selection.video_id),
+      const { data: videos } = await supabase
+        .from("videos")
+        .select("id, title, youtube_video_id")
+        .in(
+          "id",
+          (selections || []).map((selection) => selection.video_id),
+        );
+
+      videoMap = new Map((videos || []).map((video) => [video.id, video]));
+      analysisMap = new Map(
+        (analyses || []).map((analysis) => [analysis.id, analysis]),
       );
+    }
 
-    const videoMap = new Map((videos || []).map((video) => [video.id, video]));
-    const analysisMap = new Map(
-      (analyses || []).map((analysis) => [analysis.id, analysis]),
-    );
+    const promptBlocks = (selections || [])
+      .filter((selection) => selection.analysis_id)
+      .map((selection, index) => {
+        const analysis = selection.analysis_id
+          ? analysisMap.get(selection.analysis_id)
+          : undefined;
+        const video = videoMap.get(selection.video_id);
+        const title = video?.title || "Untitled video";
+        const url = video?.youtube_video_id
+          ? `https://www.youtube.com/watch?v=${video.youtube_video_id}`
+          : "Unknown URL";
+        const prompt = analysis?.prompt || "No prompt";
+        const analysisText = analysis?.analysis_text || "No analysis available.";
 
-    const promptBlocks = (selections || []).map((selection, index) => {
-      const analysis = selection.analysis_id
-        ? analysisMap.get(selection.analysis_id)
-        : undefined;
-      const video = videoMap.get(selection.video_id);
-      const title = video?.title || "Untitled video";
-      const url = video?.youtube_video_id
-        ? `https://www.youtube.com/watch?v=${video.youtube_video_id}`
-        : "Unknown URL";
-      const prompt = analysis?.prompt || "No prompt";
-      const analysisText = analysis?.analysis_text || "No analysis available.";
+        return `Video ${index + 1}: ${title}\nURL: ${url}\nPrompt: ${prompt}\n${analysisText}`;
+      });
 
-      return `Video ${index + 1}: ${title}\nURL: ${url}\nPrompt: ${prompt}\n${analysisText}`;
-    });
-
-    const systemPrompt = [
+    const systemPromptParts = [
       "You are a helpful assistant who answers questions about YouTube videos.",
-      "Use the following analysis summaries as your knowledge base.",
-      "Answer clearly and cite which video your answer comes from when relevant.",
-      "",
-      promptBlocks.join("\n\n"),
-    ].join("\n");
+    ];
+
+    if (promptBlocks.length > 0) {
+      systemPromptParts.push(
+        "Use the following analysis summaries as your knowledge base.",
+        "Answer clearly and cite which video your answer comes from when relevant.",
+        "",
+        promptBlocks.join("\n\n"),
+      );
+    }
+
+    const systemPrompt = systemPromptParts.join("\n");
 
     const { data: messages } = await supabase
       .from("conversation_messages")

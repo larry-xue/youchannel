@@ -16,10 +16,8 @@ import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
-import { Route as DashboardVideosRouteImport } from './routes/dashboard/videos'
 import { Route as DashboardConversationsRouteImport } from './routes/dashboard/conversations'
 import { Route as DashboardChannelsRouteImport } from './routes/dashboard/channels'
-import { Route as DashboardAnalysesRouteImport } from './routes/dashboard/analyses'
 
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
@@ -56,11 +54,6 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardVideosRoute = DashboardVideosRouteImport.update({
-  id: '/videos',
-  path: '/videos',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 const DashboardConversationsRoute = DashboardConversationsRouteImport.update({
   id: '/conversations',
   path: '/conversations',
@@ -71,11 +64,6 @@ const DashboardChannelsRoute = DashboardChannelsRouteImport.update({
   path: '/channels',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardAnalysesRoute = DashboardAnalysesRouteImport.update({
-  id: '/analyses',
-  path: '/analyses',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -83,10 +71,8 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRouteRouteWithChildren
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
-  '/dashboard/analyses': typeof DashboardAnalysesRoute
   '/dashboard/channels': typeof DashboardChannelsRoute
   '/dashboard/conversations': typeof DashboardConversationsRoute
-  '/dashboard/videos': typeof DashboardVideosRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/tasks/': typeof TasksIndexRoute
 }
@@ -94,10 +80,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
-  '/dashboard/analyses': typeof DashboardAnalysesRoute
   '/dashboard/channels': typeof DashboardChannelsRoute
   '/dashboard/conversations': typeof DashboardConversationsRoute
-  '/dashboard/videos': typeof DashboardVideosRoute
   '/dashboard': typeof DashboardIndexRoute
   '/tasks': typeof TasksIndexRoute
 }
@@ -108,10 +92,8 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRouteRouteWithChildren
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
-  '/dashboard/analyses': typeof DashboardAnalysesRoute
   '/dashboard/channels': typeof DashboardChannelsRoute
   '/dashboard/conversations': typeof DashboardConversationsRoute
-  '/dashboard/videos': typeof DashboardVideosRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/tasks/': typeof TasksIndexRoute
 }
@@ -123,10 +105,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/connect-youtube'
     | '/signin'
-    | '/dashboard/analyses'
     | '/dashboard/channels'
     | '/dashboard/conversations'
-    | '/dashboard/videos'
     | '/dashboard/'
     | '/tasks/'
   fileRoutesByTo: FileRoutesByTo
@@ -134,10 +114,8 @@ export interface FileRouteTypes {
     | '/'
     | '/connect-youtube'
     | '/signin'
-    | '/dashboard/analyses'
     | '/dashboard/channels'
     | '/dashboard/conversations'
-    | '/dashboard/videos'
     | '/dashboard'
     | '/tasks'
   id:
@@ -147,10 +125,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/connect-youtube'
     | '/signin'
-    | '/dashboard/analyses'
     | '/dashboard/channels'
     | '/dashboard/conversations'
-    | '/dashboard/videos'
     | '/dashboard/'
     | '/tasks/'
   fileRoutesById: FileRoutesById
@@ -214,13 +190,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/videos': {
-      id: '/dashboard/videos'
-      path: '/videos'
-      fullPath: '/dashboard/videos'
-      preLoaderRoute: typeof DashboardVideosRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
     '/dashboard/conversations': {
       id: '/dashboard/conversations'
       path: '/conversations'
@@ -235,29 +204,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardChannelsRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/analyses': {
-      id: '/dashboard/analyses'
-      path: '/analyses'
-      fullPath: '/dashboard/analyses'
-      preLoaderRoute: typeof DashboardAnalysesRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
   }
 }
 
 interface DashboardRouteRouteChildren {
-  DashboardAnalysesRoute: typeof DashboardAnalysesRoute
   DashboardChannelsRoute: typeof DashboardChannelsRoute
   DashboardConversationsRoute: typeof DashboardConversationsRoute
-  DashboardVideosRoute: typeof DashboardVideosRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
-  DashboardAnalysesRoute: DashboardAnalysesRoute,
   DashboardChannelsRoute: DashboardChannelsRoute,
   DashboardConversationsRoute: DashboardConversationsRoute,
-  DashboardVideosRoute: DashboardVideosRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

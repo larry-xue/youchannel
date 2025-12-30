@@ -13,7 +13,6 @@ import { Input } from "~/lib/components/ui/input";
 import {
   CHANNELS_QUERY_KEY,
   CONVERSATIONS_QUERY_KEY,
-  type VideoWithStatus,
   createConversationFn,
   getChannelsFn,
   getConversationMessagesFn,
@@ -105,18 +104,6 @@ function DashboardConversations() {
     );
   }, [videos]);
 
-  const selectedVideos = useMemo(
-    () =>
-      selectedVideoIds
-        .map((id) => videos.find((video) => video.id === id))
-        .filter((video): video is VideoWithStatus => Boolean(video)),
-    [selectedVideoIds, videos],
-  );
-
-  const hasMissingAnalysis = selectedVideos.some(
-    (video) => video.analysis_count === 0,
-  );
-
   const createConversationMutation = useMutation({
     mutationFn: (payload: {
       channelId?: string | null;
@@ -185,7 +172,7 @@ function DashboardConversations() {
           Conversations
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Build conversations across selected analyses and keep a running thread.
+          Start a conversation and keep a running thread.
         </p>
       </div>
 
@@ -256,7 +243,7 @@ function DashboardConversations() {
           <Card>
             <CardHeader>
               <CardTitle>Pick videos</CardTitle>
-              <CardDescription>Select videos to include in a chat.</CardDescription>
+              <CardDescription>Select videos to organize a chat.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {videosQuery.isLoading ? (
@@ -306,8 +293,7 @@ function DashboardConversations() {
                   onClick={handleStartConversation}
                   disabled={
                     selectedVideoIds.length === 0 ||
-                    createConversationMutation.isPending ||
-                    hasMissingAnalysis
+                    createConversationMutation.isPending
                   }
                 >
                   {createConversationMutation.isPending
@@ -324,11 +310,6 @@ function DashboardConversations() {
                   Clear
                 </Button>
               </div>
-              {hasMissingAnalysis && (
-                <p className="text-xs text-destructive">
-                  Run analysis on all selected videos before starting a conversation.
-                </p>
-              )}
             </CardContent>
           </Card>
 
@@ -374,7 +355,7 @@ function DashboardConversations() {
           <CardHeader>
             <CardTitle>Conversation</CardTitle>
             <CardDescription>
-              Ask questions across the selected analyses.
+              Ask questions and keep context in one place.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">

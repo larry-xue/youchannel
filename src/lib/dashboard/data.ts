@@ -453,15 +453,6 @@ export const runVideoAnalysisFn = createServerFn({ method: "POST" }).handler(
     const { createHash } = await import("crypto");
     const promptHash = createHash("sha256").update(prompt).digest("hex");
 
-    const { data: existing } = await supabase
-      .from("video_analyses")
-      .select("*")
-      .eq("video_id", video.id)
-      .eq("prompt_hash", promptHash)
-      .maybeSingle();
-
-    if (existing) return { analysis: existing, reused: true };
-
     const { generateVideoAnalysis } = await import("~/lib/server/gemini");
     const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_video_id}`;
     const result = await generateVideoAnalysis({ videoUrl, prompt });

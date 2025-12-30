@@ -9,11 +9,11 @@ import { routeTree } from "./routeTree.gen";
 export function getRouter() {
   const queryClient = new QueryClient({
     mutationCache: new MutationCache({
-      onSettled: (_, __, ___, mutation) => {
-        // Invalidate the specific query that was affected by this mutation
-        const queryKey = mutation.options.mutationKey?.[0]
+      onSettled: (_, __, ___, ____, mutation) => {
+        if (!mutation) return;
+        const queryKey = mutation.options.mutationKey?.[0];
         if (queryKey) {
-          queryClient.invalidateQueries({ queryKey: [queryKey] })
+          queryClient.invalidateQueries({ queryKey: [queryKey] });
         }
       },
     }),

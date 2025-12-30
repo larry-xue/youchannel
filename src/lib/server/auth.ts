@@ -2,14 +2,21 @@ import { createServerClient } from '@supabase/ssr'
 import { createServerOnlyFn } from '@tanstack/react-start'
 import { getCookies, setCookie } from '@tanstack/react-start/server'
 
-// Make sure environment variables are defined
-const supabaseUrl = process.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY as string
-
-if (!supabaseUrl) throw new Error('Missing VITE_SUPABASE_URL')
-if (!supabaseAnonKey) throw new Error('Missing VITE_SUPABASE_ANON_KEY')
+const getEnvValue = (key: string) => {
+  const metaEnv = (import.meta as { env?: Record<string, string | undefined> })
+    .env
+  return process.env[key] ?? metaEnv?.[key]
+}
 
 export const getSupabaseServerClient = createServerOnlyFn(() => {
+  const supabaseUrl =
+    getEnvValue('VITE_SUPABASE_URL') ?? getEnvValue('SUPABASE_URL')
+  const supabaseAnonKey =
+    getEnvValue('VITE_SUPABASE_ANON_KEY') ?? getEnvValue('SUPABASE_ANON_KEY')
+
+  if (!supabaseUrl) throw new Error('Missing VITE_SUPABASE_URL')
+  if (!supabaseAnonKey) throw new Error('Missing VITE_SUPABASE_ANON_KEY')
+
   return createServerClient(
     supabaseUrl,
     supabaseAnonKey,

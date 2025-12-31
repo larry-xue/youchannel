@@ -1,7 +1,8 @@
 import { chat, type ConstrainedModelMessage } from "@tanstack/ai";
 import { geminiText, type GeminiTextModel } from "@tanstack/ai-gemini";
 
-const DEFAULT_MODEL: GeminiTextModel = (process.env.GEMINI_MODEL as GeminiTextModel) || "gemini-2.5-flash";
+const DEFAULT_MODEL: GeminiTextModel =
+  (process.env.GEMINI_MODEL as GeminiTextModel) || "gemini-2.5-flash";
 
 async function writeGeminiLog(entry: Record<string, unknown>) {
   try {

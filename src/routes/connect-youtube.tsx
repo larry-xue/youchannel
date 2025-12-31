@@ -182,7 +182,8 @@ function ConnectYouTube() {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
                   We will create a private playlist called "YouChannel AI" on your YouTube
-                  account. Add videos to this playlist and we will automatically analyze them.
+                  account. Add videos to this playlist and we will automatically analyze
+                  them.
                 </p>
                 <p>You can revoke access anytime in your Google account settings.</p>
               </div>

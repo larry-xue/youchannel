@@ -10,6 +10,7 @@ export const PLAYLISTS_QUERY_KEY = ["playlists"] as const;
 export type VideoWithStatus = Video & {
   analysis_count: number;
   latest_analysis_at: string | null;
+  latest_analysis_status: string | null;
 };
 
 async function getSupabaseAndUser() {
@@ -298,23 +299,26 @@ export const getVideosFn = createServerFn({ method: "POST" })
 
     const { data: analyses } = await supabase
       .from("video_analyses")
-      .select("video_id, created_at")
+      .select("video_id, created_at, status")
       .in("video_id", videoIds);
 
-    const analysisMap = new Map<string, { count: number; latest: string | null }>();
+    const analysisMap = new Map<
+      string,
+      { count: number; latest: string | null; status: string | null }
+    >();
     for (const analysis of analyses || []) {
       const current = analysisMap.get(analysis.video_id) || {
         count: 0,
         latest: null,
+        status: null,
       };
-      const nextLatest =
+      const isNewer =
         !current.latest ||
-        new Date(analysis.created_at).getTime() > new Date(current.latest).getTime()
-          ? analysis.created_at
-          : current.latest;
+        new Date(analysis.created_at).getTime() > new Date(current.latest).getTime();
       analysisMap.set(analysis.video_id, {
         count: current.count + 1,
-        latest: nextLatest,
+        latest: isNewer ? analysis.created_at : current.latest,
+        status: isNewer ? analysis.status : current.status,
       });
     }
 
@@ -322,6 +326,7 @@ export const getVideosFn = createServerFn({ method: "POST" })
       ...video,
       analysis_count: analysisMap.get(video.id)?.count || 0,
       latest_analysis_at: analysisMap.get(video.id)?.latest || null,
+      latest_analysis_status: analysisMap.get(video.id)?.status || null,
     })) as VideoWithStatus[];
   });
 

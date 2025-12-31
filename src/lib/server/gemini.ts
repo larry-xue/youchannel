@@ -1,7 +1,7 @@
-import { chat, type ModelMessage } from "@tanstack/ai";
-import { geminiText } from "@tanstack/ai-gemini";
+import { chat, type ConstrainedModelMessage } from "@tanstack/ai";
+import { geminiText, type GeminiTextModel } from "@tanstack/ai-gemini";
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const DEFAULT_MODEL: GeminiTextModel = (process.env.GEMINI_MODEL as GeminiTextModel) || "gemini-2.5-flash";
 
 async function writeGeminiLog(entry: Record<string, unknown>) {
   try {
@@ -25,7 +25,7 @@ function previewText(text: string, maxLength = 200) {
 type VideoAnalysisInput = {
   videoUrl: string;
   prompt: string;
-  model?: string;
+  model?: GeminiTextModel;
 };
 
 export async function generateVideoAnalysis({
@@ -83,10 +83,16 @@ export async function generateVideoAnalysis({
   }
 }
 
+type GeminiAdapter = ReturnType<typeof geminiText>;
+type GeminiMessage = ConstrainedModelMessage<{
+  inputModalities: GeminiAdapter["~types"]["inputModalities"];
+  messageMetadataByModality: GeminiAdapter["~types"]["messageMetadataByModality"];
+}>;
+
 type ConversationInput = {
-  messages: ModelMessage[];
+  messages: GeminiMessage[];
   systemPrompts?: string[];
-  model?: string;
+  model?: GeminiTextModel;
 };
 
 export async function generateConversationReply({

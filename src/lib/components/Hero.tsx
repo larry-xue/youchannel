@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { User } from "@supabase/supabase-js";
 
 interface HeroProps {
-  user: any | null;
+  user: User | null;
 }
 
 export function Hero({ user }: HeroProps) {

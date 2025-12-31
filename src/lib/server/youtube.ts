@@ -41,7 +41,7 @@ function getOAuthConfig(): OAuthConfig {
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const redirectUri =
     process.env.GOOGLE_OAUTH_REDIRECT_URI ||
-    `${process.env.VITE_BASE_URL}/dashboard`;
+    `${process.env.VITE_BASE_URL}/connect-youtube`;
 
   if (!clientId) throw new Error("Missing GOOGLE_OAUTH_CLIENT_ID");
   if (!clientSecret) throw new Error("Missing GOOGLE_OAUTH_CLIENT_SECRET");

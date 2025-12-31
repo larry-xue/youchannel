@@ -1,6 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
   Card,
@@ -9,9 +9,21 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
-import { startYouTubeOAuthFn } from "~/lib/dashboard/data";
+import { startYouTubeOAuthFn, completeYouTubeOauthFn } from "~/lib/dashboard/data";
 
 export const Route = createFileRoute("/connect-youtube")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      code: search.code as string | undefined,
+      state: search.state as string | undefined,
+      error: search.error as string | undefined,
+    };
+  },
+  loaderDeps: ({ search }) => ({
+    code: search.code,
+    state: search.state,
+    error: search.error,
+  }),
   beforeLoad: ({ context, location }) => {
     if (!context.user) {
       throw redirect({
@@ -23,11 +35,18 @@ export const Route = createFileRoute("/connect-youtube")({
       });
     }
   },
-  loader: async ({ context }) => {
+  loader: async ({ context, deps }) => {
     const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
     const supabase = await getSupabaseServerClient();
     const user = context.user!;
 
+    // 如果是 OAuth 回调，处理完成后重定向
+    if (deps.code && deps.state) {
+      // OAuth 回调处理将在组件中完成，这里只返回用户信息
+      return { email: user.email, isOAuthCallback: true };
+    }
+
+    // 检查是否已有账户，如果有则重定向到 dashboard
     const { data: account } = await supabase
       .from("youtube_accounts")
       .select("id")
@@ -38,19 +57,78 @@ export const Route = createFileRoute("/connect-youtube")({
       throw redirect({ to: "/dashboard/channels" });
     }
 
-    return { email: user.email };
+    return { email: user.email, isOAuthCallback: false };
   },
   component: ConnectYouTube,
 });
 
 function ConnectYouTube() {
-  const { email } = Route.useLoaderData();
+  const { email, isOAuthCallback } = Route.useLoaderData();
+  const search = Route.useSearch();
+  const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [oauthMessage, setOauthMessage] = useState<string | null>(null);
+
+  // 处理 OAuth 回调
+  useEffect(() => {
+    if (!isOAuthCallback || !search.code || !search.state) return;
+
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    // 使用 requestAnimationFrame 来避免在 effect 中直接调用 setState
+    const processOAuth = async () => {
+      requestAnimationFrame(() => {
+        if (!isMounted) return;
+        setOauthMessage("Connecting YouTube...");
+        setActionError(null);
+      });
+
+      try {
+        // @ts-expect-error - ServerFn type inference issue
+        await completeYouTubeOauthFn({ data: { code: search.code!, state: search.state! } });
+        if (!isMounted) return;
+        setOauthMessage("YouTube connected successfully!");
+        await router.invalidate();
+        // 延迟一下让用户看到成功消息，然后重定向
+        timeoutId = setTimeout(() => {
+          router.navigate({ to: "/dashboard/channels" });
+        }, 1000);
+      } catch (error) {
+        if (!isMounted) return;
+        const errorMessage = error instanceof Error ? error.message : "YouTube connect failed";
+        requestAnimationFrame(() => {
+          setActionError(errorMessage);
+          setOauthMessage(null);
+        });
+      }
+    };
+
+    processOAuth();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isOAuthCallback, search.code, search.state, router]);
+
+  // 处理 OAuth 错误
+  useEffect(() => {
+    if (search.error) {
+      requestAnimationFrame(() => {
+        setActionError("YouTube OAuth failed. Please try again.");
+      });
+    }
+  }, [search.error]);
 
   const connectMutation = useMutation({
-    mutationFn: () => startYouTubeOAuthFn({ data: {} }),
+    mutationFn: () => startYouTubeOAuthFn(),
     onSuccess: ({ url }) => {
-      window.location.href = url;
+      // 使用 window.location 进行 OAuth 重定向到 Google
+      // 这是 OAuth 流程的一部分，需要完整的页面跳转
+      if (url && typeof window !== "undefined") {
+        window.location.assign(url);
+      }
     },
     onError: (error) => {
       setActionError(error instanceof Error ? error.message : "Unable to connect");
@@ -71,13 +149,20 @@ function ConnectYouTube() {
             <div className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
               Signed in as <span className="text-foreground">{email}</span>
             </div>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>We will request read-only access to your playlists.</p>
-              <p>You can revoke access anytime in your Google account settings.</p>
-            </div>
+            {oauthMessage && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
+                {oauthMessage}
+              </div>
+            )}
             {actionError && (
               <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {actionError}
+              </div>
+            )}
+            {!isOAuthCallback && (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>We will request read-only access to your playlists.</p>
+                <p>You can revoke access anytime in your Google account settings.</p>
               </div>
             )}
             <div className="flex flex-wrap gap-2">

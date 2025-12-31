@@ -6,6 +6,7 @@ import type {
   Video,
   VideoAnalysis,
 } from "~/schema";
+import { z } from "zod";
 
 export const DEFAULT_ANALYSIS_PROMPT =
   "Summarize the video in 5 bullet points and call out key insights.";
@@ -50,6 +51,120 @@ export const startYouTubeOAuthFn = createServerFn({ method: "POST" }).handler(
 
     const { buildYouTubeAuthUrl } = await import("~/lib/server/youtube");
     return { url: buildYouTubeAuthUrl(state) };
+  },
+);
+
+export const completeYouTubeOauthFn = createServerFn({ method: "POST" }).handler(
+  async ({ data }: { data: { code: string; state: string } }) => {
+    if (!data?.code || !data?.state) {
+      throw new Error("Missing OAuth payload");
+    }
+
+    const { supabase, user } = await getSupabaseAndUser();
+
+    const { data: stateRow, error: stateError } = await supabase
+      .from("youtube_oauth_states")
+      .select("*")
+      .eq("state", data.state)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (stateError || !stateRow) throw new Error("Invalid OAuth state");
+
+    const expiresAt = new Date(stateRow.expires_at).getTime();
+    if (Date.now() > expiresAt) {
+      throw new Error("OAuth state expired. Please connect again.");
+    }
+
+    await supabase.from("youtube_oauth_states").delete().eq("id", stateRow.id);
+
+    const { exchangeCodeForTokens, fetchChannelSummaries } = await import(
+      "~/lib/server/youtube",
+    );
+    const token = await exchangeCodeForTokens(data.code);
+    const tokenExpiresAt = new Date(
+      Date.now() + token.expires_in * 1000,
+    ).toISOString();
+
+    const { data: existingAccount } = await supabase
+      .from("youtube_accounts")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("provider", "google")
+      .maybeSingle();
+
+    let accountId = existingAccount?.id;
+
+    if (existingAccount) {
+      const refreshToken = token.refresh_token || existingAccount.refresh_token;
+      if (!refreshToken) throw new Error("Missing refresh token");
+
+      const { error: updateError } = await supabase
+        .from("youtube_accounts")
+        .update({
+          access_token: token.access_token,
+          refresh_token: refreshToken,
+          expires_at: tokenExpiresAt,
+          scope: token.scope || existingAccount.scope,
+          token_type: token.token_type || existingAccount.token_type,
+        })
+        .eq("id", existingAccount.id);
+
+      if (updateError) throw updateError;
+    } else {
+      if (!token.refresh_token) throw new Error("Missing refresh token");
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("youtube_accounts")
+        .insert({
+          user_id: user.id,
+          provider: "google",
+          access_token: token.access_token,
+          refresh_token: token.refresh_token,
+          expires_at: tokenExpiresAt,
+          scope: token.scope,
+          token_type: token.token_type,
+        })
+        .select()
+        .single();
+
+      if (insertError || !inserted) throw insertError || new Error("Account save failed");
+      accountId = inserted.id;
+    }
+
+    const channelSummaries = await fetchChannelSummaries(token.access_token);
+    if (channelSummaries.length === 0) {
+      throw new Error("No YouTube playlists found for this account");
+    }
+
+    const { data: existingChannels } = await supabase
+      .from("channels")
+      .select("channel_id, is_active")
+      .eq("user_id", user.id);
+
+    const activeByChannel = new Map(
+      (existingChannels || []).map((channel) => [channel.channel_id, channel.is_active]),
+    );
+    const hasActive = (existingChannels || []).some((channel) => channel.is_active);
+
+    const upsertPayload = channelSummaries.map((summary, index) => ({
+      user_id: user.id,
+      youtube_account_id: accountId,
+      channel_id: summary.channelId,
+      title: summary.title,
+      description: summary.description,
+      thumbnail_url: summary.thumbnailUrl,
+      custom_url: summary.customUrl,
+      is_active: activeByChannel.get(summary.channelId) ?? (!hasActive && index === 0),
+    }));
+
+    const { error: upsertError } = await supabase
+      .from("channels")
+      .upsert(upsertPayload, { onConflict: "user_id,channel_id" });
+
+    if (upsertError) throw upsertError;
+
+    return { success: true };
   },
 );
 
@@ -187,8 +302,10 @@ export const saveChannelPromptFn = createServerFn({ method: "POST" }).handler(
   },
 );
 
-export const getVideosFn = createServerFn({ method: "POST" }).handler(
-  async ({ data }: { data: { channelIds?: string[] } }) => {
+export const getVideosFn = createServerFn({ method: "POST" })
+.inputValidator((data) => z.object({ channelIds: z.array(z.string()).optional() }).parse(data))
+.handler(
+  async ({ data }) => {
     const { supabase } = await getSupabaseAndUser();
     const channelIds = data?.channelIds?.filter(Boolean) || [];
     if (channelIds.length === 0) return [] as VideoWithStatus[];

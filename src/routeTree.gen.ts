@@ -14,7 +14,6 @@ import { Route as ConnectYoutubeRouteImport } from './routes/connect-youtube'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
-import { Route as DashboardConversationsRouteImport } from './routes/dashboard/conversations'
 import { Route as DashboardChannelsRouteImport } from './routes/dashboard/channels'
 
 const SigninRoute = SigninRouteImport.update({
@@ -42,11 +41,6 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardConversationsRoute = DashboardConversationsRouteImport.update({
-  id: '/conversations',
-  path: '/conversations',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 const DashboardChannelsRoute = DashboardChannelsRouteImport.update({
   id: '/channels',
   path: '/channels',
@@ -59,7 +53,6 @@ export interface FileRoutesByFullPath {
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
   '/dashboard/channels': typeof DashboardChannelsRoute
-  '/dashboard/conversations': typeof DashboardConversationsRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
@@ -67,7 +60,6 @@ export interface FileRoutesByTo {
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
   '/dashboard/channels': typeof DashboardChannelsRoute
-  '/dashboard/conversations': typeof DashboardConversationsRoute
   '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -77,7 +69,6 @@ export interface FileRoutesById {
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
   '/dashboard/channels': typeof DashboardChannelsRoute
-  '/dashboard/conversations': typeof DashboardConversationsRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -88,7 +79,6 @@ export interface FileRouteTypes {
     | '/connect-youtube'
     | '/signin'
     | '/dashboard/channels'
-    | '/dashboard/conversations'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -96,7 +86,6 @@ export interface FileRouteTypes {
     | '/connect-youtube'
     | '/signin'
     | '/dashboard/channels'
-    | '/dashboard/conversations'
     | '/dashboard'
   id:
     | '__root__'
@@ -105,7 +94,6 @@ export interface FileRouteTypes {
     | '/connect-youtube'
     | '/signin'
     | '/dashboard/channels'
-    | '/dashboard/conversations'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -153,13 +141,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/conversations': {
-      id: '/dashboard/conversations'
-      path: '/conversations'
-      fullPath: '/dashboard/conversations'
-      preLoaderRoute: typeof DashboardConversationsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
     '/dashboard/channels': {
       id: '/dashboard/channels'
       path: '/channels'
@@ -172,13 +153,11 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteRouteChildren {
   DashboardChannelsRoute: typeof DashboardChannelsRoute
-  DashboardConversationsRoute: typeof DashboardConversationsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardChannelsRoute: DashboardChannelsRoute,
-  DashboardConversationsRoute: DashboardConversationsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

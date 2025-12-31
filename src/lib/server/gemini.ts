@@ -1,4 +1,4 @@
-import { chat, type ModelMessage } from "@tanstack/ai";
+import { chat } from "@tanstack/ai";
 import { geminiText } from "@tanstack/ai-gemini";
 
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -76,53 +76,6 @@ export async function generateVideoAnalysis({
   } catch (error) {
     await writeGeminiLog({
       event: "gemini.video.error",
-      model,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
-  }
-}
-
-type ConversationInput = {
-  messages: ModelMessage[];
-  systemPrompts?: string[];
-  model?: string;
-};
-
-export async function generateConversationReply({
-  messages,
-  systemPrompts,
-  model = DEFAULT_MODEL,
-}: ConversationInput) {
-  const adapter = geminiText(model);
-  await writeGeminiLog({
-    event: "gemini.chat.request",
-    model,
-    messageCount: messages.length,
-    systemPromptCount: systemPrompts?.length ?? 0,
-  });
-
-  try {
-    const startedAt = Date.now();
-    const result = await chat({
-      adapter,
-      stream: false,
-      messages,
-      systemPrompts,
-    });
-
-    await writeGeminiLog({
-      event: "gemini.chat.response",
-      model,
-      durationMs: Date.now() - startedAt,
-      textLength: result.length,
-      textPreview: previewText(result),
-    });
-
-    return { text: result, model };
-  } catch (error) {
-    await writeGeminiLog({
-      event: "gemini.chat.error",
       model,
       error: error instanceof Error ? error.message : String(error),
     });

@@ -60,7 +60,6 @@ export const Route = createFileRoute("/dashboard")({
 
 const DASHBOARD_NAV_ITEMS = [
   { label: "Playlists", to: "/dashboard/channels" },
-  { label: "Conversations", to: "/dashboard/conversations" },
 ];
 
 function DashboardLayout() {
@@ -130,5 +129,4 @@ function DashboardLayout() {
     </div>
   );
 }
-
 

@@ -52,27 +52,3 @@ export type VideoAnalysis = {
   created_at: string;
   updated_at: string;
 };
-
-export type Conversation = {
-  id: string;
-  user_id: string;
-  channel_id: string | null;
-  title: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type ConversationVideo = {
-  conversation_id: string;
-  video_id: string;
-  analysis_id: string | null;
-  created_at: string;
-};
-
-export type ConversationMessage = {
-  id: string;
-  conversation_id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  created_at: string;
-};

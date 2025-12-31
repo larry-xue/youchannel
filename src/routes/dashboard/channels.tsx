@@ -159,11 +159,11 @@ function DashboardChannels() {
                 No videos yet. Sync the playlist to fetch recent uploads.
               </p>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(200px,280px))] sm:justify-start">
                 {videos.map((video) => (
                   <div
                     key={video.id}
-                    className="overflow-hidden rounded-3xl border border-border/60 bg-background/80"
+                    className="w-full overflow-hidden rounded-3xl border border-border/60 bg-background/80"
                   >
                     <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
                       {video.thumbnail_url ? (
@@ -179,9 +179,9 @@ function DashboardChannels() {
                         </div>
                       )}
                     </div>
-                    <div className="space-y-1 px-4 pb-4 pt-3">
+                    <div className="space-y-1 px-3 pb-3 pt-2">
                       <p className="text-sm font-semibold leading-snug text-foreground">
-                        {truncate(video.title || "Video", 64)}
+                        {truncate(video.title || "Video", 52)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(video.published_at)}

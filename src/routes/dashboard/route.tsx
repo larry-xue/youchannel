@@ -18,6 +18,27 @@ export const signOutFn = createServerFn({ method: "POST" }).handler(async () => 
   return { success: true };
 });
 
+const getYouTubeAccountStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+  const supabase = await getSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) return { hasAccount: false };
+
+  const { data: account, error: accountError } = await supabase
+    .from("youtube_accounts")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (accountError) throw accountError;
+
+  return { hasAccount: Boolean(account) };
+});
+
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: ({ context, location }) => {
     if (!context.user) {
@@ -35,15 +56,8 @@ export const Route = createFileRoute("/dashboard")({
     const user = context.user!;
 
     // 检查是否有 YouTube 账户，没有则重定向到连接页面
-    const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-    const supabase = await getSupabaseServerClient();
-    const { data: account } = await supabase
-      .from("youtube_accounts")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!account) {
+    const { hasAccount } = await getYouTubeAccountStatus();
+    if (!hasAccount) {
       throw redirect({
         to: "/connect-youtube",
         search: {

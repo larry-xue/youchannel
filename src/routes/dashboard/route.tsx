@@ -16,34 +16,9 @@ interface OAuthPayload {
   state: string;
 }
 
-// Create a server function to check authentication
-const checkAuth = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const { getSupabaseServerClient } = await import("~/lib/server/auth");
-    const supabase = getSupabaseServerClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return { authenticated: false };
-    }
-
-    const { id, email, user_metadata, app_metadata } = user;
-    return {
-      authenticated: true,
-      user: { id, email, user_metadata, app_metadata },
-    };
-  } catch (error) {
-    console.error(error);
-    return { authenticated: false };
-  }
-});
-
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth");
-  const supabase = getSupabaseServerClient();
+  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+  const supabase = await getSupabaseServerClient();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
   return { success: true };
@@ -55,8 +30,8 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" }).handler
       throw new Error("Missing OAuth payload");
     }
 
-    const { getSupabaseServerClient } = await import("~/lib/server/auth");
-    const supabase = getSupabaseServerClient();
+    const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+    const supabase = await getSupabaseServerClient();
     const {
       data: { user },
       error,
@@ -178,36 +153,36 @@ export const Route = createFileRoute("/dashboard")({
       error: search.error as string | undefined,
     };
   },
-  component: DashboardLayout,
-  loader: async ({ context, location }) => {
-    await context.queryClient.invalidateQueries({ queryKey: ["dashboard-auth"] });
-
-    const result = await context.queryClient.fetchQuery({
-      queryKey: ["dashboard-auth"],
-      queryFn: () => checkAuth(),
-      staleTime: 0,
-    });
-
-    if (!result.authenticated) {
+  beforeLoad: ({ context, location }) => {
+    if (!context.user) {
       throw redirect({
         to: "/signin",
         search: {
           error: "unauthorized",
-          redirect: "/dashboard",
+          redirect: location.href,
         },
       });
     }
+  },
+  component: DashboardLayout,
+  loader: async ({ context, location, search }) => {
+    const user = context.user!;
 
-    const search = location.search as { code?: string; state?: string };
-    const isOauthCallback = Boolean(search?.code && search?.state);
+    const resolvedSearch =
+      search ??
+      (location.search as { code?: string; state?: string } | undefined) ??
+      {};
+    const isOauthCallback = Boolean(
+      resolvedSearch.code && resolvedSearch.state,
+    );
 
     if (!isOauthCallback) {
-      const { getSupabaseServerClient } = await import("~/lib/server/auth");
-      const supabase = getSupabaseServerClient();
+      const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+      const supabase = await getSupabaseServerClient();
       const { data: account } = await supabase
         .from("youtube_accounts")
         .select("id")
-        .eq("user_id", result.user.id)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (!account) {
@@ -217,7 +192,7 @@ export const Route = createFileRoute("/dashboard")({
       }
     }
 
-    return { user: result.user };
+    return { user };
   },
 });
 
@@ -328,3 +303,5 @@ function DashboardLayout() {
     </div>
   );
 }
+
+

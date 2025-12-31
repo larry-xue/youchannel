@@ -21,8 +21,8 @@ interface UserData {
 }
 
 const getUser = createServerFn({ method: "GET" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth");
-  const supabase = getSupabaseServerClient();
+  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+  const supabase = await getSupabaseServerClient();
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) {
       console.warn("Auth error:", error);
@@ -103,3 +103,5 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
     </html>
   );
 }
+
+

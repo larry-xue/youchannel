@@ -7,8 +7,8 @@ import { Footer } from "~/lib/components/Footer";
 import { User } from "@supabase/supabase-js";
 
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth");
-  const supabase = getSupabaseServerClient();
+  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+  const supabase = await getSupabaseServerClient();
   const { error } = await supabase.auth.signOut();
   if (error) {
     console.error("Sign out error:", error);
@@ -51,3 +51,5 @@ function Home() {
     </div>
   );
 }
+
+

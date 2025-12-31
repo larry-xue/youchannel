@@ -1,6 +1,4 @@
 import { createServerClient } from '@supabase/ssr'
-import { createServerOnlyFn } from '@tanstack/react-start'
-import { getCookies, setCookie } from '@tanstack/react-start/server'
 
 const getEnvValue = (key: string) => {
   const metaEnv = (import.meta as { env?: Record<string, string | undefined> })
@@ -8,7 +6,8 @@ const getEnvValue = (key: string) => {
   return process.env[key] ?? metaEnv?.[key]
 }
 
-export const getSupabaseServerClient = createServerOnlyFn(() => {
+export async function getSupabaseServerClient() {
+  const { getCookies, setCookie } = await import('@tanstack/react-start/server')
   const supabaseUrl =
     getEnvValue('VITE_SUPABASE_URL') ?? getEnvValue('SUPABASE_URL')
   const supabaseAnonKey =
@@ -28,19 +27,25 @@ export const getSupabaseServerClient = createServerOnlyFn(() => {
             value,
           }))
         },
-        setAll(cookies: Array<{ name: string; value: string }>) {
-          cookies.forEach((cookie) => {
-            setCookie(cookie.name, cookie.value)
+        setAll(
+          cookies: Array<{
+            name: string
+            value: string
+            options?: Parameters<typeof setCookie>[2]
+          }>
+        ) {
+          cookies.forEach(({ name, value, options }) => {
+            setCookie(name, value, options)
           })
         },
       },
     }
   )
-})
+}
 
 export const auth = {
   signIn: async (email: string, password: string) => {
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -50,7 +55,7 @@ export const auth = {
   },
 
   signUp: async (email: string, password: string) => {
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -60,22 +65,23 @@ export const auth = {
   },
 
   signOut: async () => {
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   },
 
   getSession: async () => {
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const { data: { session }, error } = await supabase.auth.getSession()
     if (error) throw error
     return session
   },
 
   getUser: async () => {
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error) throw error
     return user
   }
 }
+

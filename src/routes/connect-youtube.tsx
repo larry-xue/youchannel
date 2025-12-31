@@ -12,23 +12,21 @@ import {
 import { startYouTubeOAuthFn } from "~/lib/dashboard/data";
 
 export const Route = createFileRoute("/connect-youtube")({
-  loader: async () => {
-    const { getSupabaseServerClient } = await import("~/lib/server/auth");
-    const supabase = getSupabaseServerClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
+  beforeLoad: ({ context, location }) => {
+    if (!context.user) {
       throw redirect({
         to: "/signin",
         search: {
           error: "unauthorized",
-          redirect: "/connect-youtube",
+          redirect: location.href,
         },
       });
     }
+  },
+  loader: async ({ context }) => {
+    const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+    const supabase = await getSupabaseServerClient();
+    const user = context.user!;
 
     const { data: account } = await supabase
       .from("youtube_accounts")
@@ -97,3 +95,5 @@ function ConnectYouTube() {
     </div>
   );
 }
+
+

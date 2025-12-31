@@ -30,8 +30,8 @@ interface AuthResult {
 
 export const signInFn = createServerFn({ method: "POST" }).handler(
   async ({ data }: { data: AuthCredentials }) => {
-    const { getSupabaseServerClient } = await import("~/lib/server/auth");
-    const supabase = getSupabaseServerClient();
+    const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+    const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
@@ -47,8 +47,8 @@ export const signInFn = createServerFn({ method: "POST" }).handler(
 
 export const signUpFn = createServerFn({ method: "POST" }).handler(
   async ({ data }: { data: AuthCredentials }) => {
-    const { getSupabaseServerClient } = await import("~/lib/server/auth");
-    const supabase = getSupabaseServerClient();
+    const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+    const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -114,7 +114,11 @@ function AuthPage() {
         setError(result.message || "Authentication failed");
       } else if (mode === "signin") {
         await router.invalidate();
-        router.navigate({ to: search.redirect || REDIRECT_URL });
+        if (search.redirect) {
+          router.history.push(search.redirect);
+        } else {
+          router.navigate({ to: REDIRECT_URL });
+        }
       } else {
         setMessage(result?.message || "Check your email to confirm.");
       }
@@ -226,3 +230,5 @@ function AuthPage() {
     </div>
   );
 }
+
+

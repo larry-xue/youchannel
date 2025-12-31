@@ -23,8 +23,8 @@ export type ConversationWithCount = Conversation & {
 };
 
 async function getSupabaseAndUser() {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth");
-  const supabase = getSupabaseServerClient();
+  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+  const supabase = await getSupabaseServerClient();
   const {
     data: { user },
     error,
@@ -728,3 +728,5 @@ export const sendConversationMessageFn = createServerFn({ method: "POST" }).hand
     return { reply: reply.text, model: reply.model };
   },
 );
+
+

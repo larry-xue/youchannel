@@ -43,11 +43,15 @@ export const startYouTubeOAuthFn = createServerFn({ method: "POST" }).handler(
   },
 );
 
+export const YOUCHANNEL_PLAYLIST_TITLE = "YouChannel AI";
+export const YOUCHANNEL_PLAYLIST_DESCRIPTION = "Add videos here for AI analysis";
+
 export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ code: z.string(), state: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { supabase, user } = await getSupabaseAndUser();
 
+    // Validate OAuth state
     const { data: stateRow, error: stateError } = await supabase
       .from("youtube_oauth_states")
       .select("*")
@@ -64,11 +68,13 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
 
     await supabase.from("youtube_oauth_states").delete().eq("id", stateRow.id);
 
-    const { exchangeCodeForTokens, fetchPlaylistSummaries } =
+    // Exchange code for tokens
+    const { exchangeCodeForTokens, createYouTubePlaylist } =
       await import("~/lib/server/youtube");
     const token = await exchangeCodeForTokens(data.code);
     const tokenExpiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
 
+    // Save or update YouTube account
     const { data: existingAccount } = await supabase
       .from("youtube_accounts")
       .select("*")
@@ -115,42 +121,27 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
       accountId = inserted.id;
     }
 
-    const playlistSummaries = await fetchPlaylistSummaries(token.access_token);
-    if (playlistSummaries.length === 0) {
-      throw new Error("No YouTube playlists found for this account");
-    }
-
-    const { data: existingPlaylists } = await supabase
-      .from("playlists")
-      .select("playlist_id, is_active")
-      .eq("user_id", user.id);
-
-    const activeByPlaylist = new Map(
-      (existingPlaylists || []).map((playlist) => [
-        playlist.playlist_id,
-        playlist.is_active,
-      ]),
+    // Create the YouChannel AI playlist on YouTube
+    const createdPlaylist = await createYouTubePlaylist(
+      token.access_token,
+      YOUCHANNEL_PLAYLIST_TITLE,
+      YOUCHANNEL_PLAYLIST_DESCRIPTION,
+      "private",
     );
-    const hasActive = (existingPlaylists || []).some((playlist) => playlist.is_active);
 
-    const upsertPayload = playlistSummaries.map((summary, index) => ({
+    // Save the playlist to database
+    const { error: playlistError } = await supabase.from("playlists").insert({
       user_id: user.id,
       youtube_account_id: accountId,
-      playlist_id: summary.playlistId,
-      title: summary.title,
-      description: summary.description,
-      thumbnail_url: summary.thumbnailUrl,
-      custom_url: summary.customUrl,
-      is_active: activeByPlaylist.get(summary.playlistId) ?? (!hasActive && index === 0),
-    }));
+      playlist_id: createdPlaylist.playlistId,
+      title: createdPlaylist.title,
+      description: createdPlaylist.description,
+      is_active: true,
+    });
 
-    const { error: upsertError } = await supabase
-      .from("playlists")
-      .upsert(upsertPayload, { onConflict: "user_id,playlist_id" });
+    if (playlistError) throw playlistError;
 
-    if (upsertError) throw upsertError;
-
-    return { success: true };
+    return { success: true, playlistTitle: createdPlaylist.title };
   });
 
 export const getPlaylistsFn = createServerFn({ method: "GET" }).handler(async () => {

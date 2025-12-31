@@ -1,7 +1,7 @@
 const OAUTH_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
-const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
+const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube";
 
 type OAuthConfig = {
   clientId: string;
@@ -111,6 +111,79 @@ export async function refreshAccessToken(refreshToken: string) {
   }
 
   return payload as OAuthTokenResponse;
+}
+
+export type CreatePlaylistResult = {
+  playlistId: string;
+  title: string;
+  description: string;
+};
+
+export async function createYouTubePlaylist(
+  accessToken: string,
+  title: string,
+  description: string,
+  privacyStatus: "private" | "unlisted" | "public" = "private",
+): Promise<CreatePlaylistResult> {
+  const url = `${YOUTUBE_API_BASE}/playlists?part=snippet,status`;
+
+  await writeYouTubeLog({
+    event: "youtube.api.request",
+    url,
+    method: "POST",
+    title,
+    privacyStatus,
+  });
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      snippet: { title, description },
+      status: { privacyStatus },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    let errorMessage = text || "Failed to create YouTube playlist";
+    try {
+      const errorData = JSON.parse(text);
+      if (errorData?.error) {
+        errorMessage = `YouTube API Error: ${errorData.error.message || errorMessage}`;
+      }
+    } catch {
+      // Use raw text as error message
+    }
+
+    await writeYouTubeLog({
+      event: "playlist.create.error",
+      error: errorMessage,
+      status: response.status,
+    });
+
+    throw new Error(errorMessage);
+  }
+
+  const data = JSON.parse(text) as {
+    id: string;
+    snippet?: { title?: string; description?: string };
+  };
+
+  await writeYouTubeLog({
+    event: "playlist.create.success",
+    playlistId: data.id,
+    title: data.snippet?.title,
+  });
+
+  return {
+    playlistId: data.id,
+    title: data.snippet?.title || title,
+    description: data.snippet?.description || description,
+  };
 }
 
 async function fetchYouTube<T>(url: string, accessToken: string): Promise<T> {

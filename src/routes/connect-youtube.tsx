@@ -89,7 +89,9 @@ function ConnectYouTube() {
           data: { code: search.code, state: search.state },
         });
         if (!isMounted) return;
-        setOauthMessage("YouTube connected successfully!");
+        setOauthMessage(
+          'YouTube connected! Created "YouChannel AI" playlist for your video analysis.',
+        );
         await router.invalidate();
         // 延迟一下让用户看到成功消息，然后重定向
         timeoutId = setTimeout(() => {
@@ -163,7 +165,10 @@ function ConnectYouTube() {
             )}
             {!isOAuthCallback && (
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>We will request read-only access to your playlists.</p>
+                <p>
+                  We will create a private playlist called "YouChannel AI" on your YouTube
+                  account. Add videos to this playlist and we will automatically analyze them.
+                </p>
                 <p>You can revoke access anytime in your Google account settings.</p>
               </div>
             )}

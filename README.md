@@ -5,7 +5,7 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 ## Features
 
 - Email sign-up and sign-in with Supabase Auth
-- YouTube OAuth connect (readonly) + playlist sync
+- YouTube OAuth connect with automatic "YouChannel AI" playlist creation
 - Prompted video analysis with Gemini via TanStack AI
 - Analysis history per video and conversation threads across multiple videos
 - Skip duplicate analysis runs when a prompt has already been processed
@@ -42,9 +42,9 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 
 ## YouTube OAuth notes
 
-- Set the redirect URI to `http://localhost:3000/dashboard` (or your production URL).
+- Set the redirect URI to `http://localhost:3000/connect-youtube` (or your production URL).
 - Enable the YouTube Data API in your Google Cloud project.
-- Use the `https://www.googleapis.com/auth/youtube.readonly` scope.
+- Use the `https://www.googleapis.com/auth/youtube` scope (full access for creating playlists).
 
 ## Scheduling
 

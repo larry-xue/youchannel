@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "ui": "pnpm dlx shadcn@canary",
-    "db:migrate": "supabase migration up",
+    "db:migrate": "supabase db push",
     "db:seed": "supabase db push"
   },
   "dependencies": {

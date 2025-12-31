@@ -6,8 +6,11 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 
 - Email sign-up and sign-in with Supabase Auth
 - YouTube OAuth connect with automatic "YouChannel AI" playlist creation
+- **Automated background sync** - System automatically detects new videos added to playlist
 - Prompted video analysis with Gemini via TanStack AI
-- Analysis history per video and conversation threads across multiple videos
+- Analysis history per video with status tracking
+- Free tier quota system (3 analyses, max 10 min video duration)
+- Playlist status management with restore/re-auth capabilities
 - Skip duplicate analysis runs when a prompt has already been processed
 
 ## Setup
@@ -28,6 +31,8 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
    - Supabase: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
    - Gemini: `GOOGLE_API_KEY` (or `GEMINI_API_KEY`)
    - YouTube OAuth: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`
+   - Sync API: `SYNC_API_KEY` (secure random string for background sync endpoint)
+   - Optional: `FREE_USER_MAX_ANALYSES` (default: 3), `FREE_USER_MAX_VIDEO_DURATION` (default: 600 seconds)
 
 4. Run Supabase migrations:
 
@@ -46,9 +51,49 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 - Enable the YouTube Data API in your Google Cloud project.
 - Use the `https://www.googleapis.com/auth/youtube` scope (full access for creating playlists).
 
-## Scheduling
+## Background Sync API
 
-The dashboard provides manual sync plus an auto-sync toggle that runs every 30 minutes while the page is open. For production scheduling, trigger the sync server function on a timer (for example, with a hosted cron job) and reuse the same prompt hashing logic to avoid duplicate calls.
+The system provides an API endpoint for automated background syncing:
+
+```bash
+# Sync all active playlists
+POST /api/sync/run
+Authorization: Bearer <SYNC_API_KEY>
+
+# Optional: Sync specific user's playlists
+POST /api/sync/run
+Authorization: Bearer <SYNC_API_KEY>
+Content-Type: application/json
+{"userId": "<user-id>"}
+
+# Health check
+GET /api/sync/run
+Authorization: Bearer <SYNC_API_KEY>
+```
+
+### Scheduling Options
+
+1. **Vercel Cron** - Add to `vercel.json`:
+   ```json
+   {
+     "crons": [{
+       "path": "/api/sync/run",
+       "schedule": "*/10 * * * *"
+     }]
+   }
+   ```
+
+2. **GitHub Actions** - Use a scheduled workflow to call the endpoint
+
+3. **External Cron Service** - Any service that supports HTTP webhooks
+
+### Sync Behavior
+
+- Scans all active playlists every sync interval
+- Detects new videos and triggers analysis automatically
+- Handles removed videos (marks as "removed" but preserves existing analyses)
+- Respects user quotas (3 free analyses, max 10 min video duration)
+- Idempotent - safe to call multiple times without duplicate processing
 
 ## Tech
 

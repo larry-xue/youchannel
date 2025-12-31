@@ -1,16 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { Playlist, Video, VideoAnalysis } from "~/schema";
+import type {
+  Playlist,
+  UserQuota,
+  Video,
+  VideoAnalysis,
+  VideoAnalysisSkipReason,
+} from "~/schema";
 
 export const DEFAULT_ANALYSIS_PROMPT =
   "Summarize the video in 5 bullet points and call out key insights.";
 
 export const PLAYLISTS_QUERY_KEY = ["playlists"] as const;
+export const USER_QUOTA_QUERY_KEY = ["user-quota"] as const;
 
 export type VideoWithStatus = Video & {
   analysis_count: number;
   latest_analysis_at: string | null;
   latest_analysis_status: string | null;
+  latest_skip_reason: VideoAnalysisSkipReason | null;
 };
 
 async function getSupabaseAndUser() {
@@ -279,17 +287,28 @@ export const savePlaylistPromptFn = createServerFn({ method: "POST" })
 
 export const getVideosFn = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    z.object({ playlistIds: z.array(z.string()).optional() }).parse(data),
+    z
+      .object({
+        playlistIds: z.array(z.string()).optional(),
+        includeSyncStatus: z.array(z.string()).optional(),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) => {
     const { supabase } = await getSupabaseAndUser();
     const playlistIds = data?.playlistIds?.filter(Boolean) || [];
     if (playlistIds.length === 0) return [] as VideoWithStatus[];
 
+    // Default to showing synced videos, optionally include removed/unavailable
+    const syncStatuses = data?.includeSyncStatus?.length
+      ? data.includeSyncStatus
+      : ["synced"];
+
     const { data: videos, error } = await supabase
       .from("videos")
       .select("*")
       .in("playlist_id", playlistIds)
+      .in("sync_status", syncStatuses)
       .order("published_at", { ascending: false });
 
     if (error) throw error;
@@ -299,18 +318,24 @@ export const getVideosFn = createServerFn({ method: "POST" })
 
     const { data: analyses } = await supabase
       .from("video_analyses")
-      .select("video_id, created_at, status")
+      .select("video_id, created_at, status, skip_reason")
       .in("video_id", videoIds);
 
     const analysisMap = new Map<
       string,
-      { count: number; latest: string | null; status: string | null }
+      {
+        count: number;
+        latest: string | null;
+        status: string | null;
+        skip_reason: string | null;
+      }
     >();
     for (const analysis of analyses || []) {
       const current = analysisMap.get(analysis.video_id) || {
         count: 0,
         latest: null,
         status: null,
+        skip_reason: null,
       };
       const isNewer =
         !current.latest ||
@@ -319,6 +344,7 @@ export const getVideosFn = createServerFn({ method: "POST" })
         count: current.count + 1,
         latest: isNewer ? analysis.created_at : current.latest,
         status: isNewer ? analysis.status : current.status,
+        skip_reason: isNewer ? analysis.skip_reason : current.skip_reason,
       });
     }
 
@@ -327,6 +353,8 @@ export const getVideosFn = createServerFn({ method: "POST" })
       analysis_count: analysisMap.get(video.id)?.count || 0,
       latest_analysis_at: analysisMap.get(video.id)?.latest || null,
       latest_analysis_status: analysisMap.get(video.id)?.status || null,
+      latest_skip_reason:
+        (analysisMap.get(video.id)?.skip_reason as VideoAnalysisSkipReason) || null,
     })) as VideoWithStatus[];
   });
 
@@ -568,4 +596,155 @@ export const runVideoAnalysisFn = createServerFn({ method: "POST" })
     if (insertError) throw insertError;
 
     return { analysis: inserted, reused: false };
+  });
+
+// Get user's analysis quota
+export const getUserQuotaFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabase, user } = await getSupabaseAndUser();
+
+  // Get or create user quota
+  const { data: existingQuota, error: fetchError } = await supabase
+    .from("user_quotas")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+
+  if (existingQuota) {
+    return existingQuota as UserQuota;
+  }
+
+  // Create quota record for new user
+  const maxAnalyses = parseInt(process.env.FREE_USER_MAX_ANALYSES || "3", 10);
+  const { data: newQuota, error: insertError } = await supabase
+    .from("user_quotas")
+    .insert({
+      user_id: user.id,
+      analysis_count: 0,
+      max_analyses: maxAnalyses,
+    })
+    .select()
+    .single();
+
+  if (insertError) throw insertError;
+
+  return newQuota as UserQuota;
+});
+
+// Restore a lost playlist by creating a new one on YouTube
+export const restorePlaylistFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ playlistId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabase, user } = await getSupabaseAndUser();
+    if (!data?.playlistId) throw new Error("Missing playlistId");
+
+    // Get the playlist
+    const { data: playlist, error: playlistError } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("id", data.playlistId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (playlistError || !playlist)
+      throw playlistError || new Error("Playlist not found");
+
+    if (playlist.entry_status !== "lost") {
+      throw new Error("Playlist is not in lost status");
+    }
+
+    if (!playlist.youtube_account_id) {
+      throw new Error("Playlist is not connected to a YouTube account");
+    }
+
+    // Get the YouTube account
+    const { data: account, error: accountError } = await supabase
+      .from("youtube_accounts")
+      .select("*")
+      .eq("id", playlist.youtube_account_id)
+      .single();
+
+    if (accountError || !account)
+      throw accountError || new Error("YouTube account not found");
+
+    // Refresh token if needed
+    let accessToken = account.access_token;
+    const expiresAt = account.expires_at ? new Date(account.expires_at).getTime() : 0;
+
+    if (!expiresAt || Date.now() > expiresAt - 60_000) {
+      const { refreshAccessToken } = await import("~/lib/server/youtube");
+      try {
+        const refreshed = await refreshAccessToken(account.refresh_token);
+        accessToken = refreshed.access_token;
+
+        const updatedExpiresAt = new Date(
+          Date.now() + refreshed.expires_in * 1000,
+        ).toISOString();
+
+        await supabase
+          .from("youtube_accounts")
+          .update({
+            access_token: accessToken,
+            refresh_token: refreshed.refresh_token || account.refresh_token,
+            expires_at: updatedExpiresAt,
+          })
+          .eq("id", account.id);
+      } catch {
+        throw new Error("Failed to refresh authorization. Please re-authorize.");
+      }
+    }
+
+    // Create a new playlist on YouTube
+    const { createYouTubePlaylist } = await import("~/lib/server/youtube");
+    const createdPlaylist = await createYouTubePlaylist(
+      accessToken,
+      playlist.title || YOUCHANNEL_PLAYLIST_TITLE,
+      playlist.description || YOUCHANNEL_PLAYLIST_DESCRIPTION,
+      "private",
+    );
+
+    // Update the playlist record with new playlist_id and reset status
+    const { error: updateError } = await supabase
+      .from("playlists")
+      .update({
+        playlist_id: createdPlaylist.playlistId,
+        title: createdPlaylist.title,
+        description: createdPlaylist.description,
+        entry_status: "active",
+      })
+      .eq("id", playlist.id);
+
+    if (updateError) throw updateError;
+
+    return {
+      success: true,
+      newPlaylistId: createdPlaylist.playlistId,
+      title: createdPlaylist.title,
+    };
+  });
+
+// Get sync logs for a playlist
+export const getSyncLogsFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ playlistId: z.string().optional(), limit: z.number().optional() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabase, user } = await getSupabaseAndUser();
+
+    let query = supabase
+      .from("sync_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("started_at", { ascending: false })
+      .limit(data?.limit || 10);
+
+    if (data?.playlistId) {
+      query = query.eq("playlist_id", data.playlistId);
+    }
+
+    const { data: logs, error } = await query;
+
+    if (error) throw error;
+    return logs || [];
   });

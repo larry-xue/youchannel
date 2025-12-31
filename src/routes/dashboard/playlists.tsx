@@ -19,14 +19,18 @@ import {
 } from "~/lib/components/ui/dialog";
 import {
   PLAYLISTS_QUERY_KEY,
+  USER_QUOTA_QUERY_KEY,
   getPlaylistsFn,
+  getUserQuotaFn,
   getVideoAnalysesFn,
   getVideosFn,
+  restorePlaylistFn,
+  startYouTubeOAuthFn,
   syncPlaylistFn,
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
 import { formatDate, truncate } from "~/lib/dashboard/utils";
-import type { VideoAnalysis } from "~/schema";
+import type { PlaylistEntryStatus, VideoAnalysis, VideoAnalysisSkipReason } from "~/schema";
 
 export const Route = createFileRoute("/dashboard/playlists")({
   component: DashboardPlaylists,
@@ -41,21 +45,33 @@ function DashboardPlaylists() {
   const [analyses, setAnalyses] = useState<VideoAnalysis[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoadingAnalyses, setIsLoadingAnalyses] = useState(false);
+  const [showRemovedVideos, setShowRemovedVideos] = useState(false);
 
   const playlistsQuery = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
     queryFn: () => getPlaylistsFn(),
   });
 
+  const quotaQuery = useQuery({
+    queryKey: USER_QUOTA_QUERY_KEY,
+    queryFn: () => getUserQuotaFn(),
+  });
+
   const playlists = playlistsQuery.data || [];
   const activePlaylist = playlists.find((playlist) => playlist.is_active) || null;
   const activePlaylistId = activePlaylist?.id;
+  const quota = quotaQuery.data;
 
   const videosQuery = useQuery({
-    queryKey: ["videos", activePlaylistId],
+    queryKey: ["videos", activePlaylistId, showRemovedVideos],
     queryFn: () =>
       getVideosFn({
-        data: { playlistIds: activePlaylistId ? [activePlaylistId] : [] },
+        data: {
+          playlistIds: activePlaylistId ? [activePlaylistId] : [],
+          includeSyncStatus: showRemovedVideos
+            ? ["synced", "removed", "unavailable"]
+            : ["synced"],
+        },
       }),
     enabled: Boolean(activePlaylistId),
   });
@@ -71,6 +87,29 @@ function DashboardPlaylists() {
     },
     onError: (error) => {
       setActionError(error instanceof Error ? error.message : "Sync failed");
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (playlistId: string) => restorePlaylistFn({ data: { playlistId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY });
+      setActionError(null);
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : "Restore failed");
+    },
+  });
+
+  const reAuthMutation = useMutation({
+    mutationFn: () => startYouTubeOAuthFn(),
+    onSuccess: (result) => {
+      if (result.url) {
+        window.location.href = result.url;
+      }
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : "Re-authorization failed");
     },
   });
 
@@ -112,13 +151,21 @@ function DashboardPlaylists() {
             for AI analysis.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={() => activePlaylist && syncMutation.mutate(activePlaylist.id)}
-          disabled={!activePlaylist || syncMutation.isPending || isLoading}
-        >
-          {syncMutation.isPending ? "Syncing..." : "Sync now"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {quota && <QuotaDisplay quota={quota} />}
+          <Button
+            type="button"
+            onClick={() => activePlaylist && syncMutation.mutate(activePlaylist.id)}
+            disabled={
+              !activePlaylist ||
+              syncMutation.isPending ||
+              isLoading ||
+              activePlaylist?.entry_status !== "active"
+            }
+          >
+            {syncMutation.isPending ? "Syncing..." : "Sync now"}
+          </Button>
+        </div>
       </div>
 
       {actionError && (
@@ -129,12 +176,29 @@ function DashboardPlaylists() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{activePlaylist?.title || "YouChannel AI"} playlist</CardTitle>
-          <CardDescription>
-            {activePlaylist?.last_synced_at
-              ? `Last synced ${formatDate(activePlaylist.last_synced_at)}`
-              : "Not synced yet"}
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <CardTitle>{activePlaylist?.title || "YouChannel AI"} playlist</CardTitle>
+                {activePlaylist && (
+                  <PlaylistStatusBadge status={activePlaylist.entry_status} />
+                )}
+              </div>
+              <CardDescription>
+                {activePlaylist?.last_synced_at
+                  ? `Last synced ${formatDate(activePlaylist.last_synced_at)}`
+                  : "Not synced yet"}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRemovedVideos(!showRemovedVideos)}
+              className="text-xs"
+            >
+              {showRemovedVideos ? "Hide removed" : "Show removed"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading ? (
@@ -143,6 +207,46 @@ function DashboardPlaylists() {
             <p className="text-sm text-muted-foreground">
               No playlist found. Please connect your YouTube account first.
             </p>
+          ) : activePlaylist.entry_status === "lost" ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="text-sm">
+                  <p className="font-medium text-amber-600 dark:text-amber-400">
+                    Playlist not found on YouTube
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    The playlist may have been deleted. You can restore it to continue analysis.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => restoreMutation.mutate(activePlaylist.id)}
+                  disabled={restoreMutation.isPending}
+                  className="bg-amber-600 text-white hover:bg-amber-700"
+                >
+                  {restoreMutation.isPending ? "Restoring..." : "Restore Playlist"}
+                </Button>
+              </div>
+            </div>
+          ) : activePlaylist.entry_status === "auth_invalid" ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="text-sm">
+                  <p className="font-medium text-red-600 dark:text-red-400">
+                    Authorization expired
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    Please re-authorize your YouTube account to continue syncing.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => reAuthMutation.mutate()}
+                  disabled={reAuthMutation.isPending}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
+                  {reAuthMutation.isPending ? "Redirecting..." : "Re-authorize YouTube"}
+                </Button>
+              </div>
+            </div>
           ) : videos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No videos yet. Add videos to your YouChannel AI playlist on YouTube, then
@@ -153,7 +257,13 @@ function DashboardPlaylists() {
               {videos.map((video) => (
                 <div
                   key={video.id}
-                  className="group flex w-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-background/80 transition-shadow hover:shadow-md"
+                  className={`group flex w-full flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow hover:shadow-md ${
+                    video.sync_status === "removed"
+                      ? "border-amber-500/30 opacity-70"
+                      : video.sync_status === "unavailable"
+                        ? "border-red-500/30 opacity-70"
+                        : "border-border/60"
+                  }`}
                 >
                   <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
                     {video.thumbnail_url ? (
@@ -166,6 +276,11 @@ function DashboardPlaylists() {
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
                         No thumbnail
+                      </div>
+                    )}
+                    {video.sync_status !== "synced" && (
+                      <div className="absolute right-2 top-2">
+                        <VideoSyncStatusBadge status={video.sync_status} />
                       </div>
                     )}
                   </div>
@@ -184,6 +299,7 @@ function DashboardPlaylists() {
                         count={video.analysis_count}
                         latestAt={video.latest_analysis_at}
                         status={video.latest_analysis_status}
+                        skipReason={video.latest_skip_reason}
                       />
                       <Button
                         variant="ghost"
@@ -278,11 +394,43 @@ function AnalysisStatusBadge({
   count,
   latestAt,
   status,
+  skipReason,
 }: {
   count: number;
   latestAt: string | null;
   status: string | null;
+  skipReason: VideoAnalysisSkipReason | null;
 }) {
+  if (status === "processing") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
+      >
+        Analyzing...
+      </Badge>
+    );
+  }
+
+  if (status === "skipped" && skipReason) {
+    const reasonText =
+      skipReason === "quota_exceeded"
+        ? "Quota exceeded"
+        : skipReason === "duration_exceeded"
+          ? "Video too long"
+          : "Unavailable";
+
+    return (
+      <Badge
+        variant="outline"
+        className="border-slate-500/30 bg-slate-500/10 text-xs text-slate-600 dark:text-slate-400"
+        title={`Skipped: ${reasonText}`}
+      >
+        Skipped
+      </Badge>
+    );
+  }
+
   if (count === 0) {
     return (
       <Badge
@@ -314,5 +462,86 @@ function AnalysisStatusBadge({
     >
       {count} {count === 1 ? "analysis" : "analyses"}
     </Badge>
+  );
+}
+
+function PlaylistStatusBadge({ status }: { status: PlaylistEntryStatus }) {
+  if (status === "active") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400"
+      >
+        Active
+      </Badge>
+    );
+  }
+
+  if (status === "lost") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
+      >
+        Playlist Lost
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className="border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400"
+    >
+      Auth Invalid
+    </Badge>
+  );
+}
+
+function VideoSyncStatusBadge({ status }: { status: string }) {
+  if (status === "removed") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-amber-500/30 bg-amber-900/80 text-xs text-amber-200"
+      >
+        Removed
+      </Badge>
+    );
+  }
+
+  if (status === "unavailable") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-red-500/30 bg-red-900/80 text-xs text-red-200"
+      >
+        Unavailable
+      </Badge>
+    );
+  }
+
+  return null;
+}
+
+function QuotaDisplay({ quota }: { quota: { analysis_count: number; max_analyses: number } }) {
+  const remaining = quota.max_analyses - quota.analysis_count;
+  const isLow = remaining <= 1;
+  const isExhausted = remaining <= 0;
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${
+        isExhausted
+          ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
+          : isLow
+            ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            : "border-border bg-muted/50 text-muted-foreground"
+      }`}
+      title={`${quota.analysis_count} of ${quota.max_analyses} analyses used`}
+    >
+      <span className="font-medium">{remaining}</span>
+      <span>analyses remaining</span>
+    </div>
   );
 }

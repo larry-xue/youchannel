@@ -85,8 +85,7 @@ function ConnectYouTube() {
       });
 
       try {
-        // @ts-expect-error - ServerFn type inference issue
-        await completeYouTubeOauthFn({ data: { code: search.code!, state: search.state! } });
+        await completeYouTubeOauthFn({ data: { code: search.code, state: search.state } });
         if (!isMounted) return;
         setOauthMessage("YouTube connected successfully!");
         await router.invalidate();

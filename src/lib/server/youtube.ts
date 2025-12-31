@@ -358,17 +358,17 @@ export async function fetchChannelVideos(
   const detailsMap = await fetchVideoDetails(accessToken, videoIds);
 
   return playlistItems.map((item) => {
-    const snippet = item.snippet as Record<string, any>;
+    const snippet = item.snippet as Record<string, unknown>;
     const details = detailsMap[item.videoId] || {};
-    const snippetDetails = details.snippet as Record<string, any> | undefined;
-    const contentDetails = details.contentDetails as Record<string, any> | undefined;
+    const snippetDetails = details.snippet as Record<string, unknown> | undefined;
+    const contentDetails = details.contentDetails as Record<string, unknown> | undefined;
 
     return {
       videoId: item.videoId,
       title: (snippet?.title as string) || "Untitled video",
       description: (snippet?.description as string) || null,
       publishedAt: (snippet?.publishedAt as string) || null,
-      thumbnailUrl: pickThumbnail(snippet?.thumbnails),
+      thumbnailUrl: pickThumbnail(snippet?.thumbnails as Record<string, { url?: string }> | undefined),
       duration: (contentDetails?.duration as string) || null,
       raw: {
         playlistSnippet: snippet,

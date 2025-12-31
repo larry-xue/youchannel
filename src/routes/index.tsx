@@ -1,10 +1,10 @@
+import { User } from "@supabase/supabase-js";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { Header } from "~/lib/components/Header";
-import { Hero } from "~/lib/components/Hero";
 import { Features } from "~/lib/components/Features";
 import { Footer } from "~/lib/components/Footer";
-import { User } from "@supabase/supabase-js";
+import { Header } from "~/lib/components/Header";
+import { Hero } from "~/lib/components/Hero";
 
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
   const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
@@ -51,5 +51,3 @@ function Home() {
     </div>
   );
 }
-
-

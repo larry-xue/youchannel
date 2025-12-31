@@ -1,87 +1,86 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient } from "@supabase/ssr";
 
 const getEnvValue = (key: string) => {
-  const metaEnv = (import.meta as { env?: Record<string, string | undefined> })
-    .env
-  return process.env[key] ?? metaEnv?.[key]
-}
+  const metaEnv = (import.meta as { env?: Record<string, string | undefined> }).env;
+  return process.env[key] ?? metaEnv?.[key];
+};
 
 export async function getSupabaseServerClient() {
-  const { getCookies, setCookie } = await import('@tanstack/react-start/server')
-  const supabaseUrl =
-    getEnvValue('VITE_SUPABASE_URL') ?? getEnvValue('SUPABASE_URL')
+  const { getCookies, setCookie } = await import("@tanstack/react-start/server");
+  const supabaseUrl = getEnvValue("VITE_SUPABASE_URL") ?? getEnvValue("SUPABASE_URL");
   const supabaseAnonKey =
-    getEnvValue('VITE_SUPABASE_ANON_KEY') ?? getEnvValue('SUPABASE_ANON_KEY')
+    getEnvValue("VITE_SUPABASE_ANON_KEY") ?? getEnvValue("SUPABASE_ANON_KEY");
 
-  if (!supabaseUrl) throw new Error('Missing VITE_SUPABASE_URL')
-  if (!supabaseAnonKey) throw new Error('Missing VITE_SUPABASE_ANON_KEY')
+  if (!supabaseUrl) throw new Error("Missing VITE_SUPABASE_URL");
+  if (!supabaseAnonKey) throw new Error("Missing VITE_SUPABASE_ANON_KEY");
 
-  return createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return Object.entries(getCookies()).map(([name, value]) => ({
-            name,
-            value,
-          }))
-        },
-        setAll(
-          cookies: Array<{
-            name: string
-            value: string
-            options?: Parameters<typeof setCookie>[2]
-          }>
-        ) {
-          cookies.forEach(({ name, value, options }) => {
-            setCookie(name, value, options)
-          })
-        },
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return Object.entries(getCookies()).map(([name, value]) => ({
+          name,
+          value,
+        }));
       },
-    }
-  )
+      setAll(
+        cookies: Array<{
+          name: string;
+          value: string;
+          options?: Parameters<typeof setCookie>[2];
+        }>,
+      ) {
+        cookies.forEach(({ name, value, options }) => {
+          setCookie(name, value, options);
+        });
+      },
+    },
+  });
 }
 
 export const auth = {
   signIn: async (email: string, password: string) => {
-    const supabase = await getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
-    if (error) throw error
-    return data
+    });
+    if (error) throw error;
+    return data;
   },
 
   signUp: async (email: string, password: string) => {
-    const supabase = await getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-    })
-    if (error) throw error
-    return data
+    });
+    if (error) throw error;
+    return data;
   },
 
   signOut: async () => {
-    const supabase = await getSupabaseServerClient()
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   },
 
   getSession: async () => {
-    const supabase = await getSupabaseServerClient()
-    const { data: { session }, error } = await supabase.auth.getSession()
-    if (error) throw error
-    return session
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+    if (error) throw error;
+    return session;
   },
 
   getUser: async () => {
-    const supabase = await getSupabaseServerClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error) throw error
-    return user
-  }
-}
-
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    if (error) throw error;
+    return user;
+  },
+};

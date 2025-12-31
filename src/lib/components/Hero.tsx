@@ -14,11 +14,11 @@ export function Hero({ user }: HeroProps) {
           YouTube + Gemini
         </p>
         <h1 className="font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          Turn channel videos into searchable insights.
+          Turn playlist videos into searchable insights.
         </h1>
         <p className="text-base text-muted-foreground">
-          Connect your YouTube account, keep videos in sync, and chat across
-          one or multiple analyses powered by Gemini.
+          Connect your YouTube account, keep videos in sync, and chat across one or
+          multiple analyses powered by Gemini.
         </p>
         <div className="flex flex-wrap gap-3">
           {user ? (
@@ -43,7 +43,7 @@ export function Hero({ user }: HeroProps) {
           </Button> */}
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          <span className="rounded-full bg-muted/40 px-3 py-1">OAuth channel sync</span>
+          <span className="rounded-full bg-muted/40 px-3 py-1">OAuth playlist sync</span>
           <span className="rounded-full bg-muted/40 px-3 py-1">Prompted analysis</span>
           <span className="rounded-full bg-muted/40 px-3 py-1">Multi-video chat</span>
         </div>
@@ -51,7 +51,7 @@ export function Hero({ user }: HeroProps) {
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Channel heartbeat</CardTitle>
+            <CardTitle className="text-base">Playlist heartbeat</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="flex items-center justify-between">
@@ -73,8 +73,8 @@ export function Hero({ user }: HeroProps) {
             <CardTitle className="text-base">Sample insight</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Gemini highlights the top 3 segments, key audience questions, and
-            suggested follow-up topics for your next upload.
+            Gemini highlights the top 3 segments, key audience questions, and suggested
+            follow-up topics for your next upload.
           </CardContent>
         </Card>
       </div>

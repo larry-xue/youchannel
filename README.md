@@ -1,11 +1,11 @@
 # YouChannel Studio
 
-A TanStack Start + Supabase workspace for syncing a YouTube channel, generating Gemini-powered video analyses, and chatting across one or more videos.
+A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating Gemini-powered video analyses, and chatting across one or more videos.
 
 ## Features
 
 - Email sign-up and sign-in with Supabase Auth
-- YouTube OAuth connect (readonly) + channel sync
+- YouTube OAuth connect (readonly) + playlist sync
 - Prompted video analysis with Gemini via TanStack AI
 - Analysis history per video and conversation threads across multiple videos
 - Skip duplicate analysis runs when a prompt has already been processed
@@ -13,11 +13,13 @@ A TanStack Start + Supabase workspace for syncing a YouTube channel, generating 
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Copy the environment template:
+
    ```bash
    cp .env.example .env
    ```
@@ -28,6 +30,7 @@ A TanStack Start + Supabase workspace for syncing a YouTube channel, generating 
    - YouTube OAuth: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`
 
 4. Run Supabase migrations:
+
    ```bash
    pnpm supabase db reset
    ```

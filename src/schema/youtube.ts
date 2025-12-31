@@ -9,11 +9,11 @@ export type YoutubeAccount = {
   updated_at: string;
 };
 
-export type Channel = {
+export type Playlist = {
   id: string;
   user_id: string;
   youtube_account_id: string | null;
-  channel_id: string;
+  playlist_id: string;
   title: string | null;
   description: string | null;
   thumbnail_url: string | null;
@@ -27,7 +27,7 @@ export type Channel = {
 
 export type Video = {
   id: string;
-  channel_id: string;
+  playlist_id: string;
   youtube_video_id: string;
   title: string | null;
   description: string | null;
@@ -41,7 +41,7 @@ export type Video = {
 export type VideoAnalysis = {
   id: string;
   video_id: string;
-  channel_id: string;
+  playlist_id: string;
   user_id: string;
   prompt: string;
   prompt_hash: string;

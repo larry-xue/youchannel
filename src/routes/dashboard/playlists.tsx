@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
@@ -10,49 +10,51 @@ import {
   CardTitle,
 } from "~/lib/components/ui/card";
 import {
-  CHANNELS_QUERY_KEY,
-  getChannelsFn,
+  PLAYLISTS_QUERY_KEY,
+  getPlaylistsFn,
   getVideosFn,
-  setActiveChannelFn,
-  syncChannelFn,
+  setActivePlaylistFn,
+  syncPlaylistFn,
 } from "~/lib/dashboard/data";
 import { formatDate, truncate } from "~/lib/dashboard/utils";
 import { Video } from "~/schema";
 
-export const Route = createFileRoute("/dashboard/channels")({
-  component: DashboardChannels,
+export const Route = createFileRoute("/dashboard/playlists")({
+  component: DashboardPlaylists,
 });
 
 const EMPTY_VIDEOS: Video[] = [];
 
-function DashboardChannels() {
+function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const channelsQuery = useQuery({
-    queryKey: CHANNELS_QUERY_KEY,
-    queryFn: () => getChannelsFn(),
+  const playlistsQuery = useQuery({
+    queryKey: PLAYLISTS_QUERY_KEY,
+    queryFn: () => getPlaylistsFn(),
   });
 
-  const channels = channelsQuery.data || [];
-  const activeChannel = channels.find((channel) => channel.is_active) || null;
-  const activeChannelId = activeChannel?.id;
+  const playlists = playlistsQuery.data || [];
+  const activePlaylist = playlists.find((playlist) => playlist.is_active) || null;
+  const activePlaylistId = activePlaylist?.id;
 
   const videosQuery = useQuery({
-    queryKey: ["videos", activeChannelId],
+    queryKey: ["videos", activePlaylistId],
     queryFn: () =>
-      getVideosFn({ data: { channelIds: activeChannelId ? [activeChannelId] : [] } }),
-    enabled: Boolean(activeChannelId),
+      getVideosFn({
+        data: { playlistIds: activePlaylistId ? [activePlaylistId] : [] },
+      }),
+    enabled: Boolean(activePlaylistId),
   });
 
   const videos = videosQuery.data ?? EMPTY_VIDEOS;
 
   const syncMutation = useMutation({
-    mutationFn: (channelId: string) => syncChannelFn({ data: { channelId } }),
+    mutationFn: (playlistId: string) => syncPlaylistFn({ data: { playlistId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       queryClient.invalidateQueries({ queryKey: ["analyses"] });
-      queryClient.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY });
     },
     onError: (error) => {
       setActionError(error instanceof Error ? error.message : "Sync failed");
@@ -60,13 +62,13 @@ function DashboardChannels() {
   });
 
   const setActiveMutation = useMutation({
-    mutationFn: (channelId: string) => setActiveChannelFn({ data: { channelId } }),
+    mutationFn: (playlistId: string) => setActivePlaylistFn({ data: { playlistId } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY });
     },
     onError: (error) => {
       setActionError(
-        error instanceof Error ? error.message : "Unable to set active channel",
+        error instanceof Error ? error.message : "Unable to set active playlist",
       );
     },
   });
@@ -81,8 +83,8 @@ function DashboardChannels() {
           Playlist control
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Manage your YouTube connection, sync cadence, and the playlist you
-          want to track.
+          Manage your YouTube connection, sync cadence, and the playlist you want to
+          track.
         </p>
       </div>
 
@@ -104,36 +106,36 @@ function DashboardChannels() {
             <div className="min-w-[220px] flex-1">
               <select
                 id="playlist-select"
-                value={activeChannelId ?? ""}
+                value={activePlaylistId ?? ""}
                 onChange={(event) => {
                   const nextId = event.target.value;
                   if (nextId) setActiveMutation.mutate(nextId);
                 }}
                 disabled={
-                  channelsQuery.isLoading ||
-                  channels.length === 0 ||
+                  playlistsQuery.isLoading ||
+                  playlists.length === 0 ||
                   setActiveMutation.isPending
                 }
                 className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="" disabled>
-                  {channelsQuery.isLoading
+                  {playlistsQuery.isLoading
                     ? "Loading playlists..."
-                    : channels.length === 0
+                    : playlists.length === 0
                       ? "No playlists available"
                       : "Select a playlist"}
                 </option>
-                {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
-                    {channel.title || "Untitled playlist"}
+                {playlists.map((playlist) => (
+                  <option key={playlist.id} value={playlist.id}>
+                    {playlist.title || "Untitled playlist"}
                   </option>
                 ))}
               </select>
             </div>
             <Button
               type="button"
-              onClick={() => activeChannel && syncMutation.mutate(activeChannel.id)}
-              disabled={!activeChannel || syncMutation.isPending}
+              onClick={() => activePlaylist && syncMutation.mutate(activePlaylist.id)}
+              disabled={!activePlaylist || syncMutation.isPending}
             >
               {syncMutation.isPending ? "Syncing..." : "Sync now"}
             </Button>
@@ -143,12 +145,10 @@ function DashboardChannels() {
         <Card>
           <CardHeader>
             <CardTitle>Active videos</CardTitle>
-            <CardDescription>
-              Browse uploads for the active playlist.
-            </CardDescription>
+            <CardDescription>Browse uploads for the active playlist.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!activeChannel ? (
+            {!activePlaylist ? (
               <p className="text-sm text-muted-foreground">
                 Select a playlist above to load its videos.
               </p>

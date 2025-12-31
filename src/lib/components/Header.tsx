@@ -1,7 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import { Button } from "./ui/button";
-import ThemeToggle from "./ThemeToggle";
 import { User } from "@supabase/supabase-js";
+import { Link } from "@tanstack/react-router";
+import ThemeToggle from "./ThemeToggle";
+import { Button } from "./ui/button";
 
 interface HeaderProps {
   user: User | null;

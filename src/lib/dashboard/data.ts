@@ -1,17 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { Channel, Video, VideoAnalysis } from "~/schema";
 import { z } from "zod";
+import type { Playlist, Video, VideoAnalysis } from "~/schema";
 
 export const DEFAULT_ANALYSIS_PROMPT =
   "Summarize the video in 5 bullet points and call out key insights.";
 
-export const CHANNELS_QUERY_KEY = ["channels"] as const;
+export const PLAYLISTS_QUERY_KEY = ["playlists"] as const;
 
 export type VideoWithStatus = Video & {
   analysis_count: number;
   latest_analysis_at: string | null;
 };
-
 
 async function getSupabaseAndUser() {
   const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
@@ -46,8 +45,7 @@ export const startYouTubeOAuthFn = createServerFn({ method: "POST" }).handler(
 
 export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ code: z.string(), state: z.string() }).parse(data))
-  .handler(
-  async ({ data }) => {
+  .handler(async ({ data }) => {
     const { supabase, user } = await getSupabaseAndUser();
 
     const { data: stateRow, error: stateError } = await supabase
@@ -66,13 +64,10 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
 
     await supabase.from("youtube_oauth_states").delete().eq("id", stateRow.id);
 
-    const { exchangeCodeForTokens, fetchChannelSummaries } = await import(
-      "~/lib/server/youtube",
-    );
+    const { exchangeCodeForTokens, fetchPlaylistSummaries } =
+      await import("~/lib/server/youtube");
     const token = await exchangeCodeForTokens(data.code);
-    const tokenExpiresAt = new Date(
-      Date.now() + token.expires_in * 1000,
-    ).toISOString();
+    const tokenExpiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
 
     const { data: existingAccount } = await supabase
       .from("youtube_accounts")
@@ -120,65 +115,264 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
       accountId = inserted.id;
     }
 
-    const channelSummaries = await fetchChannelSummaries(token.access_token);
-    if (channelSummaries.length === 0) {
+    const playlistSummaries = await fetchPlaylistSummaries(token.access_token);
+    if (playlistSummaries.length === 0) {
       throw new Error("No YouTube playlists found for this account");
     }
 
-    const { data: existingChannels } = await supabase
-      .from("channels")
-      .select("channel_id, is_active")
+    const { data: existingPlaylists } = await supabase
+      .from("playlists")
+      .select("playlist_id, is_active")
       .eq("user_id", user.id);
 
-    const activeByChannel = new Map(
-      (existingChannels || []).map((channel) => [channel.channel_id, channel.is_active]),
+    const activeByPlaylist = new Map(
+      (existingPlaylists || []).map((playlist) => [
+        playlist.playlist_id,
+        playlist.is_active,
+      ]),
     );
-    const hasActive = (existingChannels || []).some((channel) => channel.is_active);
+    const hasActive = (existingPlaylists || []).some((playlist) => playlist.is_active);
 
-    const upsertPayload = channelSummaries.map((summary, index) => ({
+    const upsertPayload = playlistSummaries.map((summary, index) => ({
       user_id: user.id,
       youtube_account_id: accountId,
-      channel_id: summary.channelId,
+      playlist_id: summary.playlistId,
       title: summary.title,
       description: summary.description,
       thumbnail_url: summary.thumbnailUrl,
       custom_url: summary.customUrl,
-      is_active: activeByChannel.get(summary.channelId) ?? (!hasActive && index === 0),
+      is_active: activeByPlaylist.get(summary.playlistId) ?? (!hasActive && index === 0),
     }));
 
     const { error: upsertError } = await supabase
-      .from("channels")
-      .upsert(upsertPayload, { onConflict: "user_id,channel_id" });
+      .from("playlists")
+      .upsert(upsertPayload, { onConflict: "user_id,playlist_id" });
 
     if (upsertError) throw upsertError;
 
     return { success: true };
-  },
-);
+  });
 
-export const getChannelsFn = createServerFn({ method: "GET" }).handler(
-  async () => {
+export const getPlaylistsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabase, user } = await getSupabaseAndUser();
+  const { data, error } = await supabase
+    .from("playlists")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as Playlist[];
+});
+
+export const syncPlaylistsFn = createServerFn({ method: "POST" }).handler(async () => {
+  const { supabase, user } = await getSupabaseAndUser();
+  const { data: account, error: accountError } = await supabase
+    .from("youtube_accounts")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("provider", "google")
+    .maybeSingle();
+
+  if (accountError || !account)
+    throw accountError || new Error("YouTube account not found");
+
+  let accessToken = account.access_token;
+  const expiresAt = account.expires_at ? new Date(account.expires_at).getTime() : 0;
+
+  if (!expiresAt || Date.now() > expiresAt - 60_000) {
+    const { refreshAccessToken } = await import("~/lib/server/youtube");
+    const refreshed = await refreshAccessToken(account.refresh_token);
+    accessToken = refreshed.access_token;
+
+    const updatedExpiresAt = new Date(
+      Date.now() + refreshed.expires_in * 1000,
+    ).toISOString();
+
+    const { error: updateError } = await supabase
+      .from("youtube_accounts")
+      .update({
+        access_token: accessToken,
+        refresh_token: refreshed.refresh_token || account.refresh_token,
+        expires_at: updatedExpiresAt,
+        scope: refreshed.scope || account.scope,
+        token_type: refreshed.token_type || account.token_type,
+      })
+      .eq("id", account.id);
+
+    if (updateError) throw updateError;
+  }
+
+  const { fetchPlaylistSummaries } = await import("~/lib/server/youtube");
+  const playlistSummaries = await fetchPlaylistSummaries(accessToken);
+  if (playlistSummaries.length === 0) {
+    throw new Error("No YouTube playlists found for this account");
+  }
+
+  const { data: existingPlaylists, error: existingError } = await supabase
+    .from("playlists")
+    .select("playlist_id, is_active")
+    .eq("user_id", user.id);
+
+  if (existingError) throw existingError;
+
+  const activeByPlaylist = new Map(
+    (existingPlaylists || []).map((playlist) => [
+      playlist.playlist_id,
+      playlist.is_active,
+    ]),
+  );
+  const hasActive = (existingPlaylists || []).some((playlist) => playlist.is_active);
+
+  const upsertPayload = playlistSummaries.map((summary, index) => ({
+    user_id: user.id,
+    youtube_account_id: account.id,
+    playlist_id: summary.playlistId,
+    title: summary.title,
+    description: summary.description,
+    thumbnail_url: summary.thumbnailUrl,
+    custom_url: summary.customUrl,
+    is_active: activeByPlaylist.get(summary.playlistId) ?? (!hasActive && index === 0),
+  }));
+
+  const { error: upsertError } = await supabase
+    .from("playlists")
+    .upsert(upsertPayload, { onConflict: "user_id,playlist_id" });
+
+  if (upsertError) throw upsertError;
+
+  return { total: playlistSummaries.length };
+});
+
+export const setActivePlaylistFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ playlistId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
     const { supabase, user } = await getSupabaseAndUser();
-    const { data, error } = await supabase
-      .from("channels")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
+    if (!data?.playlistId) throw new Error("Missing playlistId");
+
+    const { error: resetError } = await supabase
+      .from("playlists")
+      .update({ is_active: false })
+      .eq("user_id", user.id);
+    if (resetError) throw resetError;
+
+    const { error } = await supabase
+      .from("playlists")
+      .update({ is_active: true })
+      .eq("id", data.playlistId)
+      .eq("user_id", user.id);
 
     if (error) throw error;
-    return (data || []) as Channel[];
-  },
-);
+    return { success: true };
+  });
 
-export const syncChannelsFn = createServerFn({ method: "POST" }).handler(
-  async () => {
+export const savePlaylistPromptFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ playlistId: z.string(), prompt: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
     const { supabase, user } = await getSupabaseAndUser();
+    if (!data?.playlistId) throw new Error("Missing playlistId");
+
+    const prompt = data.prompt.trim() || DEFAULT_ANALYSIS_PROMPT;
+    const { error } = await supabase
+      .from("playlists")
+      .update({ analysis_prompt: prompt })
+      .eq("id", data.playlistId)
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const getVideosFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ playlistIds: z.array(z.string()).optional() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabase } = await getSupabaseAndUser();
+    const playlistIds = data?.playlistIds?.filter(Boolean) || [];
+    if (playlistIds.length === 0) return [] as VideoWithStatus[];
+
+    const { data: videos, error } = await supabase
+      .from("videos")
+      .select("*")
+      .in("playlist_id", playlistIds)
+      .order("published_at", { ascending: false });
+
+    if (error) throw error;
+
+    const videoIds = (videos || []).map((video) => video.id);
+    if (videoIds.length === 0) return [] as VideoWithStatus[];
+
+    const { data: analyses } = await supabase
+      .from("video_analyses")
+      .select("video_id, created_at")
+      .in("video_id", videoIds);
+
+    const analysisMap = new Map<string, { count: number; latest: string | null }>();
+    for (const analysis of analyses || []) {
+      const current = analysisMap.get(analysis.video_id) || {
+        count: 0,
+        latest: null,
+      };
+      const nextLatest =
+        !current.latest ||
+        new Date(analysis.created_at).getTime() > new Date(current.latest).getTime()
+          ? analysis.created_at
+          : current.latest;
+      analysisMap.set(analysis.video_id, {
+        count: current.count + 1,
+        latest: nextLatest,
+      });
+    }
+
+    return (videos || []).map((video) => ({
+      ...video,
+      analysis_count: analysisMap.get(video.id)?.count || 0,
+      latest_analysis_at: analysisMap.get(video.id)?.latest || null,
+    })) as VideoWithStatus[];
+  });
+
+export const getVideoAnalysesFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabase } = await getSupabaseAndUser();
+    if (!data?.videoId) return [] as VideoAnalysis[];
+
+    const { data: analyses, error } = await supabase
+      .from("video_analyses")
+      .select("*")
+      .eq("video_id", data.videoId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return (analyses || []) as VideoAnalysis[];
+  });
+
+export const syncPlaylistFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ playlistId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabase, user } = await getSupabaseAndUser();
+    if (!data?.playlistId) throw new Error("Missing playlistId");
+
+    const { data: playlist, error: playlistError } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("id", data.playlistId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (playlistError || !playlist)
+      throw playlistError || new Error("Playlist not found");
+    if (!playlist.youtube_account_id)
+      throw new Error("Playlist is not connected to YouTube");
+
     const { data: account, error: accountError } = await supabase
       .from("youtube_accounts")
       .select("*")
-      .eq("user_id", user.id)
-      .eq("provider", "google")
-      .maybeSingle();
+      .eq("id", playlist.youtube_account_id)
+      .single();
 
     if (accountError || !account)
       throw accountError || new Error("YouTube account not found");
@@ -209,386 +403,173 @@ export const syncChannelsFn = createServerFn({ method: "POST" }).handler(
       if (updateError) throw updateError;
     }
 
-    const { fetchChannelSummaries } = await import("~/lib/server/youtube");
-    const channelSummaries = await fetchChannelSummaries(accessToken);
-    if (channelSummaries.length === 0) {
-      throw new Error("No YouTube playlists found for this account");
-    }
+    const { fetchPlaylistSummaries, fetchPlaylistVideos } =
+      await import("~/lib/server/youtube");
 
-    const { data: existingChannels, error: existingError } = await supabase
-      .from("channels")
-      .select("channel_id, is_active")
-      .eq("user_id", user.id);
+    const playlistSummaries = await fetchPlaylistSummaries(accessToken);
+    const summary =
+      playlistSummaries.find((item) => item.playlistId === playlist.playlist_id) ||
+      playlistSummaries[0];
 
-    if (existingError) throw existingError;
+    if (!summary?.uploadsPlaylistId) throw new Error("Unable to fetch playlist items");
 
-    const activeByChannel = new Map(
-      (existingChannels || []).map((channel) => [
-        channel.channel_id,
-        channel.is_active,
-      ]),
+    const fetchedVideos = await fetchPlaylistVideos(
+      accessToken,
+      summary.uploadsPlaylistId,
+      25,
     );
-    const hasActive = (existingChannels || []).some((channel) => channel.is_active);
 
-    const upsertPayload = channelSummaries.map((summary, index) => ({
-      user_id: user.id,
-      youtube_account_id: account.id,
-      channel_id: summary.channelId,
-      title: summary.title,
-      description: summary.description,
-      thumbnail_url: summary.thumbnailUrl,
-      custom_url: summary.customUrl,
-      is_active: activeByChannel.get(summary.channelId) ?? (!hasActive && index === 0),
+    const upsertPayload = fetchedVideos.map((video) => ({
+      playlist_id: playlist.id,
+      youtube_video_id: video.videoId,
+      title: video.title,
+      description: video.description,
+      published_at: video.publishedAt,
+      thumbnail_url: video.thumbnailUrl,
+      duration: video.duration,
+      raw: video.raw,
     }));
 
-    const { error: upsertError } = await supabase
-      .from("channels")
-      .upsert(upsertPayload, { onConflict: "user_id,channel_id" });
+    const { data: upserted, error: upsertError } = await supabase
+      .from("videos")
+      .upsert(upsertPayload, { onConflict: "playlist_id,youtube_video_id" })
+      .select();
 
     if (upsertError) throw upsertError;
 
-    return { total: channelSummaries.length };
-  },
-);
+    const { error: playlistUpdateError } = await supabase
+      .from("playlists")
+      .update({
+        title: summary.title,
+        description: summary.description,
+        thumbnail_url: summary.thumbnailUrl,
+        custom_url: summary.customUrl,
+        last_synced_at: new Date().toISOString(),
+      })
+      .eq("id", playlist.id);
 
-export const setActiveChannelFn = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ channelId: z.string() }).parse(data))
-  .handler(
-    async ({ data }) => {
-      const { supabase, user } = await getSupabaseAndUser();
-      if (!data?.channelId) throw new Error("Missing channelId");
+    if (playlistUpdateError) throw playlistUpdateError;
 
-      const { error: resetError } = await supabase
-        .from("channels")
-        .update({ is_active: false })
-        .eq("user_id", user.id);
-      if (resetError) throw resetError;
+    const prompt =
+      (playlist.analysis_prompt || DEFAULT_ANALYSIS_PROMPT).trim() ||
+      DEFAULT_ANALYSIS_PROMPT;
+    const { createHash } = await import("crypto");
+    const promptHash = createHash("sha256").update(prompt).digest("hex");
 
-      const { error } = await supabase
-        .from("channels")
-        .update({ is_active: true })
-        .eq("id", data.channelId)
-        .eq("user_id", user.id);
+    const videoRows = upserted || [];
+    if (videoRows.length === 0) {
+      return { created: 0, skipped: 0, total: 0 };
+    }
 
-      if (error) throw error;
-      return { success: true };
-    },
-  );
+    const videoIds = videoRows.map((video) => video.id);
+    const { data: existingAnalyses } = await supabase
+      .from("video_analyses")
+      .select("video_id, prompt_hash")
+      .in("video_id", videoIds)
+      .eq("prompt_hash", promptHash);
 
-export const saveChannelPromptFn = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ channelId: z.string(), prompt: z.string() }).parse(data))
-  .handler(
-    async ({ data }) => {
-      const { supabase, user } = await getSupabaseAndUser();
-      if (!data?.channelId) throw new Error("Missing channelId");
+    const existingSet = new Set((existingAnalyses || []).map((row) => row.video_id));
 
-      const prompt = data.prompt.trim() || DEFAULT_ANALYSIS_PROMPT;
-      const { error } = await supabase
-        .from("channels")
-        .update({ analysis_prompt: prompt })
-        .eq("id", data.channelId)
-        .eq("user_id", user.id);
+    const { generateVideoAnalysis } = await import("~/lib/server/gemini");
 
-      if (error) throw error;
-      return { success: true };
-    },
-  );
+    let created = 0;
+    let skipped = 0;
 
-export const getVideosFn = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ channelIds: z.array(z.string()).optional() }).parse(data))
-  .handler(
-    async ({ data }) => {
-      const { supabase } = await getSupabaseAndUser();
-      const channelIds = data?.channelIds?.filter(Boolean) || [];
-      if (channelIds.length === 0) return [] as VideoWithStatus[];
-
-      const { data: videos, error } = await supabase
-        .from("videos")
-        .select("*")
-        .in("channel_id", channelIds)
-        .order("published_at", { ascending: false });
-
-      if (error) throw error;
-
-      const videoIds = (videos || []).map((video) => video.id);
-      if (videoIds.length === 0) return [] as VideoWithStatus[];
-
-      const { data: analyses } = await supabase
-        .from("video_analyses")
-        .select("video_id, created_at")
-        .in("video_id", videoIds);
-
-      const analysisMap = new Map<string, { count: number; latest: string | null }>();
-      for (const analysis of analyses || []) {
-        const current = analysisMap.get(analysis.video_id) || {
-          count: 0,
-          latest: null,
-        };
-        const nextLatest =
-          !current.latest ||
-            new Date(analysis.created_at).getTime() >
-            new Date(current.latest).getTime()
-            ? analysis.created_at
-            : current.latest;
-        analysisMap.set(analysis.video_id, {
-          count: current.count + 1,
-          latest: nextLatest,
-        });
+    for (const video of videoRows) {
+      if (existingSet.has(video.id)) {
+        skipped += 1;
+        continue;
       }
 
-      return (videos || []).map((video) => ({
-        ...video,
-        analysis_count: analysisMap.get(video.id)?.count || 0,
-        latest_analysis_at: analysisMap.get(video.id)?.latest || null,
-      })) as VideoWithStatus[];
-    },
-  );
-
-export const getVideoAnalysesFn = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
-  .handler(
-    async ({ data }) => {
-      const { supabase } = await getSupabaseAndUser();
-      if (!data?.videoId) return [] as VideoAnalysis[];
-
-      const { data: analyses, error } = await supabase
-        .from("video_analyses")
-        .select("*")
-        .eq("video_id", data.videoId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return (analyses || []) as VideoAnalysis[];
-    },
-  );
-
-export const syncChannelFn = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ channelId: z.string() }).parse(data))
-  .handler(
-    async ({ data }) => {
-      const { supabase, user } = await getSupabaseAndUser();
-      if (!data?.channelId) throw new Error("Missing channelId");
-
-      const { data: channel, error: channelError } = await supabase
-        .from("channels")
-        .select("*")
-        .eq("id", data.channelId)
-        .eq("user_id", user.id)
-        .single();
-
-      if (channelError || !channel) throw channelError || new Error("Playlist not found");
-      if (!channel.youtube_account_id)
-        throw new Error("Playlist is not connected to YouTube");
-
-      const { data: account, error: accountError } = await supabase
-        .from("youtube_accounts")
-        .select("*")
-        .eq("id", channel.youtube_account_id)
-        .single();
-
-      if (accountError || !account)
-        throw accountError || new Error("YouTube account not found");
-
-      let accessToken = account.access_token;
-      const expiresAt = account.expires_at ? new Date(account.expires_at).getTime() : 0;
-
-      if (!expiresAt || Date.now() > expiresAt - 60_000) {
-        const { refreshAccessToken } = await import("~/lib/server/youtube");
-        const refreshed = await refreshAccessToken(account.refresh_token);
-        accessToken = refreshed.access_token;
-
-        const updatedExpiresAt = new Date(
-          Date.now() + refreshed.expires_in * 1000,
-        ).toISOString();
-
-        const { error: updateError } = await supabase
-          .from("youtube_accounts")
-          .update({
-            access_token: accessToken,
-            refresh_token: refreshed.refresh_token || account.refresh_token,
-            expires_at: updatedExpiresAt,
-            scope: refreshed.scope || account.scope,
-            token_type: refreshed.token_type || account.token_type,
-          })
-          .eq("id", account.id);
-
-        if (updateError) throw updateError;
-      }
-
-      const { fetchChannelSummaries, fetchChannelVideos } = await import(
-        "~/lib/server/youtube",
-      );
-
-      const channelSummaries = await fetchChannelSummaries(accessToken);
-      const summary =
-        channelSummaries.find((item) => item.channelId === channel.channel_id) ||
-        channelSummaries[0];
-
-      if (!summary?.uploadsPlaylistId)
-        throw new Error("Unable to fetch playlist items");
-
-      const fetchedVideos = await fetchChannelVideos(
-        accessToken,
-        summary.uploadsPlaylistId,
-        25,
-      );
-
-      const upsertPayload = fetchedVideos.map((video) => ({
-        channel_id: channel.id,
-        youtube_video_id: video.videoId,
-        title: video.title,
-        description: video.description,
-        published_at: video.publishedAt,
-        thumbnail_url: video.thumbnailUrl,
-        duration: video.duration,
-        raw: video.raw,
-      }));
-
-      const { data: upserted, error: upsertError } = await supabase
-        .from("videos")
-        .upsert(upsertPayload, { onConflict: "channel_id,youtube_video_id" })
-        .select();
-
-      if (upsertError) throw upsertError;
-
-      const { error: channelUpdateError } = await supabase
-        .from("channels")
-        .update({
-          title: summary.title,
-          description: summary.description,
-          thumbnail_url: summary.thumbnailUrl,
-          custom_url: summary.customUrl,
-          last_synced_at: new Date().toISOString(),
-        })
-        .eq("id", channel.id);
-
-      if (channelUpdateError) throw channelUpdateError;
-
-      const prompt =
-        (channel.analysis_prompt || DEFAULT_ANALYSIS_PROMPT).trim() ||
-        DEFAULT_ANALYSIS_PROMPT;
-      const { createHash } = await import("crypto");
-      const promptHash = createHash("sha256").update(prompt).digest("hex");
-
-      const videoRows = upserted || [];
-      if (videoRows.length === 0) {
-        return { created: 0, skipped: 0, total: 0 };
-      }
-
-      const videoIds = videoRows.map((video) => video.id);
-      const { data: existingAnalyses } = await supabase
-        .from("video_analyses")
-        .select("video_id, prompt_hash")
-        .in("video_id", videoIds)
-        .eq("prompt_hash", promptHash);
-
-      const existingSet = new Set(
-        (existingAnalyses || []).map((row) => row.video_id),
-      );
-
-      const { generateVideoAnalysis } = await import("~/lib/server/gemini");
-
-      let created = 0;
-      let skipped = 0;
-
-      for (const video of videoRows) {
-        if (existingSet.has(video.id)) {
-          skipped += 1;
-          continue;
-        }
-
-        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_video_id}`;
-
-        try {
-          const result = await generateVideoAnalysis({ videoUrl, prompt });
-          const { error: insertError } = await supabase
-            .from("video_analyses")
-            .insert({
-              video_id: video.id,
-              channel_id: channel.id,
-              user_id: user.id,
-              prompt,
-              prompt_hash: promptHash,
-              analysis_text: result.text,
-              model: result.model,
-              status: "completed",
-            });
-
-          if (insertError) throw insertError;
-          created += 1;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Analysis failed";
-
-          await supabase.from("video_analyses").insert({
-            video_id: video.id,
-            channel_id: channel.id,
-            user_id: user.id,
-            prompt,
-            prompt_hash: promptHash,
-            analysis_text: "",
-            model: "gemini-2.5-flash",
-            status: "failed",
-            error: message,
-          });
-        }
-      }
-
-      return { created, skipped, total: videoRows.length };
-    },
-  );
-
-export const runVideoAnalysisFn = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ videoId: z.string(), prompt: z.string().optional() }).parse(data))
-  .handler(
-    async ({ data }) => {
-      const { supabase, user } = await getSupabaseAndUser();
-      if (!data?.videoId) throw new Error("Missing videoId");
-
-      const { data: video, error: videoError } = await supabase
-        .from("videos")
-        .select("*")
-        .eq("id", data.videoId)
-        .single();
-
-      if (videoError || !video) throw videoError || new Error("Video not found");
-
-      const { data: channel, error: channelError } = await supabase
-        .from("channels")
-        .select("*")
-        .eq("id", video.channel_id)
-        .single();
-
-      if (channelError || !channel)
-        throw channelError || new Error("Channel not found");
-
-      const prompt =
-        (data.prompt || channel.analysis_prompt || DEFAULT_ANALYSIS_PROMPT).trim() ||
-        DEFAULT_ANALYSIS_PROMPT;
-
-      const { createHash } = await import("crypto");
-      const promptHash = createHash("sha256").update(prompt).digest("hex");
-
-      const { generateVideoAnalysis } = await import("~/lib/server/gemini");
       const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_video_id}`;
-      const result = await generateVideoAnalysis({ videoUrl, prompt });
 
-      const { data: inserted, error: insertError } = await supabase
-        .from("video_analyses")
-        .insert({
+      try {
+        const result = await generateVideoAnalysis({ videoUrl, prompt });
+        const { error: insertError } = await supabase.from("video_analyses").insert({
           video_id: video.id,
-          channel_id: channel.id,
+          playlist_id: playlist.id,
           user_id: user.id,
           prompt,
           prompt_hash: promptHash,
           analysis_text: result.text,
           model: result.model,
           status: "completed",
-        })
-        .select()
-        .single();
+        });
 
-      if (insertError) throw insertError;
+        if (insertError) throw insertError;
+        created += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Analysis failed";
 
-      return { analysis: inserted, reused: false };
-    },
-  );
+        await supabase.from("video_analyses").insert({
+          video_id: video.id,
+          playlist_id: playlist.id,
+          user_id: user.id,
+          prompt,
+          prompt_hash: promptHash,
+          analysis_text: "",
+          model: "gemini-2.5-flash",
+          status: "failed",
+          error: message,
+        });
+      }
+    }
+
+    return { created, skipped, total: videoRows.length };
+  });
+
+export const runVideoAnalysisFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ videoId: z.string(), prompt: z.string().optional() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabase, user } = await getSupabaseAndUser();
+    if (!data?.videoId) throw new Error("Missing videoId");
+
+    const { data: video, error: videoError } = await supabase
+      .from("videos")
+      .select("*")
+      .eq("id", data.videoId)
+      .single();
+
+    if (videoError || !video) throw videoError || new Error("Video not found");
+
+    const { data: playlist, error: playlistError } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("id", video.playlist_id)
+      .single();
+
+    if (playlistError || !playlist)
+      throw playlistError || new Error("Playlist not found");
+
+    const prompt =
+      (data.prompt || playlist.analysis_prompt || DEFAULT_ANALYSIS_PROMPT).trim() ||
+      DEFAULT_ANALYSIS_PROMPT;
+
+    const { createHash } = await import("crypto");
+    const promptHash = createHash("sha256").update(prompt).digest("hex");
+
+    const { generateVideoAnalysis } = await import("~/lib/server/gemini");
+    const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_video_id}`;
+    const result = await generateVideoAnalysis({ videoUrl, prompt });
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("video_analyses")
+      .insert({
+        video_id: video.id,
+        playlist_id: playlist.id,
+        user_id: user.id,
+        prompt,
+        prompt_hash: promptHash,
+        analysis_text: result.text,
+        model: result.model,
+        status: "completed",
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    return { analysis: inserted, reused: false };
+  });

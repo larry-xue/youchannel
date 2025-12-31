@@ -1,5 +1,5 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
-import { startYouTubeOAuthFn, completeYouTubeOauthFn } from "~/lib/dashboard/data";
+import { completeYouTubeOauthFn, startYouTubeOAuthFn } from "~/lib/dashboard/data";
 
 export const Route = createFileRoute("/connect-youtube")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -54,7 +54,7 @@ export const Route = createFileRoute("/connect-youtube")({
       .maybeSingle();
 
     if (account) {
-      throw redirect({ to: "/dashboard/channels" });
+      throw redirect({ to: "/dashboard/playlists" });
     }
 
     return { email: user.email, isOAuthCallback: false };
@@ -85,17 +85,20 @@ function ConnectYouTube() {
       });
 
       try {
-        await completeYouTubeOauthFn({ data: { code: search.code, state: search.state } });
+        await completeYouTubeOauthFn({
+          data: { code: search.code, state: search.state },
+        });
         if (!isMounted) return;
         setOauthMessage("YouTube connected successfully!");
         await router.invalidate();
         // 延迟一下让用户看到成功消息，然后重定向
         timeoutId = setTimeout(() => {
-          router.navigate({ to: "/dashboard/channels" });
+          router.navigate({ to: "/dashboard/playlists" });
         }, 1000);
       } catch (error) {
         if (!isMounted) return;
-        const errorMessage = error instanceof Error ? error.message : "YouTube connect failed";
+        const errorMessage =
+          error instanceof Error ? error.message : "YouTube connect failed";
         requestAnimationFrame(() => {
           setActionError(errorMessage);
           setOauthMessage(null);
@@ -179,5 +182,3 @@ function ConnectYouTube() {
     </div>
   );
 }
-
-

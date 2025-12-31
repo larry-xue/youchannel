@@ -17,8 +17,8 @@ export type OAuthTokenResponse = {
   token_type?: string;
 };
 
-export type YouTubeChannelSummary = {
-  channelId: string;
+export type YouTubePlaylistSummary = {
+  playlistId: string;
   title: string;
   description: string | null;
   thumbnailUrl: string | null;
@@ -166,12 +166,12 @@ async function writeYouTubeLog(entry: Record<string, unknown>) {
     const { mkdir, appendFile } = await import("fs/promises");
     const { join } = await import("path");
     const logDir = join(process.cwd(), "logs");
-    const logPath = join(logDir, "youtube-channels.log");
+    const logPath = join(logDir, "youtube-playlists.log");
     await mkdir(logDir, { recursive: true });
     const line = `${new Date().toISOString()} ${JSON.stringify(entry)}\n`;
     await appendFile(logPath, line, "utf8");
   } catch {
-    // Avoid breaking channel sync if logging fails.
+    // Avoid breaking playlist sync if logging fails.
   }
 }
 
@@ -186,9 +186,9 @@ function pickThumbnail(thumbnails?: Record<string, { url?: string }>) {
   );
 }
 
-export async function fetchChannelSummaries(accessToken: string) {
+export async function fetchPlaylistSummaries(accessToken: string) {
   const fetchPlaylistsForParams = async (params: Record<string, string>) => {
-    const collected: YouTubeChannelSummary[] = [];
+    const collected: YouTubePlaylistSummary[] = [];
     let pageToken: string | undefined = undefined;
 
     while (true) {
@@ -218,7 +218,7 @@ export async function fetchChannelSummaries(accessToken: string) {
 
         for (const item of data.items || []) {
           collected.push({
-            channelId: item.id,
+            playlistId: item.id,
             title: item.snippet?.title || "Untitled playlist",
             description: item.snippet?.description || null,
             thumbnailUrl: pickThumbnail(item.snippet?.thumbnails),
@@ -279,12 +279,10 @@ async function fetchPlaylistItems(
       }>;
     }>(url.toString(), accessToken);
 
-    const sampleVideoIds = (data.items || [])
-      .slice(0, 3)
-      .map((item) => {
-        const snippet = item.snippet as { resourceId?: { videoId?: string } } | undefined;
-        return item.contentDetails?.videoId || snippet?.resourceId?.videoId || null;
-      });
+    const sampleVideoIds = (data.items || []).slice(0, 3).map((item) => {
+      const snippet = item.snippet as { resourceId?: { videoId?: string } } | undefined;
+      return item.contentDetails?.videoId || snippet?.resourceId?.videoId || null;
+    });
     await writeYouTubeLog({
       event: "playlistItems.list",
       playlistId,
@@ -344,16 +342,12 @@ async function fetchVideoDetails(
   return details;
 }
 
-export async function fetchChannelVideos(
+export async function fetchPlaylistVideos(
   accessToken: string,
-  uploadsPlaylistId: string,
+  playlistId: string,
   maxResults = 25,
 ): Promise<YouTubeVideoSummary[]> {
-  const playlistItems = await fetchPlaylistItems(
-    accessToken,
-    uploadsPlaylistId,
-    maxResults,
-  );
+  const playlistItems = await fetchPlaylistItems(accessToken, playlistId, maxResults);
   const videoIds = playlistItems.map((item) => item.videoId);
   const detailsMap = await fetchVideoDetails(accessToken, videoIds);
 
@@ -368,7 +362,9 @@ export async function fetchChannelVideos(
       title: (snippet?.title as string) || "Untitled video",
       description: (snippet?.description as string) || null,
       publishedAt: (snippet?.publishedAt as string) || null,
-      thumbnailUrl: pickThumbnail(snippet?.thumbnails as Record<string, { url?: string }> | undefined),
+      thumbnailUrl: pickThumbnail(
+        snippet?.thumbnails as Record<string, { url?: string }> | undefined,
+      ),
       duration: (contentDetails?.duration as string) || null,
       raw: {
         playlistSnippet: snippet,

@@ -6,8 +6,8 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { Button } from "~/lib/components/ui/button";
 import ThemeToggle from "~/lib/components/ThemeToggle";
+import { Button } from "~/lib/components/ui/button";
 import { cn } from "~/lib/utils";
 
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
@@ -58,9 +58,7 @@ export const Route = createFileRoute("/dashboard")({
   },
 });
 
-const DASHBOARD_NAV_ITEMS = [
-  { label: "Playlists", to: "/dashboard/channels" },
-];
+const DASHBOARD_NAV_ITEMS = [{ label: "Playlists", to: "/dashboard/playlists" }];
 
 function DashboardLayout() {
   const { user } = Route.useLoaderData();
@@ -69,7 +67,7 @@ function DashboardLayout() {
   const handleSignOut = async () => {
     await signOutFn();
     await router.invalidate();
-    router.navigate({ 
+    router.navigate({
       to: "/signin",
       search: {
         error: undefined,
@@ -129,4 +127,3 @@ function DashboardLayout() {
     </div>
   );
 }
-

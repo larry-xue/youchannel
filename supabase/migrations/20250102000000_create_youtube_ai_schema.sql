@@ -75,12 +75,12 @@ CREATE TRIGGER set_youtube_accounts_updated_at
   BEFORE UPDATE ON public.youtube_accounts
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Channels tracked per user
-CREATE TABLE public.channels (
+-- Playlists tracked per user
+CREATE TABLE public.playlists (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
   youtube_account_id uuid REFERENCES public.youtube_accounts (id) ON DELETE SET NULL,
-  channel_id text NOT NULL,
+  playlist_id text NOT NULL,
   title text,
   description text,
   thumbnail_url text,
@@ -90,41 +90,41 @@ CREATE TABLE public.channels (
   last_synced_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT channels_unique_user_channel UNIQUE (user_id, channel_id)
+  CONSTRAINT playlists_unique_user_playlist UNIQUE (user_id, playlist_id)
 );
 
-CREATE INDEX channels_user_id_idx ON public.channels (user_id);
-CREATE UNIQUE INDEX channels_one_active_per_user
-  ON public.channels (user_id)
+CREATE INDEX playlists_user_id_idx ON public.playlists (user_id);
+CREATE UNIQUE INDEX playlists_one_active_per_user
+  ON public.playlists (user_id)
   WHERE is_active;
 
-ALTER TABLE public.channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their channels"
-  ON public.channels FOR SELECT
+CREATE POLICY "Users can view their playlists"
+  ON public.playlists FOR SELECT
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their channels"
-  ON public.channels FOR INSERT
+CREATE POLICY "Users can insert their playlists"
+  ON public.playlists FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their channels"
-  ON public.channels FOR UPDATE
+CREATE POLICY "Users can update their playlists"
+  ON public.playlists FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their channels"
-  ON public.channels FOR DELETE
+CREATE POLICY "Users can delete their playlists"
+  ON public.playlists FOR DELETE
   USING (auth.uid() = user_id);
 
-CREATE TRIGGER set_channels_updated_at
-  BEFORE UPDATE ON public.channels
+CREATE TRIGGER set_playlists_updated_at
+  BEFORE UPDATE ON public.playlists
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- Videos fetched from YouTube
 CREATE TABLE public.videos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  channel_id uuid NOT NULL REFERENCES public.channels (id) ON DELETE CASCADE,
+  playlist_id uuid NOT NULL REFERENCES public.playlists (id) ON DELETE CASCADE,
   youtube_video_id text NOT NULL,
   title text,
   description text,
@@ -134,10 +134,10 @@ CREATE TABLE public.videos (
   raw jsonb,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT videos_unique_channel_video UNIQUE (channel_id, youtube_video_id)
+  CONSTRAINT videos_unique_playlist_video UNIQUE (playlist_id, youtube_video_id)
 );
 
-CREATE INDEX videos_channel_id_idx ON public.videos (channel_id);
+CREATE INDEX videos_playlist_id_idx ON public.videos (playlist_id);
 
 ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
 
@@ -145,9 +145,9 @@ CREATE POLICY "Users can view their videos"
   ON public.videos FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM public.channels
-      WHERE channels.id = videos.channel_id
-        AND channels.user_id = auth.uid()
+      SELECT 1 FROM public.playlists
+      WHERE playlists.id = videos.playlist_id
+        AND playlists.user_id = auth.uid()
     )
   );
 
@@ -155,9 +155,9 @@ CREATE POLICY "Users can insert their videos"
   ON public.videos FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.channels
-      WHERE channels.id = videos.channel_id
-        AND channels.user_id = auth.uid()
+      SELECT 1 FROM public.playlists
+      WHERE playlists.id = videos.playlist_id
+        AND playlists.user_id = auth.uid()
     )
   );
 
@@ -165,16 +165,16 @@ CREATE POLICY "Users can update their videos"
   ON public.videos FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM public.channels
-      WHERE channels.id = videos.channel_id
-        AND channels.user_id = auth.uid()
+      SELECT 1 FROM public.playlists
+      WHERE playlists.id = videos.playlist_id
+        AND playlists.user_id = auth.uid()
     )
   )
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.channels
-      WHERE channels.id = videos.channel_id
-        AND channels.user_id = auth.uid()
+      SELECT 1 FROM public.playlists
+      WHERE playlists.id = videos.playlist_id
+        AND playlists.user_id = auth.uid()
     )
   );
 
@@ -182,9 +182,9 @@ CREATE POLICY "Users can delete their videos"
   ON public.videos FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM public.channels
-      WHERE channels.id = videos.channel_id
-        AND channels.user_id = auth.uid()
+      SELECT 1 FROM public.playlists
+      WHERE playlists.id = videos.playlist_id
+        AND playlists.user_id = auth.uid()
     )
   );
 
@@ -196,7 +196,7 @@ CREATE TRIGGER set_videos_updated_at
 CREATE TABLE public.video_analyses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   video_id uuid NOT NULL REFERENCES public.videos (id) ON DELETE CASCADE,
-  channel_id uuid NOT NULL REFERENCES public.channels (id) ON DELETE CASCADE,
+  playlist_id uuid NOT NULL REFERENCES public.playlists (id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
   prompt text NOT NULL,
   prompt_hash text NOT NULL,
@@ -240,7 +240,7 @@ CREATE TRIGGER set_video_analyses_updated_at
 CREATE TABLE public.conversations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  channel_id uuid REFERENCES public.channels (id) ON DELETE SET NULL,
+  playlist_id uuid REFERENCES public.playlists (id) ON DELETE SET NULL,
   title text NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())

@@ -1,10 +1,8 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import z from "zod";
 import { Button } from "~/lib/components/ui/button";
-import { Input } from "~/lib/components/ui/input";
-import { Label } from "~/lib/components/ui/label";
 import {
   Card,
   CardContent,
@@ -12,15 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
+import { Input } from "~/lib/components/ui/input";
+import { Label } from "~/lib/components/ui/label";
 
 const REDIRECT_URL = "/dashboard";
 
 type AuthMode = "signin" | "signup";
-
-interface AuthCredentials {
-  email: string;
-  password: string;
-}
 
 interface AuthResult {
   error?: boolean;
@@ -28,8 +23,11 @@ interface AuthResult {
   success?: boolean;
 }
 
-export const signInFn = createServerFn({ method: "POST" }).handler(
-  async ({ data }: { data: AuthCredentials }) => {
+export const signInFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ email: z.string(), password: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
     const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({
@@ -42,11 +40,13 @@ export const signInFn = createServerFn({ method: "POST" }).handler(
     }
 
     return { success: true } as AuthResult;
-  },
-);
+  });
 
-export const signUpFn = createServerFn({ method: "POST" }).handler(
-  async ({ data }: { data: AuthCredentials }) => {
+export const signUpFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ email: z.string(), password: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
     const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signUp({
@@ -62,8 +62,7 @@ export const signUpFn = createServerFn({ method: "POST" }).handler(
       success: true,
       message: "Account created. Check your email to confirm.",
     } as AuthResult;
-  },
-);
+  });
 
 export const Route = createFileRoute("/signin")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -230,5 +229,3 @@ function AuthPage() {
     </div>
   );
 }
-
-

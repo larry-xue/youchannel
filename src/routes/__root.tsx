@@ -40,16 +40,15 @@ const getUser = createServerFn({ method: "GET" }).handler(async () => {
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
-  user: Awaited<ReturnType<typeof getUser>>;
 }>()({
   beforeLoad: async ({ context }) => {
-    // Invalidate the user query to ensure fresh data
-    await context.queryClient.invalidateQueries({ queryKey: ["user"] });
-
-    const user = await context.queryClient.fetchQuery({
+    // Use ensureQueryData to avoid redundant requests on every navigation
+    // User data will be considered fresh for 24 hours
+    // For "force refresh", explicitly call invalidateQueries(["user"]) on login/logout/oauth callback
+    const user = await context.queryClient.ensureQueryData({
       queryKey: ["user"],
       queryFn: ({ signal }) => getUser({ signal }),
-      staleTime: 0, // Consider the data stale immediately
+      staleTime: 24 * 60 * 60 * 1000, // 24 hours - avoids request on every navigation
     });
     return { user };
   },

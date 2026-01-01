@@ -8,6 +8,10 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"]
+    }
   }
 }

@@ -71,6 +71,32 @@ GET /api/sync/run
 Authorization: Bearer <SYNC_API_KEY>
 ```
 
+## Local Development
+
+### Manual Sync Trigger
+
+For local development, you can manually trigger sync jobs using the trigger script:
+
+```bash
+# Trigger sync for all due playlists
+npm run trigger-sync
+
+# Trigger sync for a specific user
+npm run trigger-sync -- --userId <user-id>
+
+# Trigger sync for a specific playlist
+npm run trigger-sync -- --playlistId <playlist-id>
+```
+
+The script will:
+- Find all playlists that need syncing (where `next_sync_at` is null or <= now)
+- Create `sync_playlist` jobs in the jobs queue
+- Update `next_sync_at` for each playlist
+
+Make sure you have the required environment variables set:
+- `SUPABASE_URL` or `VITE_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
 ## Fly.io background jobs
 
 For Fly.io deployments, use three process groups so sync runs as a queue:

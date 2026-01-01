@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
-    "build:processes": "tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
+    "build": "vite build && vite build --config vite.config.processes.ts",
+    "build:processes": "vite build --config vite.config.processes.ts",
     "start": "node .output/server/index.mjs",
     "start:scheduler": "node dist/scheduler.js",
     "start:worker": "node dist/worker.js",
@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "ui": "pnpm dlx shadcn@canary",
     "db:migrate": "supabase db push",
-    "db:seed": "supabase db push"
+    "db:seed": "supabase db push",
+    "trigger-sync": "tsx scripts/trigger-sync.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -64,7 +65,9 @@
     "prettier-plugin-tailwindcss": "^0.7.2",
     "supabase": "^2.19.7",
     "tailwindcss": "^4.0.14",
+    "dotenv": "^16.4.7",
     "tsc-alias": "^1.8.16",
+    "tsx": "^4.19.2",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",
     "vite-tsconfig-paths": "^6.0.1"

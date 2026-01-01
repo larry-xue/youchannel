@@ -9,8 +9,6 @@ primary_region = "sjc"
 
 [processes]
   web = "node .output/server/index.mjs"
-  scheduler = "node dist/scheduler.js"
-  worker = "node dist/worker.js"
 
 [http_service]
   internal_port = 3000

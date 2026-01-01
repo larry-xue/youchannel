@@ -51,26 +51,6 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 - Enable the YouTube Data API in your Google Cloud project.
 - Use the `https://www.googleapis.com/auth/youtube` scope (full access for creating playlists).
 
-## Background Sync API
-
-The system provides an API endpoint for automated background syncing:
-
-```bash
-# Sync all active playlists
-POST /api/sync/run
-Authorization: Bearer <SYNC_API_KEY>
-
-# Optional: Sync specific user's playlists
-POST /api/sync/run
-Authorization: Bearer <SYNC_API_KEY>
-Content-Type: application/json
-{"userId": "<user-id>"}
-
-# Health check
-GET /api/sync/run
-Authorization: Bearer <SYNC_API_KEY>
-```
-
 ## Local Development
 
 ### Manual Sync Trigger
@@ -90,51 +70,12 @@ npm run trigger-sync -- --playlistId <playlist-id>
 
 The script will:
 - Find all playlists that need syncing (where `next_sync_at` is null or <= now)
-- Create `sync_playlist` jobs in the jobs queue
+- Run the sync process directly
 - Update `next_sync_at` for each playlist
 
 Make sure you have the required environment variables set:
 - `SUPABASE_URL` or `VITE_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-
-## Fly.io background jobs
-
-For Fly.io deployments, use three process groups so sync runs as a queue:
-
-- `web` - TanStack Start app (`node .output/server/index.mjs`)
-- `scheduler` - enqueue due playlists (`node dist/scheduler.js`)
-- `worker` - consume jobs (`node dist/worker.js`)
-
-Run the latest Supabase migrations to create the `jobs` table and
-`playlists.next_sync_at`. See `fly.toml` for the process definitions.
-Make sure `pnpm build` runs so `dist/` contains the scheduler/worker output.
-
-### HTTP scheduling options (legacy)
-
-If you prefer to drive sync via HTTP, you can still call the endpoint on a
-schedule:
-
-1. **Vercel Cron** - Add to `vercel.json`:
-   ```json
-   {
-     "crons": [{
-       "path": "/api/sync/run",
-       "schedule": "*/10 * * * *"
-     }]
-   }
-   ```
-
-2. **GitHub Actions** - Use a scheduled workflow to call the endpoint
-
-3. **External Cron Service** - Any service that supports HTTP webhooks
-
-### Sync Behavior
-
-- Scans all active playlists every sync interval
-- Detects new videos and triggers analysis automatically
-- Handles removed videos (marks as "removed" but preserves existing analyses)
-- Respects user quotas (3 free analyses, max 10 min video duration)
-- Idempotent - safe to call multiple times without duplicate processing
 
 ## Tech
 

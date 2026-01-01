@@ -4,17 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && npm run build:processes",
-    "build:processes": "tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
+    "build": "vite build",
     "start": "node .output/server/index.mjs",
-    "start:scheduler": "node dist/scheduler.js",
-    "start:worker": "node dist/worker.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "ui": "pnpm dlx shadcn@canary",
     "db:migrate": "supabase db push",
-    "db:seed": "supabase db push",
-    "trigger-sync": "tsx scripts/trigger-sync.ts"
+    "db:seed": "supabase db push"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -37,7 +33,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
     "nitro": "^3.0.1-alpha.1",
-    "node-cron": "^3.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.0.2",
@@ -51,7 +46,6 @@
     "@tailwindcss/vite": "^4.0.14",
     "@tanstack/eslint-plugin-query": "^5.90.2",
     "@tanstack/eslint-plugin-router": "^1.133.19",
-    "@types/node-cron": "^3.0.11",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "babel-plugin-react-compiler": "latest",
@@ -66,7 +60,6 @@
     "supabase": "^2.19.7",
     "tailwindcss": "^4.0.14",
     "dotenv": "^16.4.7",
-    "tsc-alias": "^1.8.16",
     "tsx": "^4.19.2",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",

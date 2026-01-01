@@ -24,6 +24,7 @@ export type Playlist = {
   entry_status: PlaylistEntryStatus;
   analysis_prompt: string;
   last_synced_at: string | null;
+  next_sync_at: string | null;
   created_at: string;
   updated_at: string;
 };

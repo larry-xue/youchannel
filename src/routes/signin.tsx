@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import z from "zod";
 import { Button } from "~/lib/components/ui/button";
@@ -91,6 +92,7 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -112,12 +114,12 @@ function AuthPage() {
       if (result?.error) {
         setError(result.message || "Authentication failed");
       } else if (mode === "signin") {
+        // 强制刷新用户数据
+        await queryClient.invalidateQueries({ queryKey: ["user"] });
         await router.invalidate();
-        if (search.redirect) {
-          router.history.push(search.redirect);
-        } else {
-          router.navigate({ to: REDIRECT_URL });
-        }
+        // 跳转到 dashboard
+        const redirectTo = search.redirect || REDIRECT_URL;
+        router.navigate({ to: redirectTo });
       } else {
         setMessage(result?.message || "Check your email to confirm.");
       }

@@ -10,7 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
+import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
 import { completeYouTubeOauthFn, startYouTubeOAuthFn } from "~/lib/dashboard/data";
+import { useAuthUser } from "~/lib/store/auth";
 
 const getYouTubeAccountStatus = createServerFn({ method: "GET" }).handler(async () => {
   const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
@@ -46,19 +48,25 @@ export const Route = createFileRoute("/connect-youtube")({
     state: search.state,
     error: search.error,
   }),
-  beforeLoad: ({ context, location }) => {
-    if (!context.user) {
+  beforeLoad: async ({ context, location }) => {
+    const user = await resolveAuthUser(context.authStore, context.user);
+    if (!user) {
       throw redirect({
         to: "/signin",
         search: {
           error: "unauthorized",
-          redirect: location.href,
+          redirect: `${location.pathname}${location.search}${location.hash}`,
         },
       });
     }
   },
   loader: async ({ context, deps }) => {
-    const user = context.user!;
+    const user =
+      context.authStore.state.user ??
+      (await resolveAuthUser(context.authStore, context.user));
+    if (!user) {
+      throw redirect({ to: "/signin", search: { error: "unauthorized" } });
+    }
 
     // 如果是 OAuth 回调，处理完成后重定向
     if (deps.code && deps.state) {
@@ -79,10 +87,12 @@ export const Route = createFileRoute("/connect-youtube")({
 
 function ConnectYouTube() {
   const { email, isOAuthCallback } = Route.useLoaderData();
+  const authUser = useAuthUser();
   const search = Route.useSearch();
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
+  const displayEmail = authUser?.email ?? email ?? "your account";
 
   // 处理 OAuth 回调
   useEffect(() => {
@@ -166,7 +176,7 @@ function ConnectYouTube() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-              Signed in as <span className="text-foreground">{email}</span>
+              Signed in as <span className="text-foreground">{displayEmail}</span>
             </div>
             {oauthMessage && (
               <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">

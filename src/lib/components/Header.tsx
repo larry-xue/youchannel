@@ -1,14 +1,14 @@
-import { User } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import ThemeToggle from "./ThemeToggle";
 import { Button } from "./ui/button";
+import { useAuthUser } from "~/lib/store/auth";
 
 interface HeaderProps {
-  user: User | null;
   onSignOut: () => Promise<void>;
 }
 
-export function Header({ user, onSignOut }: HeaderProps) {
+export function Header({ onSignOut }: HeaderProps) {
+  const authUser = useAuthUser();
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="container mx-auto max-w-7xl px-6">
@@ -23,7 +23,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            {user ? (
+            {authUser ? (
               <>
                 <Button asChild variant="outline" size="sm">
                   <Link to="/dashboard">Dashboard</Link>
@@ -39,7 +39,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
               </>
             ) : (
               <Button asChild variant="outline" size="sm">
-                <Link to="/signin" search={{ error: "", redirect: "/" }}>
+                <Link to="/signin" search={{ error: "", redirect: "/dashboard" }}>
                   Sign in
                 </Link>
               </Button>

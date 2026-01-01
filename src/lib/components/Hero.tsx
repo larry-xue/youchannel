@@ -1,13 +1,10 @@
-import { User } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { useAuthUser } from "~/lib/store/auth";
 
-interface HeroProps {
-  user: User | null;
-}
-
-export function Hero({ user }: HeroProps) {
+export function Hero() {
+  const user = useAuthUser();
   return (
     <section className="grid animate-rise gap-10 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
       <div className="space-y-6">
@@ -28,7 +25,7 @@ export function Hero({ user }: HeroProps) {
             </Button>
           ) : (
             <Button asChild size="lg">
-              <Link to="/signin" search={{ error: "", redirect: "/" }}>
+              <Link to="/signin" search={{ error: "", redirect: "/dashboard" }}>
                 Get started
               </Link>
             </Button>

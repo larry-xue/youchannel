@@ -1,10 +1,10 @@
-import { User } from "@supabase/supabase-js";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { Features } from "~/lib/components/Features";
 import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 import { Hero } from "~/lib/components/Hero";
+import { setAuthUser } from "~/lib/store/auth";
 
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
   const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
@@ -19,20 +19,16 @@ export const signOutFn = createServerFn({ method: "POST" }).handler(async () => 
 
 export const Route = createFileRoute("/")({
   component: Home,
-  loader: ({ context }) => {
-    return { user: context.user };
-  },
 });
 
 function Home() {
-  const { user } = Route.useLoaderData();
   const router = useRouter();
 
   const handleSignOut = async () => {
     try {
       await signOutFn();
-      await router.invalidate();
-      router.navigate({ to: "/signin", search: { error: "", redirect: "/" } });
+      setAuthUser(router.options.context.authStore, null);
+      router.navigate({ to: "/signin", search: { error: "", redirect: "/dashboard" } });
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -40,10 +36,10 @@ function Home() {
 
   return (
     <div className="min-h-screen">
-      <Header user={user as User | null} onSignOut={handleSignOut} />
+      <Header onSignOut={handleSignOut} />
       <main className="flex-1 pt-8">
         <div className="container mx-auto max-w-7xl px-6">
-          <Hero user={user} />
+          <Hero />
           <Features />
         </div>
       </main>

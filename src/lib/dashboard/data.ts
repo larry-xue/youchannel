@@ -78,7 +78,7 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
     await supabase.from("youtube_oauth_states").delete().eq("id", stateRow.id);
 
     // Exchange code for tokens
-    const { exchangeCodeForTokens, createYouTubePlaylist } =
+    const { exchangeCodeForTokens, createYouTubePlaylist, findPlaylistByTitle } =
       await import("~/lib/server/youtube");
     const token = await exchangeCodeForTokens(data.code);
     const tokenExpiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
@@ -130,27 +130,73 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
       accountId = inserted.id;
     }
 
-    // Create the YouChannel AI playlist on YouTube
-    const createdPlaylist = await createYouTubePlaylist(
+    const existingPlaylists = await supabase
+      .from("playlists")
+      .select("playlist_id, is_active")
+      .eq("user_id", user.id);
+
+    if (existingPlaylists.error) throw existingPlaylists.error;
+
+    const hasActive = (existingPlaylists.data || []).some((item) => item.is_active);
+
+    const existingPlaylist = await findPlaylistByTitle(
       token.access_token,
       YOUCHANNEL_PLAYLIST_TITLE,
-      YOUCHANNEL_PLAYLIST_DESCRIPTION,
-      "private",
     );
 
-    // Save the playlist to database
-    const { error: playlistError } = await supabase.from("playlists").insert({
-      user_id: user.id,
-      youtube_account_id: accountId,
-      playlist_id: createdPlaylist.playlistId,
-      title: createdPlaylist.title,
-      description: createdPlaylist.description,
-      is_active: true,
-    });
+    const createdPlaylist = existingPlaylist
+      ? null
+      : await createYouTubePlaylist(
+          token.access_token,
+          YOUCHANNEL_PLAYLIST_TITLE,
+          YOUCHANNEL_PLAYLIST_DESCRIPTION,
+          "private",
+        );
 
-    if (playlistError) throw playlistError;
+    const playlistId = existingPlaylist?.playlistId || createdPlaylist?.playlistId;
+    if (!playlistId) throw new Error("Unable to resolve YouChannel playlist");
 
-    return { success: true, playlistTitle: createdPlaylist.title };
+    const isActive = !hasActive
+      ? true
+      : (existingPlaylists.data || []).some(
+          (item) => item.is_active && item.playlist_id === playlistId,
+        );
+
+    const playlistTitle =
+      existingPlaylist?.title || createdPlaylist?.title || YOUCHANNEL_PLAYLIST_TITLE;
+    const playlistDescription =
+      existingPlaylist?.description || createdPlaylist?.description || YOUCHANNEL_PLAYLIST_DESCRIPTION;
+
+    const upsertResult = await supabase
+      .from("playlists")
+      .upsert(
+        {
+          user_id: user.id,
+          youtube_account_id: accountId,
+          playlist_id: playlistId,
+          title: playlistTitle,
+          description: playlistDescription,
+          thumbnail_url: existingPlaylist?.thumbnailUrl || null,
+          custom_url: existingPlaylist?.customUrl || null,
+          is_active: isActive,
+        },
+        { onConflict: "user_id,playlist_id" },
+      )
+      .select("id")
+      .single();
+
+    if (upsertResult.error) {
+      const fallback = await supabase
+        .from("playlists")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("playlist_id", playlistId)
+        .maybeSingle();
+
+      if (fallback.error || !fallback.data) throw upsertResult.error;
+    }
+
+    return { success: true, playlistTitle: playlistTitle || YOUCHANNEL_PLAYLIST_TITLE };
   });
 
 export const getPlaylistsFn = createServerFn({ method: "GET" }).handler(async () => {

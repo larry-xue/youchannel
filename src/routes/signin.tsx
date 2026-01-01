@@ -1,6 +1,5 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+﻿import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import z from "zod";
 import { Button } from "~/lib/components/ui/button";
@@ -13,8 +12,22 @@ import {
 } from "~/lib/components/ui/card";
 import { Input } from "~/lib/components/ui/input";
 import { Label } from "~/lib/components/ui/label";
+import { getUserFn } from "~/lib/server/user";
+import { setAuthUser } from "~/lib/store/auth";
 
 const REDIRECT_URL = "/dashboard";
+const normalizeRedirect = (value?: string) => {
+  if (!value) return REDIRECT_URL;
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    try {
+      const url = new URL(value);
+      return `${url.pathname}${url.search}${url.hash}` || REDIRECT_URL;
+    } catch {
+      return REDIRECT_URL;
+    }
+  }
+  return value;
+};
 
 type AuthMode = "signin" | "signup";
 
@@ -75,7 +88,7 @@ export const Route = createFileRoute("/signin")({
   beforeLoad: async ({ context, search }) => {
     if (context.user) {
       throw redirect({
-        to: search.redirect || REDIRECT_URL,
+        to: normalizeRedirect(search.redirect),
       });
     }
   },
@@ -92,7 +105,6 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -114,12 +126,14 @@ function AuthPage() {
       if (result?.error) {
         setError(result.message || "Authentication failed");
       } else if (mode === "signin") {
-        // 强制刷新用户数据
-        await queryClient.invalidateQueries({ queryKey: ["user"] });
-        await router.invalidate();
-        // 跳转到 dashboard
-        const redirectTo = search.redirect || REDIRECT_URL;
-        router.navigate({ to: redirectTo });
+        const user = await getUserFn();
+        if (!user) {
+          setError("Unable to load your session. Please try again.");
+          return;
+        }
+        setAuthUser(router.options.context.authStore, user);
+        const redirectTo = normalizeRedirect(search.redirect);
+        router.navigate({ to: redirectTo, replace: true });
       } else {
         setMessage(result?.message || "Check your email to confirm.");
       }
@@ -231,3 +245,4 @@ function AuthPage() {
     </div>
   );
 }
+

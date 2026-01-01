@@ -259,7 +259,10 @@ function pickThumbnail(thumbnails?: Record<string, { url?: string }>) {
   );
 }
 
-export async function fetchPlaylistSummaries(accessToken: string) {
+export async function fetchPlaylistSummaries(
+  accessToken: string,
+  options: { allowEmpty?: boolean } = {},
+) {
   const fetchPlaylistsForParams = async (params: Record<string, string>) => {
     const collected: YouTubePlaylistSummary[] = [];
     let pageToken: string | undefined = undefined;
@@ -317,12 +320,40 @@ export async function fetchPlaylistSummaries(accessToken: string) {
 
   const minePlaylists = await fetchPlaylistsForParams({ mine: "true" });
   if (minePlaylists.length === 0) {
+    if (options.allowEmpty) return [];
     throw new Error(
       "No playlists found for this account. Ensure the OAuth token has YouTube read access.",
     );
   }
 
   return minePlaylists;
+}
+
+export async function findPlaylistByTitle(accessToken: string, title: string) {
+  const normalizedTitle = title.trim().toLowerCase();
+  let playlists: YouTubePlaylistSummary[] = [];
+
+  try {
+    playlists = await fetchPlaylistSummaries(accessToken, { allowEmpty: true });
+  } catch (error) {
+    await writeYouTubeLog({
+      event: "playlists.match.error",
+      title,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+  const match = playlists.find(
+    (playlist) => playlist.title.trim().toLowerCase() === normalizedTitle,
+  );
+  if (match) {
+    await writeYouTubeLog({
+      event: "playlists.match",
+      title,
+      playlistId: match.playlistId,
+    });
+  }
+  return match ?? null;
 }
 
 async function fetchPlaylistItems(

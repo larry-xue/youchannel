@@ -8,6 +8,8 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import ThemeToggle from "~/lib/components/ThemeToggle";
 import { Button } from "~/lib/components/ui/button";
+import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
+import { setAuthUser, useAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
 
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
@@ -40,21 +42,20 @@ const getYouTubeAccountStatus = createServerFn({ method: "GET" }).handler(async 
 });
 
 export const Route = createFileRoute("/dashboard")({
-  beforeLoad: ({ context, location }) => {
-    if (!context.user) {
+  beforeLoad: async ({ context, location }) => {
+    const user = await resolveAuthUser(context.authStore, context.user);
+    if (!user) {
       throw redirect({
         to: "/signin",
         search: {
           error: "unauthorized",
-          redirect: location.href,
+          redirect: `${location.pathname}${location.search}${location.hash}`,
         },
       });
     }
   },
   component: DashboardLayout,
-  loader: async ({ context }) => {
-    const user = context.user!;
-
+  loader: async () => {
     // 检查是否有 YouTube 账户，没有则重定向到连接页面
     const { hasAccount } = await getYouTubeAccountStatus();
     if (!hasAccount) {
@@ -68,19 +69,19 @@ export const Route = createFileRoute("/dashboard")({
       });
     }
 
-    return { user };
+    return {};
   },
 });
 
 const DASHBOARD_NAV_ITEMS = [{ label: "Playlists", to: "/dashboard/playlists" }];
 
 function DashboardLayout() {
-  const { user } = Route.useLoaderData();
   const router = useRouter();
+  const authUser = useAuthUser();
 
   const handleSignOut = async () => {
     await signOutFn();
-    await router.invalidate();
+    setAuthUser(router.options.context.authStore, null);
     router.navigate({
       to: "/signin",
       search: {
@@ -104,7 +105,9 @@ function DashboardLayout() {
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">{user.email}</span>
+            <span className="text-xs text-muted-foreground">
+              {authUser?.email}
+            </span>
             <Button type="button" variant="outline" size="sm" onClick={handleSignOut}>
               Sign out
             </Button>

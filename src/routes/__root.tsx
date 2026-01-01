@@ -6,50 +6,25 @@ import {
   ScriptOnce,
   Scripts,
 } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import appCss from "~/lib/styles/app.css?url";
-
-interface UserData {
-  id: string;
-  email?: string;
-  user_metadata: { [key: string]: object };
-  app_metadata: { [key: string]: object };
-}
-
-const getUser = createServerFn({ method: "GET" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error) {
-    console.warn("Auth error:", error);
-    return null;
-  }
-  if (!user) return null;
-
-  // Return only serializable user data
-  const { id, email, user_metadata, app_metadata } = user;
-  return { id, email, user_metadata, app_metadata } as UserData;
-});
+import { getUserFn } from "~/lib/server/user";
+import { setAuthUser, type AuthStore } from "~/lib/store/auth";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
+  authStore: AuthStore;
 }>()({
   beforeLoad: async ({ context }) => {
-    // Use ensureQueryData to avoid redundant requests on every navigation
-    // User data will be considered fresh for 24 hours
-    // For "force refresh", explicitly call invalidateQueries(["user"]) on login/logout/oauth callback
-    const user = await context.queryClient.ensureQueryData({
-      queryKey: ["user"],
-      queryFn: ({ signal }) => getUser({ signal }),
-      staleTime: 24 * 60 * 60 * 1000, // 24 hours - avoids request on every navigation
-    });
+    const isServer = typeof window === "undefined";
+    if (!isServer && context.authStore.state.status !== "unknown") {
+      return { user: context.authStore.state.user };
+    }
+    const user = await getUserFn();
+    setAuthUser(context.authStore, user);
     return { user };
   },
   head: () => ({

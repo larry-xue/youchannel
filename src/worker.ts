@@ -1,3 +1,11 @@
+/**
+ * Worker 进程 - 纯 Node.js 进程
+ *
+ * 注意：此文件是独立的 Node.js 进程，不使用 Vite 构建。
+ * - 不能使用 Vite 路径别名（如 ~/），必须使用相对路径
+ * - 动态导入必须使用相对路径并包含 .js 扩展名（ESM 要求）
+ * - 使用 TypeScript 编译器 + tsc-alias 构建
+ */
 import { randomUUID } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
@@ -155,7 +163,8 @@ const processJob = async (job: JobRow) => {
 
     try {
       // Import and run sync for specific playlist
-      const { runPlaylistSync } = await import("~/lib/server/sync");
+      // 注意：worker 是纯 Node.js 进程，不能使用 Vite 路径别名，必须使用相对路径
+      const { runPlaylistSync } = await import("./lib/server/sync.js");
 
       // If playlistId is provided, we need to sync only that playlist
       // For now, we'll sync all playlists for the user (or all if no userId)

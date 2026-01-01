@@ -155,7 +155,7 @@ const processJob = async (job: JobRow) => {
 
     try {
       // Import and run sync for specific playlist
-      const { runPlaylistSync } = await import("./lib/server/sync");
+      const { runPlaylistSync } = await import("./lib/server/sync.js");
 
       // If playlistId is provided, we need to sync only that playlist
       // For now, we'll sync all playlists for the user (or all if no userId)

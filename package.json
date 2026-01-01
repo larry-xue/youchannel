@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && tsc -p tsconfig.processes.json",
-    "build:processes": "tsc -p tsconfig.processes.json",
+    "build": "vite build && tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
+    "build:processes": "tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
     "start": "node .output/server/index.mjs",
     "start:scheduler": "node dist/scheduler.js",
     "start:worker": "node dist/worker.js",
@@ -64,6 +64,7 @@
     "prettier-plugin-tailwindcss": "^0.7.2",
     "supabase": "^2.19.7",
     "tailwindcss": "^4.0.14",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",
     "vite-tsconfig-paths": "^6.0.1"

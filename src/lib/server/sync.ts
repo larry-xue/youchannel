@@ -8,6 +8,17 @@ import type {
   VideoAnalysisSkipReason,
 } from "~/schema";
 
+// Type for YouTube video summary (matches YouTubeVideoSummary from youtube.ts)
+type YouTubeVideoSummary = {
+  videoId: string;
+  title: string;
+  description: string | null;
+  publishedAt: string | null;
+  thumbnailUrl: string | null;
+  duration: string | null;
+  raw: Record<string, unknown>;
+};
+
 // Environment variable helpers
 const getEnvValue = (key: string) => {
   const metaEnv = (import.meta as { env?: Record<string, string | undefined> }).env;
@@ -317,13 +328,13 @@ async function syncSinglePlaylist(
     if (videosError) throw videosError;
 
     const existingVideoMap = new Map(
-      (existingVideos || []).map((v) => [v.youtube_video_id, v as Video]),
+      (existingVideos || []).map((v: Video) => [v.youtube_video_id, v as Video]),
     );
-    const youtubeVideoIds = new Set(youtubeVideos.map((v) => v.videoId));
+    const youtubeVideoIds = new Set(youtubeVideos.map((v: YouTubeVideoSummary) => v.videoId));
 
     // Find new videos to add
     const newVideos = youtubeVideos.filter(
-      (v) => !existingVideoMap.has(v.videoId),
+      (v: YouTubeVideoSummary) => !existingVideoMap.has(v.videoId),
     );
 
     // Find videos that were removed from playlist
@@ -346,7 +357,7 @@ async function syncSinglePlaylist(
         newVideoCount: newVideos.length,
       });
 
-      const insertPayload = newVideos.map((video) => ({
+      const insertPayload = newVideos.map((video: YouTubeVideoSummary) => ({
         playlist_id: playlist.id,
         youtube_video_id: video.videoId,
         title: video.title,

@@ -66,6 +66,16 @@ async function writeSyncLog(entry: Record<string, unknown>) {
   }
 }
 
+// Console log helper for fly.io
+function logSync(message: string, details?: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  if (details) {
+    console.log(`[sync] ${timestamp} ${message}`, JSON.stringify(details, null, 2));
+  } else {
+    console.log(`[sync] ${timestamp} ${message}`);
+  }
+}
+
 // Check user quota
 export async function checkUserQuota(
   userId: string,
@@ -211,12 +221,19 @@ async function syncSinglePlaylist(
     error: undefined as string | undefined,
   };
 
+  logSync(`开始同步播放列表`, {
+    playlistId: playlist.id,
+    playlistName: playlist.title,
+    userId: playlist.user_id,
+  });
+
   try {
     // Check if token needs refresh
     let accessToken = account.access_token;
     const expiresAt = account.expires_at ? new Date(account.expires_at).getTime() : 0;
 
     if (!expiresAt || Date.now() > expiresAt - 60_000) {
+      logSync(`刷新访问令牌`, { playlistId: playlist.id });
       const { refreshAccessToken } = await import("~/lib/server/youtube");
       try {
         const refreshed = await refreshAccessToken(account.refresh_token);
@@ -235,7 +252,15 @@ async function syncSinglePlaylist(
             expires_at: updatedExpiresAt,
           })
           .eq("id", playlist.youtube_account_id);
-      } catch {
+
+        logSync(`访问令牌刷新成功`, { playlistId: playlist.id });
+      } catch (refreshError) {
+        const errorMessage =
+          refreshError instanceof Error ? refreshError.message : String(refreshError);
+        logSync(`访问令牌刷新失败`, {
+          playlistId: playlist.id,
+          error: errorMessage,
+        });
         // Token refresh failed - mark as auth invalid
         await updatePlaylistEntryStatus(playlist.id, "auth_invalid");
         result.error = "Authorization expired";
@@ -244,14 +269,27 @@ async function syncSinglePlaylist(
     }
 
     // Fetch current videos from YouTube
+    logSync(`从 YouTube 获取播放列表视频`, {
+      playlistId: playlist.id,
+      youtubePlaylistId: playlist.playlist_id,
+    });
     const { fetchPlaylistVideos } = await import("~/lib/server/youtube");
     let youtubeVideos;
 
     try {
       youtubeVideos = await fetchPlaylistVideos(accessToken, playlist.playlist_id, 50);
+      logSync(`成功获取 YouTube 视频`, {
+        playlistId: playlist.id,
+        videoCount: youtubeVideos.length,
+      });
     } catch (fetchError) {
       const errorMessage =
         fetchError instanceof Error ? fetchError.message : String(fetchError);
+
+      logSync(`获取 YouTube 视频失败`, {
+        playlistId: playlist.id,
+        error: errorMessage,
+      });
 
       // Check if playlist was deleted
       if (errorMessage.includes("404") || errorMessage.includes("playlistNotFound")) {
@@ -293,8 +331,21 @@ async function syncSinglePlaylist(
       (v) => !youtubeVideoIds.has(v.youtube_video_id) && v.sync_status === "synced",
     );
 
+    logSync(`视频差异分析完成`, {
+      playlistId: playlist.id,
+      youtubeVideos: youtubeVideos.length,
+      existingVideos: existingVideos?.length || 0,
+      newVideos: newVideos.length,
+      removedVideos: removedVideos.length,
+    });
+
     // Insert new videos
     if (newVideos.length > 0) {
+      logSync(`开始插入新视频`, {
+        playlistId: playlist.id,
+        newVideoCount: newVideos.length,
+      });
+
       const insertPayload = newVideos.map((video) => ({
         playlist_id: playlist.id,
         youtube_video_id: video.videoId,
@@ -315,8 +366,16 @@ async function syncSinglePlaylist(
       if (insertError) throw insertError;
 
       result.videosAdded = insertedVideos?.length || 0;
+      logSync(`新视频插入完成`, {
+        playlistId: playlist.id,
+        insertedCount: result.videosAdded,
+      });
 
       // Trigger analysis for new videos
+      logSync(`开始触发视频分析`, {
+        playlistId: playlist.id,
+        videoCount: insertedVideos?.length || 0,
+      });
       for (const video of insertedVideos || []) {
         const analysisResult = await checkQuotaAndAnalyze(
           video as Video,
@@ -328,10 +387,19 @@ async function syncSinglePlaylist(
           result.analysesSkipped += 1;
         }
       }
+      logSync(`视频分析触发完成`, {
+        playlistId: playlist.id,
+        triggered: result.analysesTriggered,
+        skipped: result.analysesSkipped,
+      });
     }
 
     // Mark removed videos
     if (removedVideos.length > 0) {
+      logSync(`标记已移除的视频`, {
+        playlistId: playlist.id,
+        removedCount: removedVideos.length,
+      });
       const removedIds = removedVideos.map((v) => v.id);
 
       const { error: updateError } = await supabase
@@ -352,9 +420,22 @@ async function syncSinglePlaylist(
       .update({ last_synced_at: new Date().toISOString() })
       .eq("id", playlist.id);
 
+    logSync(`播放列表同步完成`, {
+      playlistId: playlist.id,
+      videosAdded: result.videosAdded,
+      videosRemoved: result.videosRemoved,
+      analysesTriggered: result.analysesTriggered,
+      analysesSkipped: result.analysesSkipped,
+    });
+
     return result;
   } catch (error) {
-    result.error = error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logSync(`播放列表同步失败`, {
+      playlistId: playlist.id,
+      error: errorMessage,
+    });
+    result.error = errorMessage;
     return result;
   }
 }
@@ -369,6 +450,12 @@ export async function checkQuotaAndAnalyze(
   // Check video duration
   const durationSeconds = parseDuration(video.duration);
   if (durationSeconds > FREE_USER_MAX_VIDEO_DURATION) {
+    logSync(`视频分析跳过：时长超限`, {
+      videoId: video.id,
+      videoTitle: video.title,
+      durationSeconds,
+      maxDuration: FREE_USER_MAX_VIDEO_DURATION,
+    });
     // Create skipped analysis record
     const { createHash } = await import("crypto");
     const prompt = playlist.analysis_prompt || "Summarize the video";
@@ -395,6 +482,12 @@ export async function checkQuotaAndAnalyze(
   // Check user quota
   const quotaCheck = await checkUserQuota(playlist.user_id);
   if (!quotaCheck.allowed) {
+    logSync(`视频分析跳过：配额已用完`, {
+      videoId: video.id,
+      userId: playlist.user_id,
+      reason: quotaCheck.reason,
+      quota: quotaCheck.quota,
+    });
     // Create skipped analysis record
     const { createHash } = await import("crypto");
     const prompt = playlist.analysis_prompt || "Summarize the video";
@@ -431,10 +524,19 @@ export async function checkQuotaAndAnalyze(
     .maybeSingle();
 
   if (existingAnalysis && existingAnalysis.status !== "failed") {
+    logSync(`视频分析已存在，跳过`, {
+      videoId: video.id,
+      analysisStatus: existingAnalysis.status,
+    });
     return { triggered: false };
   }
 
   // Create pending analysis record
+  logSync(`开始视频分析`, {
+    videoId: video.id,
+    videoTitle: video.title,
+    userId: playlist.user_id,
+  });
   const { error: insertError } = await supabase.from("video_analyses").upsert(
     {
       video_id: video.id,
@@ -455,6 +557,10 @@ export async function checkQuotaAndAnalyze(
   try {
     const { generateVideoAnalysis } = await import("~/lib/server/gemini");
     const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_video_id}`;
+    logSync(`调用 Gemini API 生成分析`, {
+      videoId: video.id,
+      videoUrl,
+    });
     const result = await generateVideoAnalysis({ videoUrl, prompt });
 
     // Update with result
@@ -471,10 +577,19 @@ export async function checkQuotaAndAnalyze(
     // Increment quota
     await incrementQuotaCount(playlist.user_id);
 
+    logSync(`视频分析完成`, {
+      videoId: video.id,
+      model: result.model,
+    });
     return { triggered: true };
   } catch (analysisError) {
     const errorMessage =
       analysisError instanceof Error ? analysisError.message : String(analysisError);
+
+    logSync(`视频分析失败`, {
+      videoId: video.id,
+      error: errorMessage,
+    });
 
     // Update with error
     await supabase
@@ -504,6 +619,7 @@ export async function runPlaylistSync(options?: {
 }> {
   const supabase = getServiceClient();
 
+  logSync(`同步任务开始`, { options });
   await writeSyncLog({ event: "sync.start", options });
 
   const result = {
@@ -537,16 +653,25 @@ export async function runPlaylistSync(options?: {
     // Filter by user if specified
     if (options?.userId) {
       query = query.eq("user_id", options.userId);
+      logSync(`查询播放列表（过滤用户）`, { userId: options.userId });
+    } else {
+      logSync(`查询所有活动播放列表`);
     }
 
     const { data: playlists, error: playlistsError } = await query;
 
-    if (playlistsError) throw playlistsError;
+    if (playlistsError) {
+      logSync(`查询播放列表失败`, { error: playlistsError.message });
+      throw playlistsError;
+    }
 
     if (!playlists || playlists.length === 0) {
+      logSync(`没有需要同步的播放列表`);
       await writeSyncLog({ event: "sync.complete", result: "no_playlists" });
       return result;
     }
+
+    logSync(`找到需要同步的播放列表`, { count: playlists.length });
 
     // Sync each playlist
     for (const playlistRow of playlists) {
@@ -562,7 +687,14 @@ export async function runPlaylistSync(options?: {
       // Check minimum sync interval
       if (playlist.last_synced_at) {
         const lastSyncTime = new Date(playlist.last_synced_at).getTime();
-        if (Date.now() - lastSyncTime < MIN_SYNC_INTERVAL_MS) {
+        const timeSinceLastSync = Date.now() - lastSyncTime;
+        if (timeSinceLastSync < MIN_SYNC_INTERVAL_MS) {
+          logSync(`跳过播放列表：同步间隔太短`, {
+            playlistId: playlist.id,
+            lastSyncedAt: playlist.last_synced_at,
+            timeSinceLastSync: `${Math.round(timeSinceLastSync / 1000)}s`,
+            minInterval: `${MIN_SYNC_INTERVAL_MS / 1000}s`,
+          });
           await writeSyncLog({
             event: "sync.playlist.skipped",
             playlistId: playlist.id,
@@ -574,6 +706,7 @@ export async function runPlaylistSync(options?: {
 
       // Create sync log entry
       const logId = await createSyncLog(playlist.user_id, playlist.id);
+      logSync(`创建同步日志记录`, { playlistId: playlist.id, logId });
 
       try {
         const syncResult = await syncSinglePlaylist(
@@ -601,6 +734,12 @@ export async function runPlaylistSync(options?: {
           error: syncResult.error,
         });
 
+        logSync(`播放列表同步结果`, {
+          playlistId: playlist.id,
+          success: !syncResult.error,
+          ...syncResult,
+        });
+
         await writeSyncLog({
           event: "sync.playlist.complete",
           playlistId: playlist.id,
@@ -611,6 +750,11 @@ export async function runPlaylistSync(options?: {
           playlistError instanceof Error
             ? playlistError.message
             : String(playlistError);
+
+        logSync(`播放列表同步异常`, {
+          playlistId: playlist.id,
+          error: errorMessage,
+        });
 
         result.errors.push(`Playlist ${playlist.id}: ${errorMessage}`);
 
@@ -631,10 +775,21 @@ export async function runPlaylistSync(options?: {
       result.success = false;
     }
 
+    logSync(`同步任务完成`, {
+      success: result.success,
+      playlistsSynced: result.playlistsSynced,
+      totalVideosAdded: result.totalVideosAdded,
+      totalVideosRemoved: result.totalVideosRemoved,
+      totalAnalysesTriggered: result.totalAnalysesTriggered,
+      totalAnalysesSkipped: result.totalAnalysesSkipped,
+      errorCount: result.errors.length,
+    });
+
     await writeSyncLog({ event: "sync.complete", result });
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    logSync(`同步任务失败`, { error: errorMessage });
     result.success = false;
     result.errors.push(errorMessage);
 

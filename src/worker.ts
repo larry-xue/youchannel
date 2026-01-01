@@ -82,17 +82,26 @@ const sleep = (ms: number) =>
   });
 
 const claimJob = async () => {
-  const { data, error } = await supabase.rpc("claim_job", {
-    p_lock_id: workerId,
-    p_job_types: jobTypes.length > 0 ? jobTypes : null,
-    p_lease_seconds: leaseSeconds,
-  });
+  try {
+    const { data, error } = await supabase.rpc("claim_job", {
+      p_lock_id: workerId,
+      p_job_types: jobTypes.length > 0 ? jobTypes : null,
+      p_lease_seconds: leaseSeconds,
+    });
 
-  if (error) throw error;
+    if (error) {
+      log("获取任务失败", { error: error.message });
+      throw error;
+    }
 
-  if (!data) return null;
-  const rows = Array.isArray(data) ? data : [data];
-  return (rows[0] as JobRow) || null;
+    if (!data) return null;
+    const rows = Array.isArray(data) ? data : [data];
+    return (rows[0] as JobRow) || null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log("claimJob 异常", { error: message });
+    throw error;
+  }
 };
 
 const markJobSucceeded = async (jobId: number) => {
@@ -137,12 +146,48 @@ const markJobFailed = async (job: JobRow, message: string) => {
 
 const processJob = async (job: JobRow) => {
   if (job.type === "sync_playlist") {
-    log("processing sync_playlist job", {
+    const playlistId = job.payload?.playlistId as string | undefined;
+    log("处理 sync_playlist 任务", {
       jobId: job.id,
-      playlistId: job.payload?.playlistId,
+      playlistId,
+      userId: job.user_id,
     });
+
+    try {
+      // Import and run sync for specific playlist
+      const { runPlaylistSync } = await import("~/lib/server/sync");
+
+      // If playlistId is provided, we need to sync only that playlist
+      // For now, we'll sync all playlists for the user (or all if no userId)
+      const result = await runPlaylistSync({
+        userId: job.user_id || undefined,
+      });
+
+      log("sync_playlist 任务完成", {
+        jobId: job.id,
+        playlistId,
+        success: result.success,
+        playlistsSynced: result.playlistsSynced,
+        videosAdded: result.totalVideosAdded,
+        videosRemoved: result.totalVideosRemoved,
+        errors: result.errors.length > 0 ? result.errors : undefined,
+      });
+
+      if (!result.success && result.errors.length > 0) {
+        throw new Error(result.errors.join("; "));
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log("sync_playlist 任务失败", {
+        jobId: job.id,
+        playlistId,
+        error: errorMessage,
+      });
+      throw error;
+    }
   } else {
-    log("unknown job type", { jobId: job.id, type: job.type });
+    log("未知任务类型", { jobId: job.id, type: job.type });
+    throw new Error(`Unknown job type: ${job.type}`);
   }
 
   await markJobSucceeded(job.id);
@@ -159,7 +204,7 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 const run = async () => {
-  log("worker started", { workerId, jobTypes });
+  log("Worker 启动", { workerId, jobTypes, pollIntervalMs, leaseSeconds });
 
   while (!shouldStop) {
     let activeJob: JobRow | null = null;
@@ -170,18 +215,34 @@ const run = async () => {
         continue;
       }
 
+      log("获取到任务", {
+        jobId: activeJob.id,
+        type: activeJob.type,
+        attempts: activeJob.attempts,
+        maxAttempts: activeJob.max_attempts,
+      });
+
       await processJob(activeJob);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log("job processing failed", { error: message });
+      log("任务处理失败", {
+        error: message,
+        jobId: activeJob?.id,
+        jobType: activeJob?.type,
+      });
 
       if (activeJob) {
         try {
           await markJobFailed(activeJob, message);
+          log("任务标记为失败", {
+            jobId: activeJob.id,
+            attempts: activeJob.attempts + 1,
+            maxAttempts: activeJob.max_attempts,
+          });
         } catch (updateError) {
           const updateMessage =
             updateError instanceof Error ? updateError.message : String(updateError);
-          log("failed to update job status", {
+          log("更新任务状态失败", {
             jobId: activeJob.id,
             error: updateMessage,
           });
@@ -192,7 +253,7 @@ const run = async () => {
     }
   }
 
-  log("worker stopped");
+  log("Worker 已停止");
 };
 
 void run().catch((error) => {

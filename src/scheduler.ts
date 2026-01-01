@@ -59,6 +59,8 @@ const enqueueDuePlaylists = async () => {
   const now = new Date();
   const nowIso = now.toISOString();
 
+  log("检查需要同步的播放列表", { now: nowIso });
+
   const { data: playlists, error } = await supabase
     .from("playlists")
     .select("id, user_id, next_sync_at")
@@ -66,13 +68,21 @@ const enqueueDuePlaylists = async () => {
     .eq("is_active", true)
     .or(`next_sync_at.is.null,next_sync_at.lte.${nowIso}`);
 
-  if (error) throw error;
+  if (error) {
+    log("查询播放列表失败", { error: error.message });
+    throw error;
+  }
 
   const duePlaylists = (playlists || []) as PlaylistRow[];
   if (duePlaylists.length === 0) {
-    log("no due playlists");
+    log("没有需要同步的播放列表");
     return;
   }
+
+  log("找到需要同步的播放列表", {
+    count: duePlaylists.length,
+    playlistIds: duePlaylists.map((p) => p.id),
+  });
 
   const jobs = duePlaylists.map((playlist) => ({
     type: "sync_playlist",
@@ -87,34 +97,55 @@ const enqueueDuePlaylists = async () => {
     .from("jobs")
     .upsert(jobs, { onConflict: "dedupe_key", ignoreDuplicates: true });
 
-  if (insertError) throw insertError;
+  if (insertError) {
+    log("插入任务失败", { error: insertError.message });
+    throw insertError;
+  }
 
-  const updates = duePlaylists.map((playlist) => ({
-    id: playlist.id,
-    next_sync_at: computeNextSyncAt(now),
-  }));
+  const updates = duePlaylists.map((playlist) => {
+    const nextSyncAt = computeNextSyncAt(now);
+    return {
+      id: playlist.id,
+      next_sync_at: nextSyncAt,
+    };
+  });
 
   const { error: updateError } = await supabase
     .from("playlists")
     .upsert(updates, { onConflict: "id" });
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    log("更新播放列表 next_sync_at 失败", { error: updateError.message });
+    throw updateError;
+  }
 
-  log("enqueued sync jobs", { count: jobs.length });
+  log("任务已加入队列", {
+    count: jobs.length,
+    nextSyncTimes: updates.map((u) => ({
+      playlistId: u.id,
+      nextSyncAt: u.next_sync_at,
+    })),
+  });
 };
 
 const tick = async () => {
   if (isRunning) {
-    log("previous run still in progress, skipping");
+    log("上一次运行仍在进行中，跳过本次执行");
     return;
   }
 
   isRunning = true;
+  const startTime = Date.now();
+  log("开始调度器 tick");
+
   try {
     await enqueueDuePlaylists();
+    const duration = Date.now() - startTime;
+    log("调度器 tick 完成", { duration: `${duration}ms` });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    log("run failed", { error: message });
+    const duration = Date.now() - startTime;
+    log("调度器 tick 失败", { error: message, duration: `${duration}ms` });
   } finally {
     isRunning = false;
   }
@@ -129,17 +160,23 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 if (!cronEnabled) {
-  log("cron disabled, exiting");
+  log("Cron 已禁用，退出");
   process.exit(0);
 }
 
-log("starting scheduler", { cronSchedule, cronTimezone });
+log("启动调度器", {
+  cronSchedule,
+  cronTimezone,
+  intervalMinutes,
+  jitterSeconds,
+});
 
 void tick();
 
 cron.schedule(
   cronSchedule,
   () => {
+    log("Cron 触发");
     void tick();
   },
   { timezone: cronTimezone },

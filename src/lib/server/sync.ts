@@ -245,7 +245,7 @@ async function syncSinglePlaylist(
 
     if (!expiresAt || Date.now() > expiresAt - 60_000) {
       logSync(`刷新访问令牌`, { playlistId: playlist.id });
-      const { refreshAccessToken } = await import("~/lib/server/youtube");
+      const { refreshAccessToken } = await import("./youtube.js");
       try {
         const refreshed = await refreshAccessToken(account.refresh_token);
         accessToken = refreshed.access_token;
@@ -284,7 +284,7 @@ async function syncSinglePlaylist(
       playlistId: playlist.id,
       youtubePlaylistId: playlist.playlist_id,
     });
-    const { fetchPlaylistVideos } = await import("~/lib/server/youtube");
+    const { fetchPlaylistVideos } = await import("./youtube.js");
     let youtubeVideos;
 
     try {
@@ -566,7 +566,7 @@ export async function checkQuotaAndAnalyze(
 
   // Run analysis
   try {
-    const { generateVideoAnalysis } = await import("~/lib/server/gemini");
+    const { generateVideoAnalysis } = await import("./gemini.js");
     const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_video_id}`;
     logSync(`调用 Gemini API 生成分析`, {
       videoId: video.id,

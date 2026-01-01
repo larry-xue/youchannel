@@ -71,7 +71,22 @@ GET /api/sync/run
 Authorization: Bearer <SYNC_API_KEY>
 ```
 
-### Scheduling Options
+## Fly.io background jobs
+
+For Fly.io deployments, use three process groups so sync runs as a queue:
+
+- `web` - TanStack Start app (`node .output/server/index.mjs`)
+- `scheduler` - enqueue due playlists (`node dist/scheduler.js`)
+- `worker` - consume jobs (`node dist/worker.js`)
+
+Run the latest Supabase migrations to create the `jobs` table and
+`playlists.next_sync_at`. See `fly.toml` for the process definitions.
+Make sure `pnpm build` runs so `dist/` contains the scheduler/worker output.
+
+### HTTP scheduling options (legacy)
+
+If you prefer to drive sync via HTTP, you can still call the endpoint on a
+schedule:
 
 1. **Vercel Cron** - Add to `vercel.json`:
    ```json

@@ -1,0 +1,18 @@
+app = "youchannel"
+primary_region = "sjc"
+
+[env]
+  NODE_ENV = "production"
+  TZ = "UTC"
+
+[processes]
+  web = "node .output/server/index.mjs"
+  scheduler = "node dist/scheduler.js"
+  worker = "node dist/worker.js"
+
+[http_service]
+  internal_port = 3000
+  processes = ["web"]
+  auto_start_machines = true
+  auto_stop_machines = "suspend"
+  min_machines_running = 0

@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && tsc -p tsconfig.processes.json",
-    "build:processes": "tsc -p tsconfig.processes.json",
+    "build": "vite build && tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
+    "build:processes": "tsc -p tsconfig.processes.json && tsc-alias -p tsconfig.processes.json",
     "start": "node .output/server/index.mjs",
     "start:scheduler": "node dist/scheduler.js",
     "start:worker": "node dist/worker.js",

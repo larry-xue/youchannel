@@ -226,94 +226,101 @@ function DashboardPlaylists() {
                 </Button>
               </div>
             </div>
-          ) : activePlaylist.entry_status === "auth_invalid" ? (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="text-sm">
-                  <p className="font-medium text-red-600 dark:text-red-400">
-                    Authorization expired
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Please re-authorize your YouTube account to continue syncing.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => reAuthMutation.mutate()}
-                  disabled={reAuthMutation.isPending}
-                  className="bg-red-600 text-white hover:bg-red-700"
-                >
-                  {reAuthMutation.isPending ? "Redirecting..." : "Re-authorize YouTube"}
-                </Button>
-              </div>
-            </div>
-          ) : videos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No videos yet. Add videos to your YouChannel AI playlist on YouTube, then
-              click "Refresh" to check for updates.
-            </p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(200px,280px))] sm:justify-start">
-              {videos.map((video) => (
-                <div
-                  key={video.id}
-                  className={`group flex w-full flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow hover:shadow-md ${
-                    video.sync_status === "removed"
-                      ? "border-amber-500/30 opacity-70"
-                      : video.sync_status === "unavailable"
-                        ? "border-red-500/30 opacity-70"
-                        : "border-border/60"
-                  }`}
-                >
-                  <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
-                    {video.thumbnail_url ? (
-                      <img
-                        src={video.thumbnail_url}
-                        alt={video.title || "Video thumbnail"}
-                        className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-                        No thumbnail
-                      </div>
-                    )}
-                    {video.sync_status !== "synced" && (
-                      <div className="absolute right-2 top-2">
-                        <VideoSyncStatusBadge status={video.sync_status} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col space-y-2 px-3 pb-3 pt-2">
-                    <p
-                      className="text-sm font-semibold leading-snug text-foreground"
-                      title={video.title || "Video"}
-                    >
-                      {truncate(video.title || "Video", 48)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(video.published_at)}
-                    </p>
-                    <div className="!mt-auto flex items-center justify-between gap-2 border-t border-border/40 pt-2">
-                      <AnalysisStatusBadge
-                        count={video.analysis_count}
-                        latestAt={video.latest_analysis_at}
-                        status={video.latest_analysis_status}
-                        skipReason={video.latest_skip_reason}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => handleViewAnalysis(video)}
-                        disabled={video.analysis_count === 0}
-                      >
-                        {video.analysis_count > 0 ? "View" : "No analysis"}
-                      </Button>
+            <>
+              {activePlaylist.entry_status === "auth_invalid" && (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="text-sm">
+                      <p className="font-medium text-red-600 dark:text-red-400">
+                        Authorization expired
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        Re-authorize your YouTube account to resume syncing playlist videos.
+                      </p>
                     </div>
+                    <Button
+                      onClick={() => reAuthMutation.mutate()}
+                      disabled={reAuthMutation.isPending}
+                      className="bg-red-600 text-white hover:bg-red-700"
+                    >
+                      {reAuthMutation.isPending
+                        ? "Redirecting..."
+                        : "Re-authorize YouTube"}
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+              {videos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No videos yet. Add videos to your YouChannel AI playlist on YouTube, then
+                  click "Refresh" to check for updates.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(200px,280px))] sm:justify-start">
+                  {videos.map((video) => (
+                    <div
+                      key={video.id}
+                      className={`group flex w-full flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow hover:shadow-md ${
+                        video.sync_status === "removed"
+                          ? "border-amber-500/30 opacity-70"
+                          : video.sync_status === "unavailable"
+                            ? "border-red-500/30 opacity-70"
+                            : "border-border/60"
+                      }`}
+                    >
+                      <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
+                        {video.thumbnail_url ? (
+                          <img
+                            src={video.thumbnail_url}
+                            alt={video.title || "Video thumbnail"}
+                            className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+                            No thumbnail
+                          </div>
+                        )}
+                        {video.sync_status !== "synced" && (
+                          <div className="absolute right-2 top-2">
+                            <VideoSyncStatusBadge status={video.sync_status} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-1 flex-col space-y-2 px-3 pb-3 pt-2">
+                        <p
+                          className="text-sm font-semibold leading-snug text-foreground"
+                          title={video.title || "Video"}
+                        >
+                          {truncate(video.title || "Video", 48)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(video.published_at)}
+                        </p>
+                        <div className="!mt-auto flex items-center justify-between gap-2 border-t border-border/40 pt-2">
+                          <AnalysisStatusBadge
+                            count={video.analysis_count}
+                            latestAt={video.latest_analysis_at}
+                            status={video.latest_analysis_status}
+                            skipReason={video.latest_skip_reason}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleViewAnalysis(video)}
+                            disabled={video.analysis_count === 0}
+                          >
+                            {video.analysis_count > 0 ? "View" : "No analysis"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

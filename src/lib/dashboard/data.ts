@@ -196,6 +196,14 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
       if (fallback.error || !fallback.data) throw upsertResult.error;
     }
 
+    const { error: statusUpdateError } = await supabase
+      .from("playlists")
+      .update({ entry_status: "active" })
+      .eq("user_id", user.id)
+      .eq("entry_status", "auth_invalid");
+
+    if (statusUpdateError) throw statusUpdateError;
+
     return { success: true, playlistTitle: playlistTitle || YOUCHANNEL_PLAYLIST_TITLE };
   });
 

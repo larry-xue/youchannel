@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState, type KeyboardEvent } from "react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { CardDescription, CardTitle } from "~/lib/components/ui/card";
@@ -33,6 +33,7 @@ const EMPTY_VIDEOS: VideoWithStatus[] = [];
 
 function DashboardPlaylists() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<VideoWithStatus | null>(null);
   const [analyses, setAnalyses] = useState<VideoAnalysis[]>([]);
@@ -109,6 +110,23 @@ function DashboardPlaylists() {
       setAnalyses([]);
     } finally {
       setIsLoadingAnalyses(false);
+    }
+  };
+
+  const handleOpenVideo = (video: VideoWithStatus) => {
+    router.navigate({
+      to: "/dashboard/learn/$videoId",
+      params: { videoId: video.id },
+    });
+  };
+
+  const handleCardKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    video: VideoWithStatus,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpenVideo(video);
     }
   };
 
@@ -253,7 +271,12 @@ function DashboardPlaylists() {
                   {videos.map((video) => (
                     <div
                       key={video.id}
-                      className={`group flex w-full flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow hover:shadow-md ${
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open learning view for ${video.title || "video"}`}
+                      onClick={() => handleOpenVideo(video)}
+                      onKeyDown={(event) => handleCardKeyDown(event, video)}
+                      className={`group flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md ${
                         video.sync_status === "removed"
                           ? "border-amber-500/30 opacity-70"
                           : video.sync_status === "unavailable"
@@ -301,7 +324,10 @@ function DashboardPlaylists() {
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-xs"
-                            onClick={() => handleViewAnalysis(video)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleViewAnalysis(video);
+                            }}
                             disabled={video.analysis_count === 0}
                           >
                             {video.analysis_count > 0 ? "View" : "No analysis"}

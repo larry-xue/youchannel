@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardPlaylistsRouteImport } from './routes/dashboard/playlists'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as DashboardLearnVideoIdRouteImport } from './routes/dashboard/learn/$videoId'
 
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
@@ -52,6 +53,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardLearnVideoIdRoute = DashboardLearnVideoIdRouteImport.update({
+  id: '/learn/$videoId',
+  path: '/learn/$videoId',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/learn/$videoId': typeof DashboardLearnVideoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/learn/$videoId': typeof DashboardLearnVideoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/learn/$videoId': typeof DashboardLearnVideoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard/'
+    | '/dashboard/learn/$videoId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard'
+    | '/dashboard/learn/$videoId'
   id:
     | '__root__'
     | '/'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard/'
+    | '/dashboard/learn/$videoId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,17 +180,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/learn/$videoId': {
+      id: '/dashboard/learn/$videoId'
+      path: '/learn/$videoId'
+      fullPath: '/dashboard/learn/$videoId'
+      preLoaderRoute: typeof DashboardLearnVideoIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
   }
 }
 
 interface DashboardRouteRouteChildren {
   DashboardPlaylistsRoute: typeof DashboardPlaylistsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardLearnVideoIdRoute: typeof DashboardLearnVideoIdRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardPlaylistsRoute: DashboardPlaylistsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardLearnVideoIdRoute: DashboardLearnVideoIdRoute,
 }
 
 const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(

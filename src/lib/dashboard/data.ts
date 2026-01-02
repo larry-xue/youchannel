@@ -412,6 +412,34 @@ export const getVideosFn = createServerFn({ method: "POST" })
     })) as VideoWithStatus[];
   });
 
+export const getVideoByIdFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabase, user } = await getSupabaseAndUser();
+    if (!data?.videoId) throw new Error("Missing videoId");
+
+    const { data: video, error } = await supabase
+      .from("videos")
+      .select("*")
+      .eq("id", data.videoId)
+      .single();
+
+    if (error || !video) throw error || new Error("Video not found");
+
+    const { data: playlist, error: playlistError } = await supabase
+      .from("playlists")
+      .select("id")
+      .eq("id", video.playlist_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (playlistError || !playlist) {
+      throw playlistError || new Error("Unauthorized video access");
+    }
+
+    return video as Video;
+  });
+
 export const getVideoAnalysesFn = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
   .handler(async ({ data }) => {

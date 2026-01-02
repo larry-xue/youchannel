@@ -69,18 +69,24 @@ export const QUICK_ACTIONS = [
 
 export const SIDEBAR_DEFAULT_WIDTH = 360;
 export const SIDEBAR_MIN_WIDTH = 280;
-export const SIDEBAR_MAX_WIDTH = 520;
 export const SIDEBAR_COLLAPSED_WIDTH = 88;
+export const CONTENT_MIN_WIDTH = 520;
+export const WORKSPACE_MIN_HEIGHT = 560;
+export const CONTENT_MIN_HEIGHT = 360;
+export const SPLITTER_SIZE = 8;
+
+export const BOTTOM_PANEL_DEFAULT_HEIGHT = 320;
+export const BOTTOM_PANEL_MIN_HEIGHT = 180;
+export const BOTTOM_PANEL_COLLAPSED_HEIGHT = 44;
 
 export const PLAYER_ASPECT_RATIO = 16 / 9;
-export const PLAYER_DEFAULT_HEIGHT = 420;
 export const PLAYER_MIN_HEIGHT = 240;
-export const PLAYER_MAX_HEIGHT = 720;
 
 export const STORAGE_KEYS = {
   sidebarCollapsed: "youchannel.learn.sidebarCollapsed",
   sidebarWidth: "youchannel.learn.sidebarWidth",
-  playerHeight: "youchannel.learn.playerHeight",
+  bottomPanelCollapsed: "youchannel.learn.bottomPanelCollapsed",
+  bottomPanelHeight: "youchannel.learn.bottomPanelHeight",
 } as const;
 
 export type TabKey = (typeof TAB_OPTIONS)[number]["key"];

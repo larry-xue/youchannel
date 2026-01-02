@@ -1,84 +1,23 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "~/lib/components/ui/button";
 import { cn } from "~/lib/utils";
-import {
-  ACTIVITY_ITEMS,
-  DEMO_CHAT,
-  SIDEBAR_MAX_WIDTH,
-  SIDEBAR_MIN_WIDTH,
-} from "../constants";
-import { clamp } from "../utils";
+import { ACTIVITY_ITEMS, DEMO_CHAT } from "../constants";
 import { QuickActions } from "./QuickActions";
 
 type ChatSidebarProps = {
   isCollapsed: boolean;
-  width: number;
-  onWidthChange: (value: number) => void;
   onCollapsedChange: (value: boolean) => void;
+  className?: string;
 };
 
 export function ChatSidebar({
   isCollapsed,
-  width,
-  onWidthChange,
   onCollapsedChange,
+  className,
 }: ChatSidebarProps) {
-  const resizeState = useRef({
-    startX: 0,
-    startWidth: width,
-    isResizing: false,
-  });
-
-  const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (isCollapsed) {
-      onCollapsedChange(false);
-    }
-    resizeState.current = {
-      startX: event.clientX,
-      startWidth: width,
-      isResizing: true,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!resizeState.current.isResizing) return;
-    const delta = resizeState.current.startX - event.clientX;
-    const nextWidth = clamp(
-      resizeState.current.startWidth + delta,
-      SIDEBAR_MIN_WIDTH,
-      SIDEBAR_MAX_WIDTH,
-    );
-    onWidthChange(nextWidth);
-  };
-
-  const handleResizeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!resizeState.current.isResizing) return;
-    resizeState.current.isResizing = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
   return (
-    <aside className="relative flex flex-col gap-4">
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        title="Drag to resize sidebar"
-        onPointerDown={handleResizeStart}
-        onPointerMove={handleResizeMove}
-        onPointerUp={handleResizeEnd}
-        onPointerCancel={handleResizeEnd}
-        className="absolute left-0 top-0 h-full w-2 cursor-col-resize touch-none"
-      >
-        <span className="absolute left-0 top-1/2 h-16 w-0.5 -translate-y-1/2 rounded-full bg-slate-300/80 dark:bg-slate-700/80" />
-      </div>
-
-      <div className="flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 text-slate-900 shadow-lg dark:border-slate-800/70 dark:bg-slate-950 dark:text-slate-100">
+    <aside className={cn("flex h-full flex-col gap-4", className)}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 text-slate-900 shadow-lg dark:border-slate-800/70 dark:bg-slate-950 dark:text-slate-100">
         <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3 dark:border-slate-800/80">
           <div className="flex items-center gap-2">
             {!isCollapsed &&
@@ -136,7 +75,7 @@ export function ChatSidebar({
           </div>
         ) : (
           <>
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
               {DEMO_CHAT.map((message, index) => (
                 <div
                   key={`${message.role}-${index}`}

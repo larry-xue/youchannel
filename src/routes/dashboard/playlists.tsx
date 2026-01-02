@@ -26,10 +26,9 @@ import {
   getVideosFn,
   restorePlaylistFn,
   startYouTubeOAuthFn,
-  syncPlaylistFn,
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
-import { formatDate, truncate } from "~/lib/dashboard/utils";
+import { formatDate, formatDateTime, truncate } from "~/lib/dashboard/utils";
 import type { PlaylistEntryStatus, VideoAnalysis, VideoAnalysisSkipReason } from "~/schema";
 
 export const Route = createFileRoute("/dashboard/playlists")({
@@ -46,6 +45,7 @@ function DashboardPlaylists() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoadingAnalyses, setIsLoadingAnalyses] = useState(false);
   const [showRemovedVideos, setShowRemovedVideos] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const playlistsQuery = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
@@ -77,18 +77,6 @@ function DashboardPlaylists() {
   });
 
   const videos = videosQuery.data ?? EMPTY_VIDEOS;
-
-  const syncMutation = useMutation({
-    mutationFn: (playlistId: string) => syncPlaylistFn({ data: { playlistId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["videos"] });
-      queryClient.invalidateQueries({ queryKey: ["analyses"] });
-      queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY });
-    },
-    onError: (error) => {
-      setActionError(error instanceof Error ? error.message : "Sync failed");
-    },
-  });
 
   const restoreMutation = useMutation({
     mutationFn: (playlistId: string) => restorePlaylistFn({ data: { playlistId } }),
@@ -136,6 +124,22 @@ function DashboardPlaylists() {
     setAnalyses([]);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setActionError(null);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ["videos"] }),
+      ]);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Refresh failed");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -155,15 +159,10 @@ function DashboardPlaylists() {
           {quota && <QuotaDisplay quota={quota} />}
           <Button
             type="button"
-            onClick={() => activePlaylist && syncMutation.mutate(activePlaylist.id)}
-            disabled={
-              !activePlaylist ||
-              syncMutation.isPending ||
-              isLoading ||
-              activePlaylist?.entry_status !== "active"
-            }
+            onClick={handleRefresh}
+            disabled={isLoading || isRefreshing}
           >
-            {syncMutation.isPending ? "Syncing..." : "Sync now"}
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
       </div>
@@ -185,9 +184,9 @@ function DashboardPlaylists() {
                 )}
               </div>
               <CardDescription>
-                {activePlaylist?.last_synced_at
-                  ? `Last synced ${formatDate(activePlaylist.last_synced_at)}`
-                  : "Not synced yet"}
+                {activePlaylist?.updated_at
+                  ? `Updated ${formatDateTime(activePlaylist.updated_at)}`
+                  : "No updates yet"}
               </CardDescription>
             </div>
             <Button
@@ -250,7 +249,7 @@ function DashboardPlaylists() {
           ) : videos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No videos yet. Add videos to your YouChannel AI playlist on YouTube, then
-              click "Sync now" to fetch them.
+              click "Refresh" to check for updates.
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(200px,280px))] sm:justify-start">

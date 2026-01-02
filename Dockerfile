@@ -17,9 +17,10 @@ ENV NODE_ENV="production"
 FROM base AS build
 
 ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
 
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 # Install packages needed to build node modules
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3

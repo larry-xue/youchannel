@@ -3,13 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/lib/components/ui/card";
+import { CardDescription, CardTitle } from "~/lib/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -173,33 +167,31 @@ function DashboardPlaylists() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <CardTitle>{activePlaylist?.title || "YouChannel AI"} playlist</CardTitle>
-                {activePlaylist && (
-                  <PlaylistStatusBadge status={activePlaylist.entry_status} />
-                )}
-              </div>
-              <CardDescription>
-                {activePlaylist?.updated_at
-                  ? `Updated ${formatDateTime(activePlaylist.updated_at)}`
-                  : "No updates yet"}
-              </CardDescription>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <CardTitle>{activePlaylist?.title || "YouChannel AI"} playlist</CardTitle>
+              {activePlaylist && (
+                <PlaylistStatusBadge status={activePlaylist.entry_status} />
+              )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowRemovedVideos(!showRemovedVideos)}
-              className="text-xs"
-            >
-              {showRemovedVideos ? "Hide removed" : "Show removed"}
-            </Button>
+            <CardDescription>
+              {activePlaylist?.updated_at
+                ? `Updated ${formatDateTime(activePlaylist.updated_at)}`
+                : "No updates yet"}
+            </CardDescription>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowRemovedVideos(!showRemovedVideos)}
+            className="text-xs"
+          >
+            {showRemovedVideos ? "Hide removed" : "Show removed"}
+          </Button>
+        </div>
+        <div className="space-y-4">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading videos...</p>
           ) : !activePlaylist ? (
@@ -257,7 +249,7 @@ function DashboardPlaylists() {
                   click "Refresh" to check for updates.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(200px,280px))] sm:justify-start">
+                <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
                   {videos.map((video) => (
                     <div
                       key={video.id}
@@ -322,8 +314,8 @@ function DashboardPlaylists() {
               )}
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">

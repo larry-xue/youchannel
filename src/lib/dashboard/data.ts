@@ -14,6 +14,27 @@ export const DEFAULT_ANALYSIS_PROMPT =
 export const PLAYLISTS_QUERY_KEY = ["playlists"] as const;
 export const USER_QUOTA_QUERY_KEY = ["user-quota"] as const;
 
+export const getYouTubeAccountStatusFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
+  const supabase = await getSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) return { hasAccount: false };
+
+  const { data: account, error: accountError } = await supabase
+    .from("youtube_accounts")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (accountError) throw accountError;
+
+  return { hasAccount: Boolean(account) };
+});
+
 export type VideoWithStatus = Video & {
   analysis_count: number;
   latest_analysis_at: string | null;

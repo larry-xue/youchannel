@@ -8,7 +8,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "~/lib/utils";
-import { getVideoByIdFn } from "~/lib/dashboard/data";
+import { getVideoAnalysesFn, getVideoByIdFn } from "~/lib/dashboard/data";
+import type { VideoAnalysis } from "~/schema";
 import { BottomPanel } from "~/lib/dashboard/learn/components/BottomPanel";
 import { ChatSidebar } from "~/lib/dashboard/learn/components/ChatSidebar";
 import { LearningTabs } from "~/lib/dashboard/learn/components/LearningTabs";
@@ -68,8 +69,14 @@ function DashboardLearnVideo() {
     queryKey: ["video", videoId],
     queryFn: () => getVideoByIdFn({ data: { videoId } }),
   });
+  const analysesQuery = useQuery({
+    queryKey: ["video-analyses", videoId],
+    queryFn: () => getVideoAnalysesFn({ data: { videoId } }),
+  });
 
   const video = videoQuery.data;
+  const analyses = (analysesQuery.data || []) as VideoAnalysis[];
+  const latestAnalysis = analyses[0];
   const isLoading = videoQuery.isLoading;
   const hasError = videoQuery.isError;
   const title = video?.title || "Learning Session";
@@ -256,6 +263,7 @@ function DashboardLearnVideo() {
               title={title}
               description={video?.description}
               publishedAt={video?.published_at}
+              analysisText={latestAnalysis?.analysis_text}
             />
           </BottomPanel>
         </section>

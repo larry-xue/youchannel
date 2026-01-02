@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import ThemeToggle from "~/lib/components/ThemeToggle";
 import { Button } from "~/lib/components/ui/button";
 import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
+import { getYouTubeAccountStatusFn } from "~/lib/dashboard/data";
 import { setAuthUser, useAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
 
@@ -18,27 +19,6 @@ export const signOutFn = createServerFn({ method: "POST" }).handler(async () => 
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
   return { success: true };
-});
-
-const getYouTubeAccountStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) return { hasAccount: false };
-
-  const { data: account, error: accountError } = await supabase
-    .from("youtube_accounts")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (accountError) throw accountError;
-
-  return { hasAccount: Boolean(account) };
 });
 
 export const Route = createFileRoute("/dashboard")({
@@ -57,7 +37,7 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardLayout,
   loader: async () => {
     // 检查是否有 YouTube 账户，没有则重定向到连接页面
-    const { hasAccount } = await getYouTubeAccountStatus();
+    const { hasAccount } = await getYouTubeAccountStatusFn();
     if (!hasAccount) {
       throw redirect({
         to: "/connect-youtube",

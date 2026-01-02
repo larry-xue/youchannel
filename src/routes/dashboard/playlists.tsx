@@ -33,6 +33,23 @@ export const Route = createFileRoute("/dashboard/playlists")({
 
 const EMPTY_VIDEOS: VideoWithStatus[] = [];
 
+function formatVideoDuration(duration: string | null) {
+  if (!duration) return null;
+  const match = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!match) return duration;
+  const hours = Number.parseInt(match[1] || "0", 10);
+  const minutes = Number.parseInt(match[2] || "0", 10);
+  const seconds = Number.parseInt(match[3] || "0", 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)) {
+    return duration;
+  }
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${minutes}:${pad(seconds)}`;
+}
+
 function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -390,6 +407,7 @@ function DashboardPlaylists() {
                       const isSelectable =
                         video.sync_status === "synced" && video.analysis_count === 0;
                       const isSelected = selectedVideoIds.includes(video.id);
+                      const durationLabel = formatVideoDuration(video.duration);
 
                       return (
                         <div
@@ -451,6 +469,11 @@ function DashboardPlaylists() {
                             {video.sync_status !== "synced" && (
                               <div className="absolute right-2 top-2">
                                 <VideoSyncStatusBadge status={video.sync_status} />
+                              </div>
+                            )}
+                            {durationLabel && (
+                              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+                                {durationLabel}
                               </div>
                             )}
                           </div>

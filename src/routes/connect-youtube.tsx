@@ -1,6 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
@@ -11,29 +10,12 @@ import {
   CardTitle,
 } from "~/lib/components/ui/card";
 import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
-import { completeYouTubeOauthFn, startYouTubeOAuthFn } from "~/lib/dashboard/data";
+import {
+  completeYouTubeOauthFn,
+  getYouTubeAccountStatusFn,
+  startYouTubeOAuthFn,
+} from "~/lib/dashboard/data";
 import { useAuthUser } from "~/lib/store/auth";
-
-const getYouTubeAccountStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) return { hasAccount: false };
-
-  const { data: account, error: accountError } = await supabase
-    .from("youtube_accounts")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (accountError) throw accountError;
-
-  return { hasAccount: Boolean(account) };
-});
 
 export const Route = createFileRoute("/connect-youtube")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -76,7 +58,7 @@ export const Route = createFileRoute("/connect-youtube")({
     }
 
     // 检查是否已有账户，如果有则重定向到 dashboard
-    const { hasAccount } = await getYouTubeAccountStatus();
+    const { hasAccount } = await getYouTubeAccountStatusFn();
     if (hasAccount) {
       throw redirect({ to: "/dashboard/playlists" });
     }

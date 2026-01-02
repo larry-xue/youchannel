@@ -15,6 +15,7 @@ import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardPlaylistsRouteImport } from './routes/dashboard/playlists'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
@@ -46,12 +47,18 @@ const DashboardPlaylistsRoute = DashboardPlaylistsRouteImport.update({
   path: '/playlists',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard': typeof DashboardIndexRoute
 }
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/connect-youtube'
     | '/signin'
+    | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/connect-youtube'
     | '/signin'
+    | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard'
   id:
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/connect-youtube'
     | '/signin'
+    | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
@@ -102,6 +114,7 @@ export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
   ConnectYoutubeRoute: typeof ConnectYoutubeRoute
   SigninRoute: typeof SigninRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPlaylistsRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -170,6 +190,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
   ConnectYoutubeRoute: ConnectYoutubeRoute,
   SigninRoute: SigninRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

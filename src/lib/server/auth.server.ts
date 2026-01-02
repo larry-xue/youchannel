@@ -5,6 +5,12 @@ const getEnvValue = (key: string) => {
   return process.env[key] ?? metaEnv?.[key];
 };
 
+export const getBaseUrl = () => {
+  const baseUrl = getEnvValue("VITE_BASE_URL");
+  if (!baseUrl) throw new Error("Missing VITE_BASE_URL");
+  return baseUrl;
+};
+
 export async function getSupabaseServerClient() {
   const { getCookies, setCookie } = await import("@tanstack/react-start/server");
   const supabaseUrl = getEnvValue("VITE_SUPABASE_URL") ?? getEnvValue("SUPABASE_URL");
@@ -38,26 +44,6 @@ export async function getSupabaseServerClient() {
 }
 
 export const auth = {
-  signIn: async (email: string, password: string) => {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  signUp: async (email: string, password: string) => {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
-  },
-
   signOut: async () => {
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signOut();

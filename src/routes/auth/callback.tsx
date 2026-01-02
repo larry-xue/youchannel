@@ -1,11 +1,5 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
-import { Features } from "~/lib/components/Features";
-import { Footer } from "~/lib/components/Footer";
-import { Header } from "~/lib/components/Header";
-import { Hero } from "~/lib/components/Hero";
-import { setAuthUser } from "~/lib/store/auth";
 
 const REDIRECT_URL = "/connect-youtube?auto=1";
 const normalizeRedirect = (value?: string) => {
@@ -21,18 +15,7 @@ const normalizeRedirect = (value?: string) => {
   return value;
 };
 
-export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-  const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.error("Sign out error:", error);
-    return { error: true, message: error.message };
-  }
-  return { success: true };
-});
-
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/auth/callback")({
   validateSearch: (search?: Record<string, unknown>) => {
     const safeSearch = search ?? {};
     return {
@@ -44,28 +27,34 @@ export const Route = createFileRoute("/")({
   },
   loader: async ({ search }) => {
     const safeSearch = search ?? {};
-    if (!safeSearch.error) return;
     const redirectTo = normalizeRedirect(safeSearch.redirect);
-    const message = safeSearch.error_description || safeSearch.error;
-    throw redirect({
-      to: "/signin",
-      search: { error: message, redirect: redirectTo },
-    });
+
+    if (safeSearch.error) {
+      const message = safeSearch.error_description || safeSearch.error;
+      throw redirect({
+        to: "/signin",
+        search: { error: message, redirect: redirectTo },
+      });
+    }
+    return;
   },
-  component: Home,
+  component: AuthCallback,
 });
 
-function Home() {
+function AuthCallback() {
   const search = Route.useSearch();
   const router = useRouter();
   const hasHandledAuth = useRef(false);
 
   useEffect(() => {
     if (hasHandledAuth.current) return;
-    if (!search.code && !search.error) return;
     hasHandledAuth.current = true;
 
     const redirectTo = normalizeRedirect(search.redirect);
+    const hashParams =
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
     if (search.error) {
       const message = search.error_description || search.error;
@@ -77,10 +66,49 @@ function Home() {
       return;
     }
 
-    if (!search.code) return;
-
     const runExchange = async () => {
       const { default: supabaseClient } = await import("~/lib/auth-client");
+      if (hashParams) {
+        const hashError =
+          hashParams.get("error_description") || hashParams.get("error");
+        if (hashError) {
+          router.navigate({
+            to: "/signin",
+            search: { error: hashError, redirect: redirectTo },
+            replace: true,
+          });
+          return;
+        }
+
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error: setError } = await supabaseClient.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (!setError) {
+            router.navigate({ to: redirectTo, replace: true });
+            return;
+          }
+        }
+      }
+
+      if (!search.code) {
+        const { data } = await supabaseClient.auth.getSession();
+        if (data?.session) {
+          router.navigate({ to: redirectTo, replace: true });
+          return;
+        }
+
+        router.navigate({
+          to: "/signin",
+          search: { error: "Missing OAuth code.", redirect: redirectTo },
+          replace: true,
+        });
+        return;
+      }
+
       const { error } = await supabaseClient.auth.exchangeCodeForSession(search.code);
       if (error) {
         router.navigate({
@@ -111,26 +139,5 @@ function Home() {
     search.redirect,
   ]);
 
-  const handleSignOut = async () => {
-    try {
-      await signOutFn();
-      setAuthUser(router.options.context.authStore, null);
-      router.navigate({ to: "/signin", search: { error: "", redirect: "/dashboard" } });
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
-  return (
-    <div className="min-h-screen">
-      <Header onSignOut={handleSignOut} />
-      <main className="flex-1 pt-8">
-        <div className="container mx-auto max-w-7xl px-6">
-          <Hero />
-          <Features />
-        </div>
-      </main>
-      <Footer />
-    </div>
-  );
+  return null;
 }

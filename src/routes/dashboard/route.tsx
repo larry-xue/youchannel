@@ -65,6 +65,7 @@ export const Route = createFileRoute("/dashboard")({
           code: undefined,
           state: undefined,
           error: undefined,
+          auto: "1",
         },
       });
     }

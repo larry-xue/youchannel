@@ -2,14 +2,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 const features = [
   {
-    title: "OAuth playlist access",
+    title: "Save and sync playlists",
     description:
-      "Connect your YouTube account, choose an active playlist, and keep metadata fresh.",
+      "Add the videos you love and let the system keep everything updated.",
   },
   {
-    title: "Prompted analyses",
+    title: "Talk to the video",
     description:
-      "Customize the default prompt and generate new analyses without repeating existing records.",
+      "Ask questions and explore the details without scrubbing the timeline.",
+  },
+  {
+    title: "Wiki and summaries",
+    description:
+      "See key terms, wiki links, and concise takeaways for fast review.",
+  },
+  {
+    title: "Multilingual role-play",
+    description:
+      "Practice in your target language with guided conversations and scenarios.",
   },
 ];
 

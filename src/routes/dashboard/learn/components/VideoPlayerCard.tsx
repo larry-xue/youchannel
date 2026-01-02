@@ -61,11 +61,14 @@ export function VideoPlayerCard({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/60 bg-linear-to-br from-background via-background to-muted/40 shadow-sm",
+        "flex h-full min-h-0 min-w-0 flex-col",
         className,
       )}
     >
-      <div ref={stageRef} className="flex min-h-0 flex-1 items-center justify-center px-4 pt-4">
+      <div
+        ref={stageRef}
+        className="flex min-h-0 min-w-0 flex-1 items-center justify-center px-4 pt-4"
+      >
         <div className="relative overflow-hidden rounded-2xl bg-muted/30" style={playerStyle}>
           {youtubeId ? (
             <iframe

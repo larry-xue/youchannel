@@ -5,7 +5,6 @@ import { cn } from "~/lib/utils";
 import { getVideoByIdFn } from "~/lib/dashboard/data";
 import { BottomPanel } from "./components/BottomPanel";
 import { ChatSidebar } from "./components/ChatSidebar";
-import { LearningHeader } from "./components/LearningHeader";
 import { LearningTabs } from "./components/LearningTabs";
 import { VideoPlayerCard } from "./components/VideoPlayerCard";
 import {
@@ -94,7 +93,7 @@ function DashboardLearnVideo() {
     "--sidebar-width": `${sidebarWidthValue}px`,
     "--splitter-size": `${SPLITTER_SIZE}px`,
     "--bottom-panel-height": `${bottomPanelHeightValue}px`,
-    height: "72vh",
+    height: "84vh",
     minHeight: WORKSPACE_MIN_HEIGHT,
     gridTemplateColumns: `minmax(${CONTENT_MIN_WIDTH}px, 1fr) var(--splitter-size) var(--sidebar-width)`,
   } as CSSProperties;
@@ -167,8 +166,6 @@ function DashboardLearnVideo() {
 
   return (
     <div className="space-y-6">
-      <LearningHeader title={title} />
-
       {hasError && (
         <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           Unable to load this video right now.

@@ -2,7 +2,6 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "~/lib/components/ui/button";
 import { cn } from "~/lib/utils";
 import { ACTIVITY_ITEMS, DEMO_CHAT } from "../constants";
-import { QuickActions } from "./QuickActions";
 
 type ChatSidebarProps = {
   isCollapsed: boolean;
@@ -108,8 +107,6 @@ export function ChatSidebar({
           </>
         )}
       </div>
-
-      {!isCollapsed && <QuickActions />}
     </aside>
   );
 }

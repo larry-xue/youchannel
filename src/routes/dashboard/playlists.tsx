@@ -584,39 +584,40 @@ function AnalysisStatusBadge({
         variant="outline"
         className="border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
       >
-        未触发
+        Not started
       </Badge>
     );
   }
 
   const resolvedStatus = status || "pending";
 
-  if (status === "processing") {
+  if (resolvedStatus === "processing") {
     return (
       <Badge
         variant="outline"
         className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
       >
-        处理中
+        Processing
       </Badge>
     );
   }
 
-  if (resolvedStatus === "skipped" && skipReason) {
+  if (resolvedStatus === "skipped") {
     const reasonText =
       skipReason === "quota_exceeded"
-        ? "配额已用尽"
+        ? "Quota exceeded"
         : skipReason === "duration_exceeded"
-          ? "时长超限"
-          : "视频不可用";
-
+          ? "Duration exceeded"
+          : skipReason === "video_unavailable"
+            ? "Video unavailable"
+            : null;
     return (
       <Badge
         variant="outline"
         className="border-slate-500/30 bg-slate-500/10 text-xs text-slate-600 dark:text-slate-400"
-        title={`已跳过: ${reasonText}`}
+        title={reasonText ? `Skipped: ${reasonText}` : undefined}
       >
-        已跳过
+        Skipped
       </Badge>
     );
   }
@@ -626,9 +627,9 @@ function AnalysisStatusBadge({
       <Badge
         variant="outline"
         className="border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400"
-        title={latestAt ? `最后一次: ${formatDate(latestAt)}` : undefined}
+        title={latestAt ? `Last: ${formatDate(latestAt)}` : undefined}
       >
-        失败
+        Failed
       </Badge>
     );
   }
@@ -637,9 +638,9 @@ function AnalysisStatusBadge({
     <Badge
       variant="outline"
       className="border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400"
-      title={latestAt ? `完成于: ${formatDate(latestAt)}` : undefined}
+      title={latestAt ? `Completed: ${formatDate(latestAt)}` : undefined}
     >
-      {resolvedStatus === "pending" ? "待处理" : "已完成"}
+      {resolvedStatus === "pending" ? "Pending" : "Completed"}
     </Badge>
   );
 }

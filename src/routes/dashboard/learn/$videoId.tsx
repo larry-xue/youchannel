@@ -9,10 +9,10 @@ import {
 } from "react";
 import { cn } from "~/lib/utils";
 import { getVideoByIdFn } from "~/lib/dashboard/data";
-import { BottomPanel } from "./components/BottomPanel";
-import { ChatSidebar } from "./components/ChatSidebar";
-import { LearningTabs } from "./components/LearningTabs";
-import { VideoPlayerCard } from "./components/VideoPlayerCard";
+import { BottomPanel } from "~/lib/dashboard/learn/components/BottomPanel";
+import { ChatSidebar } from "~/lib/dashboard/learn/components/ChatSidebar";
+import { LearningTabs } from "~/lib/dashboard/learn/components/LearningTabs";
+import { VideoPlayerCard } from "~/lib/dashboard/learn/components/VideoPlayerCard";
 import {
   BOTTOM_PANEL_COLLAPSED_HEIGHT,
   BOTTOM_PANEL_DEFAULT_HEIGHT,
@@ -25,8 +25,8 @@ import {
   SPLITTER_SIZE,
   STORAGE_KEYS,
   WORKSPACE_MIN_HEIGHT,
-} from "./constants";
-import { useLocalStorageState } from "./utils";
+} from "~/lib/dashboard/learn/constants";
+import { useLocalStorageState } from "~/lib/dashboard/learn/utils";
 
 export const Route = createFileRoute("/dashboard/learn/$videoId")({
   component: DashboardLearnVideo,

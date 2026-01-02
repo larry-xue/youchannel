@@ -95,16 +95,37 @@ function DashboardLayout() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/15 text-sm font-semibold text-primary">
-              YC
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-semibold text-foreground">YouChannel</p>
-              <p className="text-xs text-muted-foreground">Studio</p>
-            </div>
-          </Link>
+        <div className="mx-auto flex w-full items-center gap-6 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-6">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/15 text-sm font-semibold text-primary">
+                YC
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-foreground">YouChannel</p>
+                <p className="text-xs text-muted-foreground">Studio</p>
+              </div>
+            </Link>
+            <nav className="flex min-w-0 flex-wrap items-center gap-2">
+              {DASHBOARD_NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  activeOptions={{ exact: true }}
+                  className={cn(
+                    "rounded-2xl border px-4 py-2 text-sm font-medium transition",
+                    "border-border/60 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                  activeProps={{
+                    className:
+                      "rounded-2xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground shadow-sm",
+                  }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
               {authUser?.email}
@@ -118,31 +139,8 @@ function DashboardLayout() {
       </header>
 
       <main className="mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <aside className="w-full shrink-0 lg:order-first lg:w-44">
-            <div className="flex flex-wrap gap-2 lg:flex-col">
-              {DASHBOARD_NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  activeOptions={{ exact: true }}
-                  className={cn(
-                    "w-full rounded-2xl border px-4 py-2 text-sm font-medium transition",
-                    "border-border/60 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                  )}
-                  activeProps={{
-                    className:
-                      "w-full rounded-2xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground shadow-sm",
-                  }}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </aside>
-          <div className="min-w-0 flex-1 lg:order-last">
-            <Outlet />
-          </div>
+        <div className="min-w-0">
+          <Outlet />
         </div>
       </main>
     </div>

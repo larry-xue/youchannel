@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { cn } from "~/lib/utils";
 import { getVideoByIdFn } from "~/lib/dashboard/data";
 import { BottomPanel } from "./components/BottomPanel";
@@ -38,6 +44,8 @@ function DashboardLearnVideo() {
     startHeight: BOTTOM_PANEL_DEFAULT_HEIGHT,
     isResizing: false,
   });
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorageState(
     STORAGE_KEYS.sidebarCollapsed,
@@ -67,8 +75,46 @@ function DashboardLearnVideo() {
   const title = video?.title || "Learning Session";
   const youtubeId = video?.youtube_video_id;
 
-  const clampedSidebarWidth = Math.max(sidebarWidth, SIDEBAR_MIN_WIDTH);
-  const clampedBottomHeight = Math.max(bottomPanelHeight, BOTTOM_PANEL_MIN_HEIGHT);
+  useEffect(() => {
+    const element = workspaceRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      setWorkspaceSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const clampDimension = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
+
+  const availableSidebarWidth = workspaceSize.width
+    ? Math.max(0, workspaceSize.width - CONTENT_MIN_WIDTH - SPLITTER_SIZE)
+    : Number.POSITIVE_INFINITY;
+  const availableBottomHeight = workspaceSize.height
+    ? Math.max(0, workspaceSize.height - CONTENT_MIN_HEIGHT - SPLITTER_SIZE)
+    : Number.POSITIVE_INFINITY;
+
+  const sidebarMinWidth = Math.min(SIDEBAR_MIN_WIDTH, availableSidebarWidth);
+  const bottomPanelMinHeight = Math.min(BOTTOM_PANEL_MIN_HEIGHT, availableBottomHeight);
+
+  const clampedSidebarWidth = clampDimension(
+    sidebarWidth,
+    sidebarMinWidth,
+    availableSidebarWidth,
+  );
+  const clampedBottomHeight = clampDimension(
+    bottomPanelHeight,
+    bottomPanelMinHeight,
+    availableBottomHeight,
+  );
 
   useEffect(() => {
     if (sidebarWidth !== clampedSidebarWidth) {
@@ -118,9 +164,10 @@ function DashboardLearnVideo() {
   const handleSidebarResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!sidebarResizeState.current.isResizing) return;
     const delta = sidebarResizeState.current.startX - event.clientX;
-    const nextWidth = Math.max(
-      SIDEBAR_MIN_WIDTH,
+    const nextWidth = clampDimension(
       sidebarResizeState.current.startWidth + delta,
+      sidebarMinWidth,
+      availableSidebarWidth,
     );
     setSidebarWidth(nextWidth);
   };
@@ -149,9 +196,10 @@ function DashboardLearnVideo() {
   const handlePanelResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!panelResizeState.current.isResizing) return;
     const delta = panelResizeState.current.startY - event.clientY;
-    const nextHeight = Math.max(
-      BOTTOM_PANEL_MIN_HEIGHT,
+    const nextHeight = clampDimension(
       panelResizeState.current.startHeight + delta,
+      bottomPanelMinHeight,
+      availableBottomHeight,
     );
     setBottomPanelHeight(nextHeight);
   };
@@ -172,7 +220,7 @@ function DashboardLearnVideo() {
         </div>
       )}
 
-      <div className="grid gap-0" style={workspaceStyle}>
+      <div ref={workspaceRef} className="grid gap-0" style={workspaceStyle}>
         <section className="grid min-h-0" style={contentStyle}>
           <VideoPlayerCard
             title={title}

@@ -21,6 +21,19 @@ export type VideoWithStatus = Video & {
   latest_skip_reason: VideoAnalysisSkipReason | null;
 };
 
+export type OpenApiAnalysisResponse = {
+  playlistId: string;
+  userId: string;
+  candidateCount: number;
+  enqueued: number;
+  skipped: number;
+  skipReasons: {
+    duration_exceeded: number;
+    analysis_exists: number;
+    quota_exceeded: number;
+  };
+};
+
 async function getSupabaseAndUser() {
   const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
   const supabase = await getSupabaseServerClient();
@@ -510,6 +523,139 @@ export const runVideoAnalysisFn = createServerFn({ method: "POST" })
     if (insertError) throw insertError;
 
     return { analysis: inserted, reused: false };
+  });
+
+export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ playlistId: z.string(), videoIds: z.array(z.string()) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabase, user } = await getSupabaseAndUser();
+    if (!data?.playlistId) throw new Error("Missing playlistId");
+
+    const baseUrl = process.env.OPENAPI_BASE_URL;
+    const sharedKey = process.env.OPENAPI_SHARED_KEY;
+    if (!baseUrl || !sharedKey) throw new Error("OpenAPI service unavailable");
+
+    const uniqueVideoIds = Array.from(new Set(data.videoIds.filter(Boolean)));
+    if (uniqueVideoIds.length === 0) throw new Error("Missing videoIds");
+
+    const { data: playlist, error: playlistError } = await supabase
+      .from("playlists")
+      .select("id")
+      .eq("id", data.playlistId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (playlistError || !playlist)
+      throw playlistError || new Error("Playlist not found");
+
+    const { data: videos, error: videosError } = await supabase
+      .from("videos")
+      .select("id, sync_status")
+      .in("id", uniqueVideoIds)
+      .eq("playlist_id", playlist.id);
+
+    if (videosError) throw videosError;
+
+    const syncedVideoIds = (videos || [])
+      .filter((video) => video.sync_status === "synced")
+      .map((video) => video.id);
+
+    if (syncedVideoIds.length === 0) {
+      return {
+        playlistId: playlist.id,
+        userId: user.id,
+        candidateCount: 0,
+        enqueued: 0,
+        skipped: 0,
+        skipReasons: {
+          duration_exceeded: 0,
+          analysis_exists: 0,
+          quota_exceeded: 0,
+        },
+      } as OpenApiAnalysisResponse;
+    }
+
+    const { data: existingAnalyses, error: analysesError } = await supabase
+      .from("video_analyses")
+      .select("video_id")
+      .in("video_id", syncedVideoIds);
+
+    if (analysesError) throw analysesError;
+
+    const analyzedIds = new Set(
+      (existingAnalyses || []).map((analysis) => analysis.video_id),
+    );
+    const eligibleVideoIds = syncedVideoIds.filter((id) => !analyzedIds.has(id));
+    const analysisExistsCount = syncedVideoIds.length - eligibleVideoIds.length;
+
+    if (eligibleVideoIds.length === 0) {
+      return {
+        playlistId: playlist.id,
+        userId: user.id,
+        candidateCount: syncedVideoIds.length,
+        enqueued: 0,
+        skipped: analysisExistsCount,
+        skipReasons: {
+          duration_exceeded: 0,
+          analysis_exists: analysisExistsCount,
+          quota_exceeded: 0,
+        },
+      } as OpenApiAnalysisResponse;
+    }
+
+    const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+    const url = new URL("openapi/analysis", normalizedBase);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-openapi-key": sharedKey,
+      },
+      body: JSON.stringify({
+        playlistId: playlist.id,
+        userId: user.id,
+        videoIds: eligibleVideoIds,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | OpenApiAnalysisResponse
+      | { error?: string }
+      | null;
+
+    if (!response.ok) {
+      const errorValue =
+        payload && typeof payload === "object" && "error" in payload
+          ? payload.error
+          : undefined;
+      const message = errorValue
+        ? `OpenAPI error: ${errorValue}`
+        : `OpenAPI request failed (${response.status})`;
+      throw new Error(message);
+    }
+
+    if (!payload || typeof payload !== "object" || !("candidateCount" in payload)) {
+      throw new Error("OpenAPI response invalid");
+    }
+
+    const result = payload as OpenApiAnalysisResponse;
+
+    if (!analysisExistsCount) return result;
+
+    return {
+      ...result,
+      candidateCount: result.candidateCount + analysisExistsCount,
+      skipped: result.skipped + analysisExistsCount,
+      skipReasons: {
+        duration_exceeded: result.skipReasons?.duration_exceeded ?? 0,
+        analysis_exists:
+          (result.skipReasons?.analysis_exists ?? 0) + analysisExistsCount,
+        quota_exceeded: result.skipReasons?.quota_exceeded ?? 0,
+      },
+    } as OpenApiAnalysisResponse;
   });
 
 // Get user's analysis quota

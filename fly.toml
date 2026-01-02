@@ -2,6 +2,8 @@ app = "youchannel"
 primary_region = "sjc"
 
 [build]
+  [build.args]
+    VITE_SUPABASE_URL = "https://wzbiqlxovmxlatrgxzgc.supabase.co"
 
 [env]
   NODE_ENV = "production"

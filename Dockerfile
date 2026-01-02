@@ -16,6 +16,10 @@ ENV NODE_ENV="production"
 # Throw-away build stage to reduce size of final image
 FROM base AS build
 
+ARG VITE_SUPABASE_URL
+
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+
 # Install packages needed to build node modules
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3

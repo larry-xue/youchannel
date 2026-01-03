@@ -3,7 +3,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
-import { CardDescription, CardTitle } from "~/lib/components/ui/card";
+import { Loading } from "~/lib/components/ui/loading";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import {
   PLAYLISTS_QUERY_KEY,
@@ -16,7 +16,6 @@ import {
 } from "~/lib/dashboard/data";
 import {
   formatDate,
-  formatDateTime,
   getVideoPublishedAt,
   truncate,
 } from "~/lib/dashboard/utils";
@@ -50,7 +49,6 @@ function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [showRemovedVideos, setShowRemovedVideos] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
 
@@ -64,14 +62,12 @@ function DashboardPlaylists() {
   const activePlaylistId = activePlaylist?.id;
 
   const videosQuery = useQuery({
-    queryKey: ["videos", activePlaylistId, showRemovedVideos],
+    queryKey: ["videos", activePlaylistId],
     queryFn: () =>
       getVideosFn({
         data: {
           playlistIds: activePlaylistId ? [activePlaylistId] : [],
-          includeSyncStatus: showRemovedVideos
-            ? ["synced", "removed", "unavailable"]
-            : ["synced"],
+          includeSyncStatus: ["synced", "removed", "unavailable"],
         },
       }),
     enabled: Boolean(activePlaylistId),
@@ -155,7 +151,7 @@ function DashboardPlaylists() {
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       void videosQuery.refetch();
     },
-    onError: (_error) => {
+    onError: () => {
       toast.error("We could not start", {
         description: "Please try again later. If this keeps happening, refresh the page.",
       });
@@ -231,162 +227,123 @@ function DashboardPlaylists() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Dashboard
-          </p>
-          <h1 className="font-display text-3xl font-semibold text-foreground">
-            Your Videos
-          </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Videos from your YouChannel AI playlist. Add videos to the playlist on YouTube
-            for AI analysis.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isLoading || isRefreshing}
-          >
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </Button>
+          <h1 className="font-display text-2xl font-semibold text-foreground">
+            {activePlaylist?.title || "YouChannel AI"}
+          </h1>
+          {activePlaylist && (
+            <PlaylistStatusBadge status={activePlaylist.entry_status} />
+          )}
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isLoading || isRefreshing}
+        >
+          {isRefreshing ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
 
       {actionError && (
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {actionError}
         </div>
       )}
 
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <CardTitle>{activePlaylist?.title || "YouChannel AI"} playlist</CardTitle>
-              {activePlaylist && (
-                <PlaylistStatusBadge status={activePlaylist.entry_status} />
-              )}
-            </div>
-            <CardDescription>
-              {activePlaylist?.updated_at
-                ? `Updated ${formatDateTime(activePlaylist.updated_at)}`
-                : "No updates yet"}
-            </CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowRemovedVideos(!showRemovedVideos)}
-            className="text-xs"
-          >
-            {showRemovedVideos ? "Hide removed" : "Show removed"}
-          </Button>
-        </div>
-        <div className="space-y-4">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading videos...</p>
-          ) : !activePlaylist ? (
-            <p className="text-sm text-muted-foreground">
-              No playlist found. Please connect your YouTube account first.
+      {activePlaylist?.entry_status === "lost" && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              Playlist not found on YouTube
             </p>
-          ) : activePlaylist.entry_status === "lost" ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="text-sm">
-                  <p className="font-medium text-amber-600 dark:text-amber-400">
-                    Playlist not found on YouTube
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    The playlist may have been deleted. You can restore it to continue analysis.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => restoreMutation.mutate(activePlaylist.id)}
-                  disabled={restoreMutation.isPending}
-                  className="bg-amber-600 text-white hover:bg-amber-700"
-                >
-                  {restoreMutation.isPending ? "Restoring..." : "Restore Playlist"}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {activePlaylist.entry_status === "auth_invalid" && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="text-sm">
-                      <p className="font-medium text-red-600 dark:text-red-400">
-                        Authorization expired
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        Re-authorize your YouTube account to resume syncing playlist videos.
-                      </p>
-                    </div>
+            <Button
+              onClick={() => restoreMutation.mutate(activePlaylist.id)}
+              disabled={restoreMutation.isPending}
+              size="sm"
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {restoreMutation.isPending ? "Restoring..." : "Restore"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {activePlaylist?.entry_status === "auth_invalid" && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              Authorization expired
+            </p>
+            <Button
+              onClick={() => reAuthMutation.mutate()}
+              disabled={reAuthMutation.isPending}
+              size="sm"
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {reAuthMutation.isPending ? "Redirecting..." : "Re-authorize"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {isLoading ? (
+          <Loading text="Loading videos..." size="md" />
+        ) : !activePlaylist ? (
+          <p className="text-sm text-muted-foreground">
+            No playlist found. Please connect your YouTube account first.
+          </p>
+        ) : (
+          <>
+            {videos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No videos yet. Add videos to your playlist on YouTube, then refresh.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5">
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="font-medium text-foreground">
+                      {selectedCount} selected
+                    </span>
+                    <span className="text-muted-foreground">
+                      {eligibleCount} eligible
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
-                      onClick={() => reAuthMutation.mutate()}
-                      disabled={reAuthMutation.isPending}
-                      className="bg-red-600 text-white hover:bg-red-700"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllEligible}
+                      disabled={eligibleCount === 0}
                     >
-                      {reAuthMutation.isPending
-                        ? "Redirecting..."
-                        : "Re-authorize YouTube"}
+                      Select all
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearSelection}
+                      disabled={selectedCount === 0}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleTriggerAnalysis}
+                      disabled={selectedCount === 0 || triggerAnalysisMutation.isPending}
+                    >
+                      {triggerAnalysisMutation.isPending
+                        ? "Triggering..."
+                        : "Analyze"}
                     </Button>
                   </div>
                 </div>
-              )}
-              {videos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No videos yet. Add videos to your YouChannel AI playlist on YouTube, then
-                  click "Refresh" to check for updates.
-                </p>
-              ) : (
-                <>
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 text-sm">
-                    <div className="space-y-1">
-                      <p className="font-medium text-foreground">
-                        {selectedCount} selected · {eligibleCount} eligible
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Only synced videos that are not currently processing can be selected.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSelectAllEligible}
-                        disabled={eligibleCount === 0}
-                        className="text-xs"
-                      >
-                        Select all
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClearSelection}
-                        disabled={selectedCount === 0}
-                        className="text-xs"
-                      >
-                        Clear
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleTriggerAnalysis}
-                        disabled={selectedCount === 0 || triggerAnalysisMutation.isPending}
-                        className="text-xs"
-                      >
-                        {triggerAnalysisMutation.isPending
-                          ? "Triggering..."
-                          : "Trigger analysis"}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-                    {videos.map((video) => {
+                <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+                  {videos.map((video) => {
                       const isSelectable = isVideoSelectable(video);
                       const isProcessing =
                         video.latest_analysis_status === "pending" ||
@@ -528,16 +485,14 @@ function DashboardPlaylists() {
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
+                  })}
+                </div>
                 </>
               )}
             </>
           )}
         </div>
       </div>
-
-    </div>
   );
 }
 

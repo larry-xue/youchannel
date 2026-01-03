@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
+import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { formatDate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
 import { DEMO_CAPTIONS, DEMO_SUMMARY, DEMO_WIKI, TAB_OPTIONS } from "../constants";
@@ -124,7 +125,7 @@ export function LearningTabs({
           </TabsTrigger>
         ))}
       </TabsList>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
+      <ScrollArea className="min-h-0 flex-1 px-4 pb-4 pt-2">
         <TabsContent value="info">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
@@ -239,7 +240,7 @@ export function LearningTabs({
             ))}
           </div>
         </TabsContent>
-      </div>
+      </ScrollArea>
     </Tabs>
   );
 }

@@ -1,6 +1,7 @@
 import { MessageSquare } from "lucide-react";
 import { Button } from "~/lib/components/ui/button";
 import { Input } from "~/lib/components/ui/input";
+import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { cn } from "~/lib/utils";
 import { ACTIVITY_ITEMS, DEMO_CHAT } from "../constants";
 
@@ -39,8 +40,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
         </div>
 
         {/* Messages */}
-        <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-3">
-          {DEMO_CHAT.map((message, index) => (
+        <ScrollArea className="min-h-0 flex-1 px-4 py-3">
+          <div className="flex flex-col gap-2.5">
+            {DEMO_CHAT.map((message, index) => (
             <div
               key={`${message.role}-${index}`}
               className={cn(
@@ -56,7 +58,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
               <span className="text-[13px]">{message.text}</span>
             </div>
           ))}
-        </div>
+          </div>
+        </ScrollArea>
 
         {/* Input Area */}
         <div className="border-t border-border bg-sidebar p-3">

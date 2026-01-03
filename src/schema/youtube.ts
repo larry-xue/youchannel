@@ -51,7 +51,8 @@ export type VideoAnalysisStatus =
   | "processing"
   | "completed"
   | "failed"
-  | "skipped";
+  | "skipped"
+  | "queued";
 
 export type VideoAnalysisSkipReason =
   | "quota_exceeded"

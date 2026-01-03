@@ -1,54 +1,91 @@
 import * as React from "react"
 import { GripVerticalIcon } from "lucide-react"
-import * as ResizablePrimitive from "react-resizable-panels"
+import {
+  Group,
+  Panel,
+  Separator,
+  usePanelRef,
+  type PanelImperativeHandle,
+  type GroupProps,
+  type PanelProps,
+  type SeparatorProps,
+} from "react-resizable-panels"
 
 import { cn } from "~/lib/utils"
 
+type Direction = "horizontal" | "vertical"
+
+const ResizableContext = React.createContext<Direction>("horizontal")
+
+type ResizablePanelGroupProps = Omit<GroupProps, "orientation"> & {
+  direction?: Direction
+}
+
 function ResizablePanelGroup({
   className,
+  direction = "horizontal",
   ...props
-}: React.ComponentProps<typeof ResizablePrimitive.PanelGroup>) {
+}: ResizablePanelGroupProps) {
   return (
-    <ResizablePrimitive.PanelGroup
-      data-slot="resizable-panel-group"
-      className={cn(
-        "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
-        className
-      )}
-      {...props}
-    />
+    <ResizableContext value={direction}>
+      <Group
+        data-slot="resizable-panel-group"
+        data-panel-group-direction={direction}
+        orientation={direction}
+        className={cn(
+          "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
+          className
+        )}
+        {...props}
+      />
+    </ResizableContext>
   )
 }
 
-function ResizablePanel({
-  ...props
-}: React.ComponentProps<typeof ResizablePrimitive.Panel>) {
-  return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />
+function ResizablePanel({ ...props }: PanelProps) {
+  return <Panel data-slot="resizable-panel" {...props} />
+}
+
+type ResizableHandleProps = Omit<SeparatorProps, "children"> & {
+  withHandle?: boolean
 }
 
 function ResizableHandle({
   withHandle,
   className,
   ...props
-}: React.ComponentProps<typeof ResizablePrimitive.PanelResizeHandle> & {
-  withHandle?: boolean
-}) {
+}: ResizableHandleProps) {
+  const direction = React.use(ResizableContext)
+  const isVertical = direction === "vertical"
+
   return (
-    <ResizablePrimitive.PanelResizeHandle
+    <Separator
       data-slot="resizable-handle"
+      data-panel-group-direction={direction}
       className={cn(
-        "bg-border focus-visible:ring-ring relative flex w-px items-center justify-center after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:outline-hidden data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:h-1 data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:translate-x-0 data-[panel-group-direction=vertical]:after:-translate-y-1/2 [&[data-panel-group-direction=vertical]>div]:rotate-90",
+        "bg-border relative flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1",
+        isVertical
+          ? "h-px w-full cursor-row-resize"
+          : "h-full w-px cursor-col-resize",
         className
       )}
       {...props}
     >
       {withHandle && (
-        <div className="bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border">
-          <GripVerticalIcon className="size-2.5" />
+        <div
+          className={cn(
+            "z-10 flex items-center justify-center rounded-sm border bg-border",
+            isVertical ? "h-3 w-4" : "h-4 w-3"
+          )}
+        >
+          <GripVerticalIcon
+            className={cn("h-2.5 w-2.5", isVertical && "rotate-90")}
+          />
         </div>
       )}
-    </ResizablePrimitive.PanelResizeHandle>
+    </Separator>
   )
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
+export { ResizablePanelGroup, ResizablePanel, ResizableHandle, usePanelRef }
+export type { PanelImperativeHandle }

@@ -4,10 +4,13 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { Loading } from "~/lib/components/ui/loading";
+import { Progress } from "~/lib/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import {
   PLAYLISTS_QUERY_KEY,
+  USER_QUOTA_QUERY_KEY,
   getPlaylistsFn,
+  getUserQuotaFn,
   getVideosFn,
   restorePlaylistFn,
   startYouTubeOAuthFn,
@@ -57,6 +60,11 @@ function DashboardPlaylists() {
     queryFn: () => getPlaylistsFn(),
   });
 
+  const quotaQuery = useQuery({
+    queryKey: USER_QUOTA_QUERY_KEY,
+    queryFn: () => getUserQuotaFn(),
+  });
+
   const playlists = playlistsQuery.data || [];
   const activePlaylist = playlists.find((playlist) => playlist.is_active) || null;
   const activePlaylistId = activePlaylist?.id;
@@ -78,7 +86,8 @@ function DashboardPlaylists() {
     if (video.sync_status !== "synced") return false;
     const isProcessing =
       video.latest_analysis_status === "pending" ||
-      video.latest_analysis_status === "processing";
+      video.latest_analysis_status === "processing" ||
+      video.latest_analysis_status === "queued";
     const hasTooManyFailures = (video.failed_count ?? 0) > 3;
     return !isProcessing && !hasTooManyFailures;
   };
@@ -315,6 +324,12 @@ function DashboardPlaylists() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {quotaQuery.data && (
+                      <QuotaBadge
+                        used={quotaQuery.data.analysis_count}
+                        max={quotaQuery.data.max_analyses}
+                      />
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -531,6 +546,17 @@ function AnalysisStatusBadge({
     );
   }
 
+  if (resolvedStatus === "queued") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
+      >
+        Queued
+      </Badge>
+    );
+  }
+
   if (resolvedStatus === "skipped") {
     const reasonText =
       skipReason === "quota_exceeded"
@@ -631,4 +657,31 @@ function VideoSyncStatusBadge({ status }: { status: string }) {
   }
 
   return null;
+}
+
+function QuotaBadge({ used, max }: { used: number; max: number }) {
+  const percentage = max > 0 ? Math.min((used / max) * 100, 100) : 0;
+  const isNearLimit = percentage >= 80;
+  const isAtLimit = used >= max;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/80 px-2.5 py-1">
+          <Progress
+            value={percentage}
+            className={`h-1.5 w-16 ${isAtLimit ? "*:data-[slot=progress-indicator]:bg-red-500" : isNearLimit ? "*:data-[slot=progress-indicator]:bg-amber-500" : ""}`}
+          />
+          <span className={`text-xs font-medium ${isAtLimit ? "text-red-500" : isNearLimit ? "text-amber-500" : "text-muted-foreground"}`}>
+            {used}/{max}
+          </span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {isAtLimit
+          ? "Quota limit reached"
+          : `${max - used} analysis${max - used !== 1 ? "es" : ""} remaining`}
+      </TooltipContent>
+    </Tooltip>
+  );
 }

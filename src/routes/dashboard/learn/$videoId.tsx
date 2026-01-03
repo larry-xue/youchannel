@@ -13,7 +13,10 @@ import type { VideoAnalysis } from "~/schema";
 import { BottomPanel } from "~/lib/dashboard/learn/components/BottomPanel";
 import { ChatSidebar } from "~/lib/dashboard/learn/components/ChatSidebar";
 import { LearningTabs } from "~/lib/dashboard/learn/components/LearningTabs";
-import { VideoPlayerCard } from "~/lib/dashboard/learn/components/VideoPlayerCard";
+import {
+  VideoPlayerCard,
+  type YouTubePlayerHandle,
+} from "~/lib/dashboard/learn/components/VideoPlayerCard";
 import {
   BOTTOM_PANEL_COLLAPSED_HEIGHT,
   BOTTOM_PANEL_DEFAULT_HEIGHT,
@@ -45,6 +48,8 @@ function DashboardLearnVideo() {
     startHeight: BOTTOM_PANEL_DEFAULT_HEIGHT,
     isResizing: false,
   });
+  const playerRef = useRef<YouTubePlayerHandle | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
 
@@ -134,6 +139,28 @@ function DashboardLearnVideo() {
       setBottomPanelHeight(clampedBottomHeight);
     }
   }, [bottomPanelHeight, clampedBottomHeight, setBottomPanelHeight]);
+
+  const handlePlayerReady = (player: YouTubePlayerHandle) => {
+    playerRef.current = player;
+    if (pendingSeekRef.current !== null) {
+      const target = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      player.seekTo(target, true);
+      player.playVideo?.();
+    }
+  };
+
+  const handleSeekToTimestamp = (seconds: number) => {
+    if (!Number.isFinite(seconds)) return;
+    const target = Math.max(0, seconds);
+    const player = playerRef.current;
+    if (player) {
+      player.seekTo(target, true);
+      player.playVideo?.();
+    } else {
+      pendingSeekRef.current = target;
+    }
+  };
 
   const sidebarWidthValue = isSidebarCollapsed
     ? SIDEBAR_COLLAPSED_WIDTH
@@ -234,6 +261,7 @@ function DashboardLearnVideo() {
             youtubeId={youtubeId}
             publishedAt={video?.published_at}
             isLoading={isLoading}
+            onPlayerReady={handlePlayerReady}
             className="min-h-0"
           />
 
@@ -264,6 +292,7 @@ function DashboardLearnVideo() {
               description={video?.description}
               publishedAt={video?.published_at}
               analysisText={latestAnalysis?.analysis_text}
+              onSeekToTimestamp={handleSeekToTimestamp}
             />
           </BottomPanel>
         </section>

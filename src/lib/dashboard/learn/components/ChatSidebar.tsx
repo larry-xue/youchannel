@@ -100,9 +100,6 @@ export function ChatSidebar({
                   Send
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Shortcuts, voice, and templates can live here later.
-              </p>
             </div>
           </>
         )}

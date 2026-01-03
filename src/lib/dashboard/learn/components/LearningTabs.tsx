@@ -25,6 +25,7 @@ type LearningTabsProps = {
   description?: string | null;
   publishedAt?: string | null;
   analysisText?: string | null;
+  onSeekToTimestamp?: (seconds: number) => void;
 };
 
 function parseAnalysisText(text?: string | null): AnalysisPayload | null {
@@ -51,11 +52,54 @@ function parseAnalysisText(text?: string | null): AnalysisPayload | null {
   }
 }
 
+function parseTimestampToSeconds(timestamp?: string | null) {
+  if (!timestamp) return null;
+  const cleaned = timestamp.trim();
+  if (!cleaned) return null;
+  if (/^\d+$/.test(cleaned)) return Number(cleaned);
+  const parts = cleaned.split(":").map((part) => Number(part));
+  if (parts.some((part) => Number.isNaN(part))) return null;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return null;
+}
+
+type TimestampButtonProps = {
+  timestamp: string;
+  onSeek?: (seconds: number) => void;
+  className?: string;
+};
+
+function TimestampButton({ timestamp, onSeek, className }: TimestampButtonProps) {
+  const seconds = parseTimestampToSeconds(timestamp);
+  if (!onSeek || seconds === null) {
+    return (
+      <span className={cn("text-xs font-semibold text-muted-foreground", className)}>
+        {timestamp}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onSeek(Math.max(0, seconds))}
+      className={cn(
+        "text-xs font-semibold text-primary underline decoration-primary/70 underline-offset-4 transition hover:text-primary/80",
+        className,
+      )}
+      aria-label={`Jump to ${timestamp}`}
+    >
+      {timestamp}
+    </button>
+  );
+}
+
 export function LearningTabs({
   title,
   description,
   publishedAt,
   analysisText,
+  onSeekToTimestamp,
 }: LearningTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("info");
   const parsedAnalysis = useMemo(
@@ -113,48 +157,56 @@ export function LearningTabs({
         )}
 
         {activeTab === "wiki" && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="divide-y divide-border/60 text-sm">
             {wikiItems
               ? wikiItems.map((item, index) => (
                   <div
                     key={`${item.title || "wiki"}-${item.timestamp || index}`}
-                    className="rounded-2xl border border-border/60 bg-muted/30 p-4"
+                    className="flex items-center gap-3 py-2"
                   >
                     {item.timestamp && (
-                      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        {item.timestamp}
-                      </p>
+                      <TimestampButton
+                        timestamp={item.timestamp}
+                        onSeek={onSeekToTimestamp}
+                        className="text-[11px]"
+                      />
                     )}
-                    <h3 className="mt-2 text-sm font-semibold text-foreground">
-                      {item.title || "Key moment"}
-                    </h3>
-                    {item.details && (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {item.details}
-                      </p>
-                    )}
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-semibold text-foreground">
+                        {item.title || "Key moment"}
+                      </span>
+                      {item.details && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          - {item.details}
+                        </span>
+                      )}
+                    </span>
                   </div>
                 ))
               : hasAnalysisText
                 ? (
-                    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
+                    <div className="py-3 text-sm text-muted-foreground">
                       No wiki entries available yet.
                     </div>
                   )
                 : DEMO_WIKI.map((item) => (
                     <div
                       key={item.title}
-                      className="rounded-2xl border border-border/60 bg-muted/30 p-4"
+                      className="flex items-center gap-3 py-2"
                     >
-                      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                      <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                         {item.tag}
-                      </p>
-                      <h3 className="mt-2 text-sm font-semibold text-foreground">
-                        {item.title}
-                      </h3>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {item.description}
-                      </p>
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="font-semibold text-foreground">
+                          {item.title}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          - {item.description}
+                        </span>
+                      </span>
                     </div>
                   ))}
           </div>
@@ -191,16 +243,13 @@ export function LearningTabs({
         {activeTab === "captions" && (
           <div className="space-y-2">
             {DEMO_CAPTIONS.map((item) => (
-              <button
+              <div
                 key={`${item.time}-${item.text}`}
-                type="button"
-                className="flex w-full items-start gap-3 rounded-2xl border border-border/60 bg-background/80 px-3 py-3 text-left text-sm text-foreground/90 transition hover:border-primary/40 hover:bg-primary/5"
+                className="flex w-full items-start gap-3 rounded-2xl border border-border/60 bg-background/80 px-3 py-3 text-left text-sm text-foreground/90"
               >
-                <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
-                  {item.time}
-                </span>
+                <TimestampButton timestamp={item.time} onSeek={onSeekToTimestamp} />
                 <span>{item.text}</span>
-              </button>
+              </div>
             ))}
           </div>
         )}

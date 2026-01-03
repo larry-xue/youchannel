@@ -134,6 +134,7 @@ function DashboardPlaylists() {
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["videos"] });
+      void videosQuery.refetch();
     },
     onError: (error) => {
       setAnalysisSummary(null);

@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/ta
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { formatDate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
-import { DEMO_CAPTIONS, DEMO_SUMMARY, DEMO_WIKI, TAB_OPTIONS } from "../constants";
+import { TAB_OPTIONS } from "../constants";
 
 type AnalysisWikiItem = {
   timestamp?: string;
@@ -149,14 +149,12 @@ export function LearningTabs({
               <div className="prose prose-base max-w-prose text-foreground/90 leading-relaxed tracking-[0.01em] prose-p:my-1 prose-li:my-1">
               {summaryText ? (
                 <p className="whitespace-pre-wrap">{summaryText}</p>
-              ) : hasAnalysisText ? (
-                <p className="text-muted-foreground">No summary available yet.</p>
               ) : (
-                <ol>
-                  {DEMO_SUMMARY.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ol>
+                <p className="text-muted-foreground">
+                  {hasAnalysisText
+                    ? "No summary available yet."
+                    : "Video analysis is not available yet. Please wait for the analysis to complete or trigger it from the playlists page."}
+                </p>
               )}
               </div>
             </div>
@@ -165,79 +163,49 @@ export function LearningTabs({
 
         <TabsContent value="wiki">
           <div className="prose prose-base flex max-w-none flex-wrap gap-x-6 gap-y-2 text-foreground/90 leading-relaxed tracking-[0.01em] prose-p:my-0">
-            {wikiItems
-              ? wikiItems.map((item, index) => (
-                  <div
-                    key={`${item.title || "wiki"}-${item.timestamp || index}`}
-                    className="flex min-w-[18rem] flex-[1_1_calc(50%-12px)] items-start gap-3 py-1"
-                  >
-                    {item.timestamp && (
-                      <TimestampButton
-                        timestamp={item.timestamp}
-                        onSeek={onSeekToTimestamp}
-                        className="text-xs shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="break-words">
-                        <span className="font-semibold text-foreground">
-                          {item.title || "Key moment"}
-                        </span>
-                        {item.details && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            - {item.details}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              : hasAnalysisText
-                ? (
-                    <p className="py-2 text-muted-foreground">
-                      No wiki entries available yet.
-                    </p>
-                  )
-                : DEMO_WIKI.map((item) => (
-                    <div
-                      key={item.title}
-                      className="flex min-w-[18rem] flex-[1_1_calc(50%-12px)] items-start gap-3 py-1"
-                    >
-                      <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        {item.tag}
+            {wikiItems && wikiItems.length > 0 ? (
+              wikiItems.map((item, index) => (
+                <div
+                  key={`${item.title || "wiki"}-${item.timestamp || index}`}
+                  className="flex min-w-[18rem] flex-[1_1_calc(50%-12px)] items-start gap-3 py-1"
+                >
+                  {item.timestamp && (
+                    <TimestampButton
+                      timestamp={item.timestamp}
+                      onSeek={onSeekToTimestamp}
+                      className="text-xs shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words">
+                      <span className="font-semibold text-foreground">
+                        {item.title || "Key moment"}
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="break-words">
-                          <span className="font-semibold text-foreground">
-                            {item.title}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {" "}
-                            - {item.description}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                      {item.details && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          - {item.details}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="py-2 text-muted-foreground">
+                {hasAnalysisText
+                  ? "No wiki entries available yet."
+                  : "Video analysis is not available yet. Please wait for the analysis to complete or trigger it from the playlists page."}
+              </p>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="captions">
           <div className="text-sm">
-            {DEMO_CAPTIONS.map((item) => (
-              <div
-                key={`${item.time}-${item.text}`}
-                className="flex w-full items-start gap-3 py-1.5 text-left text-foreground/90"
-              >
-                <TimestampButton
-                  timestamp={item.time}
-                  onSeek={onSeekToTimestamp}
-                  className="text-[11px]"
-                />
-                <span>{item.text}</span>
-              </div>
-            ))}
+            <p className="py-2 text-muted-foreground">
+              Captions feature is not available yet.
+            </p>
           </div>
         </TabsContent>
       </ScrollArea>

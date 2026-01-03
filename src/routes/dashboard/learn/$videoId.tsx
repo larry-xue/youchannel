@@ -33,6 +33,12 @@ import {
 import { useLocalStorageState } from "~/lib/dashboard/learn/utils";
 import { getVideoPublishedAt } from "~/lib/dashboard/utils";
 
+const toPercent = (value: number, total: number) =>
+  Math.max(0, Math.min(100, (value / total) * 100));
+
+const toPixels = (percent: number, total: number) =>
+  Math.round((percent / 100) * total);
+
 export const Route = createFileRoute("/dashboard/learn/$videoId")({
   component: DashboardLearnVideo,
 });

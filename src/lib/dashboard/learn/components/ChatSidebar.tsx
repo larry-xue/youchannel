@@ -3,7 +3,7 @@ import { Button } from "~/lib/components/ui/button";
 import { Input } from "~/lib/components/ui/input";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { cn } from "~/lib/utils";
-import { ACTIVITY_ITEMS, DEMO_CHAT } from "../constants";
+import { ACTIVITY_ITEMS } from "../constants";
 
 type ChatSidebarProps = {
   className?: string;
@@ -41,23 +41,10 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
         {/* Messages */}
         <ScrollArea className="min-h-0 flex-1 px-4 py-3">
-          <div className="flex flex-col gap-2.5">
-            {DEMO_CHAT.map((message, index) => (
-            <div
-              key={`${message.role}-${index}`}
-              className={cn(
-                "flex max-w-[85%] flex-col gap-0.5 rounded-lg px-3 py-2 text-sm leading-relaxed",
-                message.role === "assistant"
-                  ? "bg-muted text-foreground"
-                  : "self-end bg-sidebar-primary text-sidebar-primary-foreground",
-              )}
-            >
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {message.role === "assistant" ? "Assistant" : "You"}
-              </span>
-              <span className="text-[13px]">{message.text}</span>
-            </div>
-          ))}
+          <div className="flex h-full items-center justify-center">
+            <p className="text-sm text-muted-foreground text-center">
+              No messages yet. Start a conversation by typing a message below.
+            </p>
           </div>
         </ScrollArea>
 

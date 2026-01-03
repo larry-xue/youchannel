@@ -70,6 +70,7 @@ export type VideoAnalysis = {
   status: VideoAnalysisStatus;
   skip_reason: VideoAnalysisSkipReason | null;
   error: string | null;
+  failed_count: number;
   created_at: string;
   updated_at: string;
 };

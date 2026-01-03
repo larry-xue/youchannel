@@ -4,6 +4,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { CardDescription, CardTitle } from "~/lib/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import {
   PLAYLISTS_QUERY_KEY,
   USER_QUOTA_QUERY_KEY,
@@ -13,11 +14,16 @@ import {
   restorePlaylistFn,
   startYouTubeOAuthFn,
   triggerOpenApiAnalysisFn,
-  type OpenApiAnalysisResponse,
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
-import { formatDate, formatDateTime, truncate } from "~/lib/dashboard/utils";
+import {
+  formatDate,
+  formatDateTime,
+  getVideoPublishedAt,
+  truncate,
+} from "~/lib/dashboard/utils";
 import type { PlaylistEntryStatus, VideoAnalysisSkipReason } from "~/schema";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/playlists")({
   component: DashboardPlaylists,
@@ -46,8 +52,6 @@ function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [analysisSummary, setAnalysisSummary] =
-    useState<OpenApiAnalysisResponse | null>(null);
   const [showRemovedVideos, setShowRemovedVideos] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
@@ -82,8 +86,16 @@ function DashboardPlaylists() {
   });
 
   const videos = videosQuery.data ?? EMPTY_VIDEOS;
+  const isVideoSelectable = (video: VideoWithStatus) => {
+    if (video.sync_status !== "synced") return false;
+    const isProcessing =
+      video.latest_analysis_status === "pending" ||
+      video.latest_analysis_status === "processing";
+    const hasTooManyFailures = (video.failed_count ?? 0) > 3;
+    return !isProcessing && !hasTooManyFailures;
+  };
   const eligibleVideoIds = videos
-    .filter((video) => video.sync_status === "synced" && video.analysis_count === 0)
+    .filter((video) => isVideoSelectable(video))
     .map((video) => video.id);
   const selectedCount = selectedVideoIds.length;
   const eligibleCount = eligibleVideoIds.length;
@@ -117,18 +129,46 @@ function DashboardPlaylists() {
     mutationFn: (payload: { playlistId: string; videoIds: string[] }) =>
       triggerOpenApiAnalysisFn({ data: payload }),
     onSuccess: (result) => {
-      setAnalysisSummary(result);
+      const skippedReasons: string[] = [];
+      if (result.skipReasons.analysis_exists > 0) {
+        skippedReasons.push(`${result.skipReasons.analysis_exists} already done`);
+      }
+      if (result.skipReasons.duration_exceeded > 0) {
+        skippedReasons.push(`${result.skipReasons.duration_exceeded} too long`);
+      }
+      if (result.skipReasons.quota_exceeded > 0) {
+        skippedReasons.push(`${result.skipReasons.quota_exceeded} limit reached`);
+      }
+      const skippedText =
+        result.skipped > 0
+          ? `, and ${result.skipped} couldn't be started${
+              skippedReasons.length > 0
+                ? ` (${skippedReasons.join(", ")})`
+                : ""
+            }`
+          : "";
+
+      if (result.enqueued > 0) {
+        toast.success("We are on it", {
+          description: `We are working on ${result.enqueued} videos${skippedText}. This may take a few minutes - please wait for updates.`,
+        });
+      } else {
+        toast.info("Nothing to start yet", {
+          description: `We could not start on the current selection${skippedText}. Please try again later.`,
+        });
+      }
+
       setSelectedVideoIds([]);
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       void videosQuery.refetch();
     },
-    onError: (error) => {
-      setAnalysisSummary(null);
-      setActionError(
-        error instanceof Error ? error.message : "Failed to trigger analysis",
-      );
+    onError: (_error) => {
+      toast.error("We could not start", {
+        description: "Please try again later. If this keeps happening, refresh the page.",
+      });
+      setActionError(null);
     },
   });
 
@@ -142,7 +182,6 @@ function DashboardPlaylists() {
 
   useEffect(() => {
     setSelectedVideoIds([]);
-    setAnalysisSummary(null);
   }, [activePlaylistId]);
 
   const handleOpenVideo = (video: VideoWithStatus) => {
@@ -165,7 +204,6 @@ function DashboardPlaylists() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setActionError(null);
-    setAnalysisSummary(null);
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY }),
@@ -196,7 +234,6 @@ function DashboardPlaylists() {
   const handleTriggerAnalysis = () => {
     if (!activePlaylistId || selectedCount === 0) return;
     setActionError(null);
-    setAnalysisSummary(null);
     triggerAnalysisMutation.mutate({
       playlistId: activePlaylistId,
       videoIds: selectedVideoIds,
@@ -233,17 +270,6 @@ function DashboardPlaylists() {
       {actionError && (
         <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {actionError}
-        </div>
-      )}
-      {analysisSummary && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-200">
-          <span className="font-medium">Analysis queued.</span>{" "}
-          {analysisSummary.enqueued} enqueued, {analysisSummary.skipped} skipped.
-          <span className="ml-2 text-emerald-700/80 dark:text-emerald-200/80">
-            Existing: {analysisSummary.skipReasons.analysis_exists}, Duration:{" "}
-            {analysisSummary.skipReasons.duration_exceeded}, Quota:{" "}
-            {analysisSummary.skipReasons.quota_exceeded}.
-          </span>
         </div>
       )}
 
@@ -336,7 +362,7 @@ function DashboardPlaylists() {
                         {selectedCount} selected · {eligibleCount} eligible
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Only synced videos without analysis can be selected.
+                        Only synced videos that are not currently processing can be selected.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -372,10 +398,25 @@ function DashboardPlaylists() {
                   </div>
                   <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
                     {videos.map((video) => {
-                      const isSelectable =
-                        video.sync_status === "synced" && video.analysis_count === 0;
+                      const isSelectable = isVideoSelectable(video);
+                      const isProcessing =
+                        video.latest_analysis_status === "pending" ||
+                        video.latest_analysis_status === "processing";
+                      const hasTooManyFailures = (video.failed_count ?? 0) > 3;
                       const isSelected = selectedVideoIds.includes(video.id);
                       const durationLabel = formatVideoDuration(video.duration);
+                      const selectionLabel = isSelectable
+                        ? "Select"
+                        : hasTooManyFailures
+                          ? "Paused"
+                          : isProcessing
+                            ? "Processing"
+                            : "Locked";
+                      const selectionHint = hasTooManyFailures
+                        ? "This video failed analysis several times and is temporarily locked."
+                        : isProcessing
+                          ? "This video is already being analyzed."
+                          : "Only synced videos can be selected.";
 
                       return (
                         <div
@@ -412,27 +453,48 @@ function DashboardPlaylists() {
                               className="absolute left-2 top-2"
                               onClick={(event) => event.stopPropagation()}
                               onKeyDown={(event) => event.stopPropagation()}
-                              title={
-                                isSelectable
-                                  ? "Select for analysis"
-                                  : "Only synced videos without analysis can be selected"
-                              }
+                              title={hasTooManyFailures ? undefined : selectionHint}
                             >
-                              <label
-                                className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
-                                  isSelectable ? "" : "opacity-60"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => handleToggleVideo(video.id)}
-                                  disabled={!isSelectable}
-                                  className="h-3.5 w-3.5"
-                                  aria-label={`Select ${video.title || "video"} for analysis`}
-                                />
-                                <span>{isSelectable ? "Select" : "Locked"}</span>
-                              </label>
+                              {hasTooManyFailures ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <label
+                                      className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
+                                        isSelectable ? "" : "opacity-60"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => handleToggleVideo(video.id)}
+                                        disabled={!isSelectable}
+                                        className="h-3.5 w-3.5"
+                                        aria-label={`Select ${video.title || "video"} for analysis`}
+                                      />
+                                      <span>{selectionLabel}</span>
+                                    </label>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    This video failed analysis several times and is temporarily locked. Please try again later.
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <label
+                                  className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
+                                    isSelectable ? "" : "opacity-60"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => handleToggleVideo(video.id)}
+                                    disabled={!isSelectable}
+                                    className="h-3.5 w-3.5"
+                                    aria-label={`Select ${video.title || "video"} for analysis`}
+                                  />
+                                  <span>{selectionLabel}</span>
+                                </label>
+                              )}
                             </div>
                             {video.sync_status !== "synced" && (
                               <div className="absolute right-2 top-2">
@@ -453,9 +515,9 @@ function DashboardPlaylists() {
                               {truncate(video.title || "Video", 48)}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {formatDate(video.published_at)}
+                              {formatDate(getVideoPublishedAt(video))}
                             </p>
-                            <div className="!mt-auto flex items-center justify-between gap-2 border-t border-border/40 pt-2">
+                            <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
                               <AnalysisStatusBadge
                                 count={video.analysis_count}
                                 latestAt={video.latest_analysis_at}

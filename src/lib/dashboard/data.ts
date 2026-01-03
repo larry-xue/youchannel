@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type {
   Playlist,
-  UserQuota,
   Video,
   VideoAnalysis,
   VideoAnalysisSkipReason,
@@ -12,7 +11,6 @@ export const DEFAULT_ANALYSIS_PROMPT =
   "Summarize the video in 5 bullet points and call out key insights.";
 
 export const PLAYLISTS_QUERY_KEY = ["playlists"] as const;
-export const USER_QUOTA_QUERY_KEY = ["user-quota"] as const;
 
 export const getYouTubeAccountStatusFn = createServerFn({ method: "GET" }).handler(async () => {
   const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
@@ -40,6 +38,7 @@ export type VideoWithStatus = Video & {
   latest_analysis_at: string | null;
   latest_analysis_status: string | null;
   latest_skip_reason: VideoAnalysisSkipReason | null;
+  failed_count: number;
 };
 
 export type OpenApiAnalysisResponse = {
@@ -404,47 +403,55 @@ export const getVideosFn = createServerFn({ method: "POST" })
     const videoIds = (videos || []).map((video) => video.id);
     if (videoIds.length === 0) return [] as VideoWithStatus[];
 
-    const { data: analyses } = await supabase
-      .from("video_analyses")
-      .select("video_id, created_at, status, skip_reason")
-      .in("video_id", videoIds);
+      const { data: analyses } = await supabase
+        .from("video_analyses")
+        .select("video_id, created_at, status, skip_reason, failed_count")
+        .in("video_id", videoIds);
 
-    const analysisMap = new Map<
-      string,
-      {
-        count: number;
-        latest: string | null;
-        status: string | null;
-        skip_reason: string | null;
+      const analysisMap = new Map<
+        string,
+        {
+          count: number;
+          latest: string | null;
+          status: string | null;
+          skip_reason: string | null;
+          failed_count: number;
+        }
+      >();
+      for (const analysis of analyses || []) {
+        const current = analysisMap.get(analysis.video_id) || {
+          count: 0,
+          latest: null,
+          status: null,
+          skip_reason: null,
+          failed_count: 0,
+        };
+        const isNewer =
+          !current.latest ||
+          new Date(analysis.created_at).getTime() > new Date(current.latest).getTime();
+        const nextFailedCount = Math.max(
+          current.failed_count,
+          analysis.failed_count ?? 0,
+        );
+        analysisMap.set(analysis.video_id, {
+          count: current.count + 1,
+          latest: isNewer ? analysis.created_at : current.latest,
+          status: isNewer ? analysis.status : current.status,
+          skip_reason: isNewer ? analysis.skip_reason : current.skip_reason,
+          failed_count: nextFailedCount,
+        });
       }
-    >();
-    for (const analysis of analyses || []) {
-      const current = analysisMap.get(analysis.video_id) || {
-        count: 0,
-        latest: null,
-        status: null,
-        skip_reason: null,
-      };
-      const isNewer =
-        !current.latest ||
-        new Date(analysis.created_at).getTime() > new Date(current.latest).getTime();
-      analysisMap.set(analysis.video_id, {
-        count: current.count + 1,
-        latest: isNewer ? analysis.created_at : current.latest,
-        status: isNewer ? analysis.status : current.status,
-        skip_reason: isNewer ? analysis.skip_reason : current.skip_reason,
-      });
-    }
 
-    return (videos || []).map((video) => ({
-      ...video,
-      analysis_count: analysisMap.get(video.id)?.count || 0,
-      latest_analysis_at: analysisMap.get(video.id)?.latest || null,
-      latest_analysis_status: analysisMap.get(video.id)?.status || null,
-      latest_skip_reason:
-        (analysisMap.get(video.id)?.skip_reason as VideoAnalysisSkipReason) || null,
-    })) as VideoWithStatus[];
-  });
+      return (videos || []).map((video) => ({
+        ...video,
+        analysis_count: analysisMap.get(video.id)?.count || 0,
+        latest_analysis_at: analysisMap.get(video.id)?.latest || null,
+        latest_analysis_status: analysisMap.get(video.id)?.status || null,
+        latest_skip_reason:
+          (analysisMap.get(video.id)?.skip_reason as VideoAnalysisSkipReason) || null,
+        failed_count: analysisMap.get(video.id)?.failed_count ?? 0,
+      })) as VideoWithStatus[];
+    });
 
 export const getVideoByIdFn = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
@@ -600,16 +607,35 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
 
     const { data: existingAnalyses, error: analysesError } = await supabase
       .from("video_analyses")
-      .select("video_id")
+      .select("video_id, status, created_at")
       .in("video_id", syncedVideoIds);
 
     if (analysesError) throw analysesError;
 
-    const analyzedIds = new Set(
-      (existingAnalyses || []).map((analysis) => analysis.video_id),
-    );
-    const eligibleVideoIds = syncedVideoIds.filter((id) => !analyzedIds.has(id));
-    const analysisExistsCount = syncedVideoIds.length - eligibleVideoIds.length;
+    const latestStatusByVideo = new Map<string, { status: string; createdAt: string }>();
+    for (const analysis of existingAnalyses || []) {
+      if (!analysis.video_id || !analysis.created_at || !analysis.status) continue;
+      const current = latestStatusByVideo.get(analysis.video_id);
+      if (
+        !current ||
+        new Date(analysis.created_at).getTime() > new Date(current.createdAt).getTime()
+      ) {
+        latestStatusByVideo.set(analysis.video_id, {
+          status: analysis.status,
+          createdAt: analysis.created_at,
+        });
+      }
+    }
+
+    const inProgressIds = new Set<string>();
+    for (const [videoId, info] of latestStatusByVideo.entries()) {
+      if (info.status === "pending" || info.status === "processing") {
+        inProgressIds.add(videoId);
+      }
+    }
+
+    const eligibleVideoIds = syncedVideoIds.filter((id) => !inProgressIds.has(id));
+    const inProgressCount = syncedVideoIds.length - eligibleVideoIds.length;
 
     if (eligibleVideoIds.length === 0) {
       return {
@@ -617,10 +643,10 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
         userId: user.id,
         candidateCount: syncedVideoIds.length,
         enqueued: 0,
-        skipped: analysisExistsCount,
+        skipped: inProgressCount,
         skipReasons: {
           duration_exceeded: 0,
-          analysis_exists: analysisExistsCount,
+          analysis_exists: inProgressCount,
           quota_exceeded: 0,
         },
       } as OpenApiAnalysisResponse;
@@ -664,16 +690,16 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
 
     const result = payload as OpenApiAnalysisResponse;
 
-    if (!analysisExistsCount) return result;
+    if (!inProgressCount) return result;
 
     return {
       ...result,
-      candidateCount: result.candidateCount + analysisExistsCount,
-      skipped: result.skipped + analysisExistsCount,
+      candidateCount: result.candidateCount + inProgressCount,
+      skipped: result.skipped + inProgressCount,
       skipReasons: {
         duration_exceeded: result.skipReasons?.duration_exceeded ?? 0,
         analysis_exists:
-          (result.skipReasons?.analysis_exists ?? 0) + analysisExistsCount,
+          (result.skipReasons?.analysis_exists ?? 0) + inProgressCount,
         quota_exceeded: result.skipReasons?.quota_exceeded ?? 0,
       },
     } as OpenApiAnalysisResponse;

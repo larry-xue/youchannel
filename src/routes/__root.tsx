@@ -11,6 +11,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import appCss from "~/lib/styles/app.css?url";
+import { Toaster } from "~/lib/components/ui/sonner";
 import { getUserFn } from "~/lib/server/user";
 import { setAuthUser, type AuthStore } from "~/lib/store/auth";
 
@@ -69,6 +70,8 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
         </ScriptOnce>
 
         <div className="app-shell">{children}</div>
+
+        <Toaster />
 
         <ReactQueryDevtools buttonPosition="bottom-left" />
         <TanStackRouterDevtools position="bottom-right" />

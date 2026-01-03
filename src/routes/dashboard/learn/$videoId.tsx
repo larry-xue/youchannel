@@ -31,6 +31,7 @@ import {
   WORKSPACE_MIN_HEIGHT,
 } from "~/lib/dashboard/learn/constants";
 import { useLocalStorageState } from "~/lib/dashboard/learn/utils";
+import { getVideoPublishedAt } from "~/lib/dashboard/utils";
 
 export const Route = createFileRoute("/dashboard/learn/$videoId")({
   component: DashboardLearnVideo,
@@ -86,6 +87,7 @@ function DashboardLearnVideo() {
   const hasError = videoQuery.isError;
   const title = video?.title || "Learning Session";
   const youtubeId = video?.youtube_video_id;
+  const publishedAt = getVideoPublishedAt(video);
 
   useEffect(() => {
     const element = workspaceRef.current;
@@ -259,7 +261,7 @@ function DashboardLearnVideo() {
           <VideoPlayerCard
             title={title}
             youtubeId={youtubeId}
-            publishedAt={video?.published_at}
+            publishedAt={publishedAt}
             isLoading={isLoading}
             onPlayerReady={handlePlayerReady}
             className="min-h-0"
@@ -290,7 +292,7 @@ function DashboardLearnVideo() {
             <LearningTabs
               title={title}
               description={video?.description}
-              publishedAt={video?.published_at}
+              publishedAt={publishedAt}
               analysisText={latestAnalysis?.analysis_text}
               onSeekToTimestamp={handleSeekToTimestamp}
             />

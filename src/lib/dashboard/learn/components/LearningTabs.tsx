@@ -1,13 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import { formatDate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
-import {
-  DEMO_CAPTIONS,
-  DEMO_SUMMARY,
-  DEMO_WIKI,
-  TAB_OPTIONS,
-  type TabKey,
-} from "../constants";
+import { DEMO_CAPTIONS, DEMO_SUMMARY, DEMO_WIKI, TAB_OPTIONS } from "../constants";
 
 type AnalysisWikiItem = {
   timestamp?: string;
@@ -101,7 +96,6 @@ export function LearningTabs({
   analysisText,
   onSeekToTimestamp,
 }: LearningTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("info");
   const parsedAnalysis = useMemo(
     () => parseAnalysisText(analysisText),
     [analysisText],
@@ -115,26 +109,23 @@ export function LearningTabs({
       : null;
 
   return (
-    <div className="rounded-3xl border border-border/60 bg-background/80 shadow-sm">
-      <div className="flex flex-wrap gap-2 border-b border-border/60 px-4 pt-4">
+    <Tabs
+      defaultValue="info"
+      className="rounded-3xl border border-border/60 bg-background/80 shadow-sm"
+    >
+      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 rounded-none border-b border-border/60 bg-transparent p-0 px-4 pt-4 pb-3 text-muted-foreground">
         {TAB_OPTIONS.map((tab) => (
-          <button
+          <TabsTrigger
             key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={cn(
-              "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition",
-              activeTab === tab.key
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-            )}
+            value={tab.key}
+            className="h-auto flex-none rounded-full border-none px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
             {tab.label}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
+      </TabsList>
       <div className="p-4 sm:p-6">
-        {activeTab === "info" && (
+        <TabsContent value="info">
           <div className="space-y-4">
             <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -154,9 +145,9 @@ export function LearningTabs({
               </p>
             </div>
           </div>
-        )}
+        </TabsContent>
 
-        {activeTab === "wiki" && (
+        <TabsContent value="wiki">
           <div className="divide-y divide-border/60 text-sm">
             {wikiItems
               ? wikiItems.map((item, index) => (
@@ -210,10 +201,10 @@ export function LearningTabs({
                     </div>
                   ))}
           </div>
-        )}
+        </TabsContent>
 
-        {activeTab === "summary" && (
-          summaryText ? (
+        <TabsContent value="summary">
+          {summaryText ? (
             <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                 Summary
@@ -237,10 +228,10 @@ export function LearningTabs({
                 </li>
               ))}
             </ol>
-          )
-        )}
+          )}
+        </TabsContent>
 
-        {activeTab === "captions" && (
+        <TabsContent value="captions">
           <div className="space-y-2">
             {DEMO_CAPTIONS.map((item) => (
               <div
@@ -252,8 +243,8 @@ export function LearningTabs({
               </div>
             ))}
           </div>
-        )}
+        </TabsContent>
       </div>
-    </div>
+    </Tabs>
   );
 }

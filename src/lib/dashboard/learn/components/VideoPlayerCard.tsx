@@ -212,7 +212,7 @@ export function VideoPlayerCard({
         ref={stageRef}
         className="flex min-h-0 min-w-0 flex-1 items-center justify-center px-4 pt-4"
       >
-        <div className="relative overflow-hidden rounded-2xl bg-muted/30" style={playerStyle}>
+        <div className="relative overflow-hidden rounded-2xl bg-muted/30 mb-4" style={playerStyle}>
           {youtubeId ? (
             <div ref={playerMountRef} className="h-full w-full" />
           ) : (

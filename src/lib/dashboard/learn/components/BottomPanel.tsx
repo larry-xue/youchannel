@@ -15,7 +15,7 @@ export function BottomPanel({
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-background/80 shadow-sm",
+        "flex h-full flex-col overflow-hidden mt-2",
         className,
       )}
     >

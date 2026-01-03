@@ -310,7 +310,7 @@ function DashboardPlaylists() {
           <>
             {videos.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No videos yet. Add videos to your playlist on YouTube, then refresh.
+                No videos yet. Add videos to the "YouChannel AI" playlist on YouTube, then come back here. Syncing may take a moment.
               </p>
             ) : (
               <>

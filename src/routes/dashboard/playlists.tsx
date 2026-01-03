@@ -5,18 +5,10 @@ import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { CardDescription, CardTitle } from "~/lib/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/lib/components/ui/dialog";
-import {
   PLAYLISTS_QUERY_KEY,
   USER_QUOTA_QUERY_KEY,
   getPlaylistsFn,
   getUserQuotaFn,
-  getVideoAnalysesFn,
   getVideosFn,
   restorePlaylistFn,
   startYouTubeOAuthFn,
@@ -25,7 +17,7 @@ import {
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
 import { formatDate, formatDateTime, truncate } from "~/lib/dashboard/utils";
-import type { PlaylistEntryStatus, VideoAnalysis, VideoAnalysisSkipReason } from "~/schema";
+import type { PlaylistEntryStatus, VideoAnalysisSkipReason } from "~/schema";
 
 export const Route = createFileRoute("/dashboard/playlists")({
   component: DashboardPlaylists,
@@ -54,12 +46,8 @@ function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<VideoWithStatus | null>(null);
-  const [analyses, setAnalyses] = useState<VideoAnalysis[]>([]);
   const [analysisSummary, setAnalysisSummary] =
     useState<OpenApiAnalysisResponse | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoadingAnalyses, setIsLoadingAnalyses] = useState(false);
   const [showRemovedVideos, setShowRemovedVideos] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
@@ -157,21 +145,6 @@ function DashboardPlaylists() {
     setAnalysisSummary(null);
   }, [activePlaylistId]);
 
-  const handleViewAnalysis = async (video: VideoWithStatus) => {
-    setSelectedVideo(video);
-    setIsDialogOpen(true);
-    setIsLoadingAnalyses(true);
-
-    try {
-      const data = await getVideoAnalysesFn({ data: { videoId: video.id } });
-      setAnalyses(data);
-    } catch {
-      setAnalyses([]);
-    } finally {
-      setIsLoadingAnalyses(false);
-    }
-  };
-
   const handleOpenVideo = (video: VideoWithStatus) => {
     router.navigate({
       to: "/dashboard/learn/$videoId",
@@ -187,12 +160,6 @@ function DashboardPlaylists() {
       event.preventDefault();
       handleOpenVideo(video);
     }
-  };
-
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedVideo(null);
-    setAnalyses([]);
   };
 
   const handleRefresh = async () => {
@@ -501,11 +468,10 @@ function DashboardPlaylists() {
                                 className="h-7 px-2 text-xs"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleViewAnalysis(video);
+                                  handleOpenVideo(video);
                                 }}
-                                disabled={video.analysis_count === 0}
                               >
-                                {video.analysis_count > 0 ? "View" : "No analysis"}
+                                Learn
                               </Button>
                             </div>
                           </div>
@@ -520,73 +486,6 @@ function DashboardPlaylists() {
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-        <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="pr-8 leading-normal">
-              {truncate(selectedVideo?.title || "Video Analysis", 60)}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedVideo?.analysis_count || 0} analysis
-              {(selectedVideo?.analysis_count || 0) !== 1 ? "es" : ""} generated
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2">
-            {isLoadingAnalyses ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Loading analyses...
-              </p>
-            ) : analyses.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No analyses found for this video.
-              </p>
-            ) : (
-              analyses.map((analysis, index) => (
-                <div
-                  key={analysis.id}
-                  className="space-y-3 rounded-2xl border border-border/60 bg-muted/30 p-4"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Analysis #{analyses.length - index}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(analysis.created_at)} · {analysis.model}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        analysis.status === "completed" ? "default" : "destructive"
-                      }
-                      className="text-xs"
-                    >
-                      {analysis.status}
-                    </Badge>
-                  </div>
-                  {analysis.prompt && (
-                    <div className="rounded-xl bg-background/60 px-3 py-2">
-                      <p className="text-xs font-medium text-muted-foreground">Prompt</p>
-                      <p className="mt-1 text-sm text-foreground/80">{analysis.prompt}</p>
-                    </div>
-                  )}
-                  {analysis.status === "completed" && analysis.analysis_text ? (
-                    <div className="prose prose-sm max-w-none text-foreground/90">
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {analysis.analysis_text}
-                      </div>
-                    </div>
-                  ) : analysis.error ? (
-                    <div className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                      {analysis.error}
-                    </div>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

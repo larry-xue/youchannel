@@ -314,11 +314,7 @@ function DashboardLearnVideo() {
           <span className="h-16 w-1 rounded-full bg-border" />
         </div>
 
-        <ChatSidebar
-          isCollapsed={isSidebarCollapsed}
-          onCollapsedChange={setIsSidebarCollapsed}
-          className="min-h-0"
-        />
+        <ChatSidebar className="min-h-0" />
       </div>
     </div>
   );

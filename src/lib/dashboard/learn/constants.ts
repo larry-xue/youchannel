@@ -1,8 +1,7 @@
 export const TAB_OPTIONS = [
-  { key: "info", label: "Info" },
+  { key: "info", label: "Overview" },
   { key: "wiki", label: "Wiki" },
-  { key: "summary", label: "Summary" },
-  { key: "captions", label: "Captions" },
+  // { key: "captions", label: "Captions" },
 ] as const;
 
 export const ACTIVITY_ITEMS = [{ key: "chat", label: "Chat" }] as const;

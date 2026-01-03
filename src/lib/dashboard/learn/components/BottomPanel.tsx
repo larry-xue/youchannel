@@ -15,11 +15,11 @@ export function BottomPanel({
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden mt-2",
+        "flex h-full flex-col overflow-hidden",
         className,
       )}
     >
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );
 }

@@ -7,9 +7,7 @@ import { CardDescription, CardTitle } from "~/lib/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import {
   PLAYLISTS_QUERY_KEY,
-  USER_QUOTA_QUERY_KEY,
   getPlaylistsFn,
-  getUserQuotaFn,
   getVideosFn,
   restorePlaylistFn,
   startYouTubeOAuthFn,
@@ -61,15 +59,9 @@ function DashboardPlaylists() {
     queryFn: () => getPlaylistsFn(),
   });
 
-  const quotaQuery = useQuery({
-    queryKey: USER_QUOTA_QUERY_KEY,
-    queryFn: () => getUserQuotaFn(),
-  });
-
   const playlists = playlistsQuery.data || [];
   const activePlaylist = playlists.find((playlist) => playlist.is_active) || null;
   const activePlaylistId = activePlaylist?.id;
-  const quota = quotaQuery.data;
 
   const videosQuery = useQuery({
     queryKey: ["videos", activePlaylistId, showRemovedVideos],
@@ -131,7 +123,7 @@ function DashboardPlaylists() {
     onSuccess: (result) => {
       const skippedReasons: string[] = [];
       if (result.skipReasons.analysis_exists > 0) {
-        skippedReasons.push(`${result.skipReasons.analysis_exists} already done`);
+        skippedReasons.push(`${result.skipReasons.analysis_exists} already in progress`);
       }
       if (result.skipReasons.duration_exceeded > 0) {
         skippedReasons.push(`${result.skipReasons.duration_exceeded} too long`);
@@ -160,7 +152,6 @@ function DashboardPlaylists() {
 
       setSelectedVideoIds([]);
       setActionError(null);
-      queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       void videosQuery.refetch();
     },
@@ -207,7 +198,6 @@ function DashboardPlaylists() {
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: ["videos"] }),
       ]);
     } catch (error) {
@@ -256,7 +246,6 @@ function DashboardPlaylists() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {quota && <QuotaDisplay quota={quota} />}
           <Button
             type="button"
             onClick={handleRefresh}
@@ -687,26 +676,4 @@ function VideoSyncStatusBadge({ status }: { status: string }) {
   }
 
   return null;
-}
-
-function QuotaDisplay({ quota }: { quota: { analysis_count: number; max_analyses: number } }) {
-  const remaining = quota.max_analyses - quota.analysis_count;
-  const isLow = remaining <= 1;
-  const isExhausted = remaining <= 0;
-
-  return (
-    <div
-      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${
-        isExhausted
-          ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
-          : isLow
-            ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-            : "border-border bg-muted/50 text-muted-foreground"
-      }`}
-      title={`${quota.analysis_count} of ${quota.max_analyses} analyses used`}
-    >
-      <span className="font-medium">{remaining}</span>
-      <span>analyses remaining</span>
-    </div>
-  );
 }

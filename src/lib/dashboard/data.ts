@@ -705,40 +705,6 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
     } as OpenApiAnalysisResponse;
   });
 
-// Get user's analysis quota
-export const getUserQuotaFn = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabase, user } = await getSupabaseAndUser();
-
-  // Get or create user quota
-  const { data: existingQuota, error: fetchError } = await supabase
-    .from("user_quotas")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (fetchError) throw fetchError;
-
-  if (existingQuota) {
-    return existingQuota as UserQuota;
-  }
-
-  // Create quota record for new user
-  const maxAnalyses = parseInt(process.env.FREE_USER_MAX_ANALYSES || "3", 10);
-  const { data: newQuota, error: insertError } = await supabase
-    .from("user_quotas")
-    .insert({
-      user_id: user.id,
-      analysis_count: 0,
-      max_analyses: maxAnalyses,
-    })
-    .select()
-    .single();
-
-  if (insertError) throw insertError;
-
-  return newQuota as UserQuota;
-});
-
 // Restore a lost playlist by creating a new one on YouTube
 export const restorePlaylistFn = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ playlistId: z.string() }).parse(data))

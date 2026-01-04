@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
   Card,
@@ -23,7 +23,6 @@ export const Route = createFileRoute("/connect-youtube")({
       code: search.code as string | undefined,
       state: search.state as string | undefined,
       error: search.error as string | undefined,
-      auto: search.auto as string | undefined,
     };
   },
   loaderDeps: ({ search }) => ({
@@ -75,8 +74,6 @@ function ConnectYouTube() {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
-  const autoStart = search.auto === "1" || search.auto === "true";
-  const hasAutoStarted = useRef(false);
   const displayEmail = authUser?.email ?? email ?? "your account";
 
   // 处理 OAuth 回调
@@ -148,19 +145,6 @@ function ConnectYouTube() {
       setActionError(error instanceof Error ? error.message : "Unable to connect");
     },
   });
-
-  useEffect(() => {
-    if (!autoStart || isOAuthCallback || search.error) return;
-    if (connectMutation.isPending || hasAutoStarted.current) return;
-    hasAutoStarted.current = true;
-    connectMutation.mutate();
-  }, [
-    autoStart,
-    connectMutation,
-    connectMutation.isPending,
-    isOAuthCallback,
-    search.error,
-  ]);
 
   return (
     <div className="min-h-screen bg-background">

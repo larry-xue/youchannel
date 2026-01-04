@@ -7,7 +7,7 @@ import { Header } from "~/lib/components/Header";
 import { Hero } from "~/lib/components/Hero";
 import { setAuthUser } from "~/lib/store/auth";
 
-const REDIRECT_URL = "/connect-youtube?auto=1";
+const REDIRECT_URL = "/connect-youtube";
 const normalizeRedirect = (value?: string) => {
   if (!value) return REDIRECT_URL;
   if (value.startsWith("http://") || value.startsWith("https://")) {

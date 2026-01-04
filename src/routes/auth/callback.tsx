@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
-const REDIRECT_URL = "/connect-youtube?auto=1";
+const REDIRECT_URL = "/connect-youtube";
 const normalizeRedirect = (value?: string) => {
   if (!value) return REDIRECT_URL;
   if (value.startsWith("http://") || value.startsWith("https://")) {

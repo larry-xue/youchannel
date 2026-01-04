@@ -158,6 +158,7 @@ function DashboardPlaylists() {
       setSelectedVideoIds([]);
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: ["videos"] });
+      queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
       void videosQuery.refetch();
     },
     onError: () => {
@@ -204,6 +205,7 @@ function DashboardPlaylists() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: ["videos"] }),
+        queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY }),
       ]);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Refresh failed");

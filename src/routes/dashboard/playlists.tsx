@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type KeyboardEvent } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/lib/components/ui/alert-dialog";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { Loading } from "~/lib/components/ui/loading";
@@ -54,6 +64,7 @@ function DashboardPlaylists() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
 
   const playlistsQuery = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
@@ -157,15 +168,25 @@ function DashboardPlaylists() {
 
       setSelectedVideoIds([]);
       setActionError(null);
+      setShowAnalysisDialog(false);
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
       void videosQuery.refetch();
     },
-    onError: () => {
-      toast.error("We could not start", {
-        description: "Please try again later. If this keeps happening, refresh the page.",
-      });
+    onError: (error) => {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // Check if it's a quota-related error
+      if (errorMessage.toLowerCase().includes("quota") || errorMessage.toLowerCase().includes("limit")) {
+        toast.error("Quota Exceeded", {
+          description: "Your analysis quota has been exhausted. Please try again later or contact support.",
+        });
+      } else {
+        toast.error("We could not start", {
+          description: "Please try again later. If this keeps happening, refresh the page.",
+        });
+      }
       setActionError(null);
+      setShowAnalysisDialog(false);
     },
   });
 
@@ -229,6 +250,11 @@ function DashboardPlaylists() {
   };
 
   const handleTriggerAnalysis = () => {
+    if (!activePlaylistId || selectedCount === 0) return;
+    setShowAnalysisDialog(true);
+  };
+
+  const handleConfirmAnalysis = () => {
     if (!activePlaylistId || selectedCount === 0) return;
     setActionError(null);
     triggerAnalysisMutation.mutate({
@@ -300,6 +326,47 @@ function DashboardPlaylists() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Analysis</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-2 pt-2">
+                <p>
+                  You have selected <strong>{selectedCount}</strong> video{selectedCount !== 1 ? "s" : ""} for analysis.
+                </p>
+                {quotaQuery.data && (
+                  <div className="space-y-1">
+                    <p>
+                      This will consume <strong>{selectedCount}</strong> analysis quota{selectedCount !== 1 ? "s" : ""}.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Current usage: {quotaQuery.data.analysis_count} / {quotaQuery.data.max_analyses}
+                    </p>
+                    {quotaQuery.data.analysis_count + selectedCount > quotaQuery.data.max_analyses && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                        Warning: This may exceed your quota limit
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={triggerAnalysisMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAnalysis}
+              disabled={triggerAnalysisMutation.isPending}
+            >
+              {triggerAnalysisMutation.isPending ? "Analyzing..." : "Confirm Analysis"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="space-y-4">
         {isLoading ? (

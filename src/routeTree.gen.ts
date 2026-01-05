@@ -16,7 +16,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardPlaylistsRouteImport } from './routes/dashboard/playlists'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiHumeTokenRouteImport } from './routes/api/hume-token'
+import { Route as ApiCharacterChatRouteImport } from './routes/api/character-chat'
 import { Route as DashboardLearnVideoIdRouteImport } from './routes/dashboard/learn/$videoId'
 
 const SigninRoute = SigninRouteImport.update({
@@ -54,9 +55,14 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
+const ApiHumeTokenRoute = ApiHumeTokenRouteImport.update({
+  id: '/api/hume-token',
+  path: '/api/hume-token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCharacterChatRoute = ApiCharacterChatRouteImport.update({
+  id: '/api/character-chat',
+  path: '/api/character-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardLearnVideoIdRoute = DashboardLearnVideoIdRouteImport.update({
@@ -70,7 +76,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
-  '/api/chat': typeof ApiChatRoute
+  '/api/character-chat': typeof ApiCharacterChatRoute
+  '/api/hume-token': typeof ApiHumeTokenRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -80,7 +87,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
-  '/api/chat': typeof ApiChatRoute
+  '/api/character-chat': typeof ApiCharacterChatRoute
+  '/api/hume-token': typeof ApiHumeTokenRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -92,7 +100,8 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
-  '/api/chat': typeof ApiChatRoute
+  '/api/character-chat': typeof ApiCharacterChatRoute
+  '/api/hume-token': typeof ApiHumeTokenRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/playlists': typeof DashboardPlaylistsRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -105,7 +114,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/connect-youtube'
     | '/signin'
-    | '/api/chat'
+    | '/api/character-chat'
+    | '/api/hume-token'
     | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard/'
@@ -115,7 +125,8 @@ export interface FileRouteTypes {
     | '/'
     | '/connect-youtube'
     | '/signin'
-    | '/api/chat'
+    | '/api/character-chat'
+    | '/api/hume-token'
     | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard'
@@ -126,7 +137,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/connect-youtube'
     | '/signin'
-    | '/api/chat'
+    | '/api/character-chat'
+    | '/api/hume-token'
     | '/auth/callback'
     | '/dashboard/playlists'
     | '/dashboard/'
@@ -138,7 +150,8 @@ export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
   ConnectYoutubeRoute: typeof ConnectYoutubeRoute
   SigninRoute: typeof SigninRoute
-  ApiChatRoute: typeof ApiChatRoute
+  ApiCharacterChatRoute: typeof ApiCharacterChatRoute
+  ApiHumeTokenRoute: typeof ApiHumeTokenRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
@@ -193,11 +206,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
+    '/api/hume-token': {
+      id: '/api/hume-token'
+      path: '/api/hume-token'
+      fullPath: '/api/hume-token'
+      preLoaderRoute: typeof ApiHumeTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/character-chat': {
+      id: '/api/character-chat'
+      path: '/api/character-chat'
+      fullPath: '/api/character-chat'
+      preLoaderRoute: typeof ApiCharacterChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/learn/$videoId': {
@@ -231,7 +251,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
   ConnectYoutubeRoute: ConnectYoutubeRoute,
   SigninRoute: SigninRoute,
-  ApiChatRoute: ApiChatRoute,
+  ApiCharacterChatRoute: ApiCharacterChatRoute,
+  ApiHumeTokenRoute: ApiHumeTokenRoute,
   AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport

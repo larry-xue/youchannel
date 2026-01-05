@@ -3,18 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/ta
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { formatDate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
+import { parseAnalysisText } from "../analysis";
 import { TAB_OPTIONS } from "../constants";
-
-type AnalysisWikiItem = {
-  timestamp?: string;
-  title?: string;
-  details?: string;
-};
-
-type AnalysisPayload = {
-  summarize?: string;
-  wiki?: AnalysisWikiItem[];
-};
 
 type LearningTabsProps = {
   title: string;
@@ -23,30 +13,6 @@ type LearningTabsProps = {
   analysisText?: string | null;
   onSeekToTimestamp?: (seconds: number) => void;
 };
-
-function parseAnalysisText(text?: string | null): AnalysisPayload | null {
-  if (!text) return null;
-  try {
-    const parsed = JSON.parse(text) as AnalysisPayload;
-    if (!parsed || typeof parsed !== "object") return null;
-    const wiki = Array.isArray(parsed.wiki)
-      ? parsed.wiki
-          .filter(Boolean)
-          .map((item) => ({
-            timestamp: item.timestamp?.trim() || undefined,
-            title: item.title?.trim() || undefined,
-            details: item.details?.trim() || undefined,
-          }))
-          .filter((item) => item.title || item.details || item.timestamp)
-      : undefined;
-    return {
-      summarize: typeof parsed.summarize === "string" ? parsed.summarize : undefined,
-      wiki,
-    };
-  } catch {
-    return null;
-  }
-}
 
 function parseTimestampToSeconds(timestamp?: string | null) {
   if (!timestamp) return null;

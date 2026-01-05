@@ -1,12 +1,13 @@
-import { fetchServerSentEvents } from "@tanstack/ai-client";
-import { useChat } from "@tanstack/ai-react";
-import { MessageSquare } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { VoiceProvider, VoiceReadyState, useVoice, type ConnectOptions } from "@humeai/voice-react";
+import { ArrowLeft, Mic, MicOff, Sparkles, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
-import { Input } from "~/lib/components/ui/input";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
+import {
+  getAnalysisContextWithoutCharacters,
+  parseAnalysisText,
+} from "~/lib/dashboard/learn/analysis";
 import { cn } from "~/lib/utils";
-import { ACTIVITY_ITEMS } from "../constants";
 
 type ChatSidebarProps = {
   className?: string;
@@ -14,144 +15,351 @@ type ChatSidebarProps = {
   chatId?: string;
 };
 
-function getMessageText(parts: Array<{ type: string; content?: string }>) {
-  return parts
-    .filter((part) => part.type === "text" || part.type === "thinking")
-    .map((part) => part.content ?? "")
-    .join("");
+function getInitial(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  return trimmed.charAt(0).toUpperCase();
 }
 
-export function ChatSidebar({ className, analysisText, chatId }: ChatSidebarProps) {
-  const activeTab = "chat";
-  const [input, setInput] = useState("");
+function ChatSidebarContent({ className, analysisText, chatId }: ChatSidebarProps) {
+  const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isFetchingToken, setIsFetchingToken] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
   const trimmedAnalysis = analysisText?.trim() ?? "";
-  const hasContext = trimmedAnalysis.length > 0;
-  const connection = useMemo(() => fetchServerSentEvents("/api/chat"), []);
-  const { messages, sendMessage, isLoading, error } = useChat({
-    id: chatId,
-    connection,
-    body: {
-      analysisText: trimmedAnalysis,
-    },
-  });
+  const parsedAnalysis = useMemo(() => parseAnalysisText(trimmedAnalysis), [trimmedAnalysis]);
+  const characters = useMemo(() => parsedAnalysis?.characters ?? [], [parsedAnalysis]);
+  const analysisContext = useMemo(
+    () => parsedAnalysis?.contextWithoutCharacters || getAnalysisContextWithoutCharacters(trimmedAnalysis),
+    [parsedAnalysis, trimmedAnalysis],
+  );
+  const hasContext = Boolean(analysisContext);
+
+  const activeCharacter = useMemo(
+    () => characters.find((character) => character.name === selectedCharacterName) || null,
+    [characters, selectedCharacterName],
+  );
+
+  const { connect, disconnect, readyState, messages } = useVoice();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-  }, [messages, isLoading]);
+  }, [messages, readyState, activeCharacter?.name]);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!hasContext || isLoading) return;
-    const value = input.trim();
-    if (!value) return;
-    setInput("");
-    await sendMessage(value);
+  const fetchToken = useCallback(async () => {
+    if (accessToken) return accessToken;
+    setIsFetchingToken(true);
+    setTokenError(null);
+    try {
+      const response = await fetch("/api/hume-token");
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to get access token");
+      }
+      const payload = (await response.json().catch(() => null)) as { accessToken?: string } | null;
+      if (!payload?.accessToken) {
+        throw new Error("Missing access token");
+      }
+      setAccessToken(payload.accessToken);
+      return payload.accessToken;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to fetch access token";
+      setTokenError(message);
+      throw error;
+    } finally {
+      setIsFetchingToken(false);
+    }
+  }, [accessToken]);
+
+  const connectVoiceSession = useCallback(async () => {
+    if (!hasContext || !activeCharacter) {
+      setSessionError("Select a character and ensure analysis is available.");
+      return;
+    }
+    setSessionError(null);
+    try {
+      const token = await fetchToken();
+      const options: ConnectOptions = {
+        auth: { type: "accessToken", value: token },
+        metadata: {
+          chatId: chatId || "character-chat",
+          character: activeCharacter,
+          analysisContext,
+        },
+      };
+      await connect(options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start voice chat";
+      setSessionError(message);
+    }
+  }, [activeCharacter, analysisContext, chatId, connect, fetchToken, hasContext]);
+
+  const handleSelectCharacter = (name: string) => {
+    if (readyState === VoiceReadyState.OPEN || readyState === VoiceReadyState.CONNECTING) {
+      disconnect();
+    }
+    setSessionError(null);
+    setSelectedCharacterName(name);
   };
+
+  const handleBackToDirectory = () => {
+    if (readyState === VoiceReadyState.OPEN || readyState === VoiceReadyState.CONNECTING) {
+      disconnect();
+    }
+    setSelectedCharacterName(null);
+    setSessionError(null);
+  };
+
+  const handleToggleSession = async () => {
+    if (readyState === VoiceReadyState.OPEN || readyState === VoiceReadyState.CONNECTING) {
+      disconnect();
+      return;
+    }
+    await connectVoiceSession();
+  };
+
+  const canChat = Boolean(hasContext && activeCharacter);
+  const noCharactersMessage = hasContext
+    ? "No character profiles were returned in this analysis."
+    : "Video analysis is not available yet. Generate analysis to enable character chat.";
+  const transcriptMessages = useMemo(() => {
+    return messages
+      .map((msg, index) => {
+        if (
+          msg.type !== "user_message" &&
+          msg.type !== "assistant_message" &&
+          msg.type !== "model_response" &&
+          msg.type !== "model_message"
+        ) {
+          return null;
+        }
+        const role =
+          msg.message?.role ||
+          (msg.type === "assistant_message" || msg.type === "model_message" ? "Assistant" : "User");
+        const content = msg.message?.content;
+        if (!content) return null;
+        return {
+          id: `${msg.type}-${index}`,
+          role,
+          content,
+        };
+      })
+      .filter(Boolean) as Array<{ id: string; role: string; content: string }>;
+  }, [messages]);
+
+  const isActiveSession = readyState === VoiceReadyState.OPEN;
+  const isConnecting = readyState === VoiceReadyState.CONNECTING;
 
   return (
     <aside className={cn("flex h-full flex-col", className)}>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-sidebar rounded-r-lg">
-        {/* Top Bar - Tabs */}
-        <div className="flex items-center border-b border-border px-2 py-1.5">
-          <div className="flex items-center gap-1">
-            {ACTIVITY_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                  item.key === activeTab
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                )}
-                title={item.label}
-                aria-label={item.label}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="flex h-full flex-col overflow-hidden bg-background/50">
+        {!activeCharacter ? (
+          /* ========== Character Directory View ========== */
+          <div className="flex h-full flex-col">
+            {/* Header */}
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
+                  <Users className="h-5 w-5 text-primary" aria-hidden />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">Characters</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {characters.length ? `${characters.length} available` : "Awaiting analysis"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        {/* Messages */}
-        <ScrollArea className="min-h-0 flex-1 px-4 py-3">
-          {!hasContext ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground text-center">
-                Video analysis is not available yet. Generate analysis to enable chat.
-              </p>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground text-center">
-                No messages yet. Start a conversation by typing a message below.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {messages.map((message) => {
-                const text = getMessageText(message.parts);
-                if (!text) return null;
-                const isUser = message.role === "user";
-                return (
-                  <div
-                    key={message.id}
-                    className={cn("flex", isUser ? "justify-end" : "justify-start")}
-                  >
-                    <div
+            {/* Character List */}
+            <ScrollArea className="min-h-0 flex-1 px-4 pb-6">
+              {characters.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                    <Sparkles className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                  <p className="max-w-[240px] text-sm leading-relaxed text-muted-foreground">
+                    {noCharactersMessage}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {characters.map((character) => (
+                    <button
+                      key={character.name}
+                      type="button"
+                      onClick={() => handleSelectCharacter(character.name)}
                       className={cn(
-                        "max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
-                        isUser
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                          : "bg-muted text-foreground",
+                        "group w-full rounded-2xl p-4 text-left transition-all",
+                        "bg-card hover:bg-accent/50",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       )}
                     >
-                      {text}
-                    </div>
-                  </div>
-                );
-              })}
-              {isLoading && (
-                <p className="text-xs text-muted-foreground">Thinking...</p>
-              )}
-              {error && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  {error.message || "Unable to load a response right now."}
+                      <div className="flex items-center gap-4">
+                        {/* Avatar */}
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary transition-colors group-hover:bg-primary/15">
+                          {getInitial(character.name)}
+                        </div>
+                        {/* Info */}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-base font-medium text-foreground">
+                            {character.name}
+                          </p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {character.kind}
+                          </p>
+                        </div>
+                        {/* Arrow indicator */}
+                        <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground/50 transition-transform group-hover:translate-x-1" />
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
-              <div ref={bottomRef} />
+            </ScrollArea>
+          </div>
+        ) : (
+          /* ========== Chat View ========== */
+          <div className="flex h-full flex-col">
+            {/* Header with character info */}
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-4">
+                {/* Back button */}
+                <button
+                  type="button"
+                  onClick={handleBackToDirectory}
+                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Back to characters"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                {/* Character info */}
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-lg font-semibold text-foreground">
+                    {activeCharacter.name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {activeCharacter.kind}
+                  </p>
+                </div>
+              </div>
+              {/* Speaking style - shown subtly below */}
+              {activeCharacter.speaking_style && (
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground/80">
+                  {activeCharacter.speaking_style}
+                </p>
+              )}
             </div>
-          )}
-        </ScrollArea>
 
-        {/* Input Area */}
-        <div className="border-t border-border bg-sidebar p-3">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2">
-            <Input
-              type="text"
-              placeholder={
-                hasContext ? "Type a message..." : "Analysis required to chat..."
-              }
-              className="h-9 flex-1 text-sm"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              disabled={!hasContext || isLoading}
-            />
-            <Button
-              size="sm"
-              className="h-9 px-3 text-xs font-medium"
-              type="submit"
-              aria-label="Send message"
-              disabled={!hasContext || isLoading || input.trim().length === 0}
-            >
-              Send
-            </Button>
-          </form>
-        </div>
+            {/* Transcript area */}
+            <ScrollArea className="min-h-0 flex-1 px-6 py-4">
+              {!hasContext ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 py-12 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                    <Sparkles className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                  <p className="max-w-[200px] text-sm leading-relaxed text-muted-foreground">
+                    Video analysis is not available yet.
+                  </p>
+                </div>
+              ) : transcriptMessages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 py-12 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                    <Mic className="h-7 w-7 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Ready to chat</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Start a voice session below
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {transcriptMessages.map((message) => {
+                    const isUser = message.role?.toLowerCase() === "user";
+                    return (
+                      <div
+                        key={message.id}
+                        className={cn("flex", isUser ? "justify-end" : "justify-start")}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[85%] rounded-3xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                            isUser
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-foreground",
+                          )}
+                        >
+                          {message.content}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Voice control footer */}
+            <div className="px-6 py-5">
+              {/* Error message */}
+              {(sessionError || tokenError) && (
+                <p className="mb-3 rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                  {sessionError || tokenError}
+                </p>
+              )}
+
+              {/* Voice button */}
+              <Button
+                size="lg"
+                className={cn(
+                  "w-full h-14 rounded-2xl text-base font-medium transition-all",
+                  isActiveSession
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                )}
+                type="button"
+                aria-label={isActiveSession ? "End voice session" : "Start voice session"}
+                disabled={!canChat || isConnecting || isFetchingToken}
+                onClick={handleToggleSession}
+              >
+                {isActiveSession ? (
+                  <>
+                    <MicOff className="mr-3 h-5 w-5" aria-hidden />
+                    End Session
+                  </>
+                ) : (
+                  <>
+                    <Mic className="mr-3 h-5 w-5" aria-hidden />
+                    {isConnecting || isFetchingToken ? "Connecting..." : "Start Voice Chat"}
+                  </>
+                )}
+              </Button>
+
+              {/* Status hint */}
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                {isActiveSession
+                  ? "Listening... Speak to chat with the character"
+                  : canChat
+                    ? "Tap to start a voice conversation"
+                    : "Analysis required to enable chat"}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
+  );
+}
+
+export function ChatSidebar(props: ChatSidebarProps) {
+  return (
+    <VoiceProvider>
+      <ChatSidebarContent {...props} />
+    </VoiceProvider>
   );
 }

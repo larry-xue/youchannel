@@ -54,9 +54,6 @@ function DashboardLearnVideo() {
   const youtubeId = video?.youtube_video_id;
   const publishedAt = getVideoPublishedAt(video);
   const chatAnalysisText = latestAnalysis?.analysis_text ?? "";
-  const chatId = latestAnalysis?.id
-    ? `analysis-${latestAnalysis.id}`
-    : `analysis-pending-${videoId}`;
 
   const handlePlayerReady = (player: YouTubePlayerHandle) => {
     playerRef.current = player;
@@ -160,10 +157,8 @@ function DashboardLearnVideo() {
           collapsedSize={SIDEBAR_COLLAPSED_SIZE}
         >
           <ChatSidebar
-            key={chatId}
             className="h-full"
             analysisText={chatAnalysisText}
-            chatId={chatId}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

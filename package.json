@@ -2,6 +2,12 @@
   "name": "tanstarter",
   "private": true,
   "type": "module",
+  "pnpm": {
+    "overrides": {
+      "@humeai/voice-react>react": "$react",
+      "@humeai/voice-react>react-dom": "$react-dom"
+    }
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",

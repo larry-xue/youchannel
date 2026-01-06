@@ -1,10 +1,10 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 import { Features } from "~/lib/components/Features";
 import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 import { Hero } from "~/lib/components/Hero";
+import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser } from "~/lib/store/auth";
 
 const REDIRECT_URL = "/connect-youtube";
@@ -28,17 +28,6 @@ const normalizeRedirect = (value?: string) => {
   }
   return value;
 };
-
-export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-  const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.error("Sign out error:", error);
-    return { error: true, message: error.message };
-  }
-  return { success: true };
-});
 
 export const Route = createFileRoute("/")({
   validateSearch: (search?: Record<string, unknown>): IndexSearch => {

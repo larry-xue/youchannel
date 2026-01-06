@@ -5,21 +5,14 @@ import {
   redirect,
   useRouter,
 } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
+import { FullPageLoader } from "~/lib/components/FullPageLoader";
 import ThemeToggle from "~/lib/components/ThemeToggle";
 import { Button } from "~/lib/components/ui/button";
 import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
 import { getYouTubeAccountStatusFn } from "~/lib/dashboard/data";
+import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser, useAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
-
-export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
-  const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-  const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-  return { success: true };
-});
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context, location }) => {
@@ -34,6 +27,7 @@ export const Route = createFileRoute("/_layout")({
       });
     }
   },
+  pendingComponent: FullPageLoader,
   component: DashboardLayout,
   loader: async () => {
     // 检查是否有 YouTube 账户，没有则重定向到连接页面

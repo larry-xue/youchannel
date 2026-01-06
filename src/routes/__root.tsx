@@ -9,6 +9,8 @@ import {
 
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { getLocale } from "../paraglide/runtime";
+
 
 import appCss from "~/lib/styles/app.css?url";
 import { Toaster } from "~/lib/components/ui/sonner";
@@ -57,7 +59,7 @@ function RootComponent() {
 function RootDocument({ children }: { readonly children: React.ReactNode }) {
   return (
     // suppress since we're updating the "dark" class in a custom script below
-    <html suppressHydrationWarning>
+    <html suppressHydrationWarning lang={getLocale()}>
       <head>
         <HeadContent />
       </head>

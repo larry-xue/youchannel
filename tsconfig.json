@@ -1,5 +1,5 @@
 {
-  "include": ["**/*.ts", "**/*.tsx", "src/vite-env.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "src/vite-env.d.ts", "src/paraglide/**/*.js", "app/paraglide/**/*.js"],
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,

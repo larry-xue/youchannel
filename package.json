@@ -16,13 +16,15 @@
     "format": "prettier --write .",
     "ui": "pnpm dlx shadcn@canary",
     "db:migrate": "supabase db push",
-    "db:seed": "supabase db push"
+    "db:seed": "supabase db push",
+    "machine-translate": "inlang machine translate --project project.inlang"
   },
   "dependencies": {
     "@humeai/voice-react": "^0.2.11",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-scroll-area": "^1.2.10",
@@ -61,6 +63,8 @@
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^2.3.12",
     "@eslint/js": "^9.22.0",
+    "@inlang/cli": "^3.0.0",
+    "@inlang/paraglide-js": "2.7.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.0.14",
     "@tanstack/eslint-plugin-query": "^5.90.2",

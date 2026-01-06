@@ -11,29 +11,29 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 3000,
   },
-  plugins: [paraglideVitePlugin({ project: './project.inlang', outdir: './src/paraglide' }),
-  tsConfigPaths({
-    projects: ["./tsconfig.json"],
-  }),
-  tailwindcss(),
-  tanstackStart(),
-  nitro(),
-  viteReact({
-    babel: {
-      plugins: [
-        [
-          "babel-plugin-react-compiler",
-          {
-            target: "19",
-          },
+  plugins: [
+    paraglideVitePlugin({
+      project: "./project.inlang",
+      outdir: "./src/paraglide",
+      strategy: ["url", "preferredLanguage", "baseLocale"]
+    }),
+    tsConfigPaths({
+      projects: ["./tsconfig.json"],
+    }),
+    tailwindcss(),
+    tanstackStart(),
+    nitro(),
+    viteReact({
+      babel: {
+        plugins: [
+          [
+            "babel-plugin-react-compiler",
+            {
+              target: "19",
+            },
+          ],
         ],
-      ],
-    },
-  }),
-  paraglideVitePlugin({
-    project: "./project.inlang",
-    outdir: "./app/paraglide",
-    strategy: ["url", "preferredLanguage", "baseLocale"]
-  }),
+      },
+    }),
   ],
 });

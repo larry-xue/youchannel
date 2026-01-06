@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import ThemeToggle from "./ThemeToggle";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Button } from "./ui/button";
 import { useAuthUser } from "~/lib/store/auth";
 
@@ -49,6 +50,7 @@ export function Header({ onSignOut }: HeaderProps) {
                 </Link>
               </Button>
             )}
+            <LanguageSwitcher />
             <ThemeToggle />
           </div>
         </div>

@@ -30,6 +30,7 @@ export function LanguageSwitcher() {
                         key={locale}
                         onClick={() => setLocale(locale)}
                         className={currentLocale === locale ? "bg-accent" : ""}
+                        data-active-locale={currentLocale === locale}
                     >
                         {localeNames[locale] || locale}
                     </DropdownMenuItem>
@@ -38,3 +39,4 @@ export function LanguageSwitcher() {
         </DropdownMenu>
     );
 }
+

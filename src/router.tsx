@@ -1,5 +1,5 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
-import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { createRouter } from "@tanstack/react-router";
 import { routerWithQueryClient } from "@tanstack/react-router-with-query";
 
 import { DefaultCatchBoundary } from "~/lib/components/DefaultCatchBoundary";
@@ -23,7 +23,7 @@ export function getRouter() {
   const authStore = createAuthStore();
 
   const router = routerWithQueryClient(
-    createTanStackRouter({
+    createRouter({
       routeTree,
       rewrite: {
         input: ({ url }) => deLocalizeUrl(url),

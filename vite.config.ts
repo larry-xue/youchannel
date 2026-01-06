@@ -13,9 +13,27 @@ export default defineConfig({
   },
   plugins: [
     paraglideVitePlugin({
-      project: "./project.inlang",
-      outdir: "./src/paraglide",
-      strategy: ["url", "preferredLanguage", "baseLocale"]
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      outputStructure: 'message-modules',
+      cookieName: 'PARAGLIDE_LOCALE',
+      strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
+      urlPatterns: [
+        {
+          pattern: '/',
+          localized: [
+            ['en', '/en'],
+            ['de', '/de'],
+          ],
+        },
+        {
+          pattern: '/:path(.*)?',
+          localized: [
+            ['en', '/en/:path(.*)?'],
+            ['de', '/de/:path(.*)?'],
+          ],
+        },
+      ],
     }),
     tsConfigPaths({
       projects: ["./tsconfig.json"],

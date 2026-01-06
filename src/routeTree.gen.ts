@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as ConnectYoutubeRouteImport } from './routes/connect-youtube'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as LayoutRouteRouteImport } from './routes/_layout/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
@@ -27,6 +28,11 @@ const SigninRoute = SigninRouteImport.update({
 const ConnectYoutubeRoute = ConnectYoutubeRouteImport.update({
   id: '/connect-youtube',
   path: '/connect-youtube',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LayoutRouteRoute = LayoutRouteRouteImport.update({
@@ -66,6 +72,7 @@ const LayoutLearnVideoIdRoute = LayoutLearnVideoIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
   '/library': typeof LayoutLibraryRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
   '/library': typeof LayoutLibraryRoute
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_layout': typeof LayoutRouteRouteWithChildren
+  '/$': typeof SplatRoute
   '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
   '/_layout/library': typeof LayoutLibraryRoute
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
     | '/connect-youtube'
     | '/signin'
     | '/library'
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
     | '/connect-youtube'
     | '/signin'
     | '/library'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_layout'
+    | '/$'
     | '/connect-youtube'
     | '/signin'
     | '/_layout/library'
@@ -133,6 +145,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LayoutRouteRoute: typeof LayoutRouteRouteWithChildren
+  SplatRoute: typeof SplatRoute
   ConnectYoutubeRoute: typeof ConnectYoutubeRoute
   SigninRoute: typeof SigninRoute
   ApiCharacterChatRoute: typeof ApiCharacterChatRoute
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/connect-youtube'
       fullPath: '/connect-youtube'
       preLoaderRoute: typeof ConnectYoutubeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_layout': {
@@ -225,6 +245,7 @@ const LayoutRouteRouteWithChildren = LayoutRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LayoutRouteRoute: LayoutRouteRouteWithChildren,
+  SplatRoute: SplatRoute,
   ConnectYoutubeRoute: ConnectYoutubeRoute,
   SigninRoute: SigninRoute,
   ApiCharacterChatRoute: ApiCharacterChatRoute,

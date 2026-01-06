@@ -25,12 +25,16 @@ export const Route = createFileRoute("/auth/callback")({
       redirect: safeSearch.redirect as string | undefined,
     };
   },
-  loader: async ({ search }) => {
-    const safeSearch = search ?? {};
-    const redirectTo = normalizeRedirect(safeSearch.redirect);
-
-    if (safeSearch.error) {
-      const message = safeSearch.error_description || safeSearch.error;
+  loaderDeps: ({ search }) => ({
+    code: search.code,
+    error: search.error,
+    error_description: search.error_description,
+    redirect: search.redirect,
+  }),
+  loader: async ({ deps }) => {
+    if (deps.error) {
+      const redirectTo = normalizeRedirect(deps.redirect);
+      const message = deps.error_description || deps.error;
       throw redirect({
         to: "/signin",
         search: { error: message, redirect: redirectTo },

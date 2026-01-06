@@ -47,7 +47,7 @@ export const Route = createFileRoute("/connect-youtube")({
       context.authStore.state.user ??
       (await resolveAuthUser(context.authStore, context.user));
     if (!user) {
-      throw redirect({ to: "/signin", search: { error: "unauthorized" } });
+      throw redirect({ to: "/signin", search: { error: "unauthorized", redirect: undefined } });
     }
 
     // 如果是 OAuth 回调，处理完成后重定向

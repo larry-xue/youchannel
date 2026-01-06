@@ -50,11 +50,16 @@ export const Route = createFileRoute("/")({
       redirect: (safeSearch.redirect as string) || undefined,
     };
   },
-  loader: async ({ search }) => {
-    const safeSearch = search ?? {};
-    if (!safeSearch.error) return;
-    const redirectTo = normalizeRedirect(safeSearch.redirect);
-    const message = safeSearch.error_description || safeSearch.error;
+  loaderDeps: ({ search }) => ({
+    code: search.code,
+    error: search.error,
+    error_description: search.error_description,
+    redirect: search.redirect,
+  }),
+  loader: async ({ deps }) => {
+    if (!deps.error) return;
+    const redirectTo = normalizeRedirect(deps.redirect);
+    const message = deps.error_description || deps.error;
     throw redirect({
       to: "/signin",
       search: { error: message, redirect: redirectTo },

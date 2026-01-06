@@ -21,3 +21,4 @@ dist
 # docker-compose db
 db
 .tanstack/*
+*.log

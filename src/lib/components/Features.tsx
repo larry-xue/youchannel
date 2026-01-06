@@ -2,24 +2,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 const features = [
   {
-    title: "Save and sync playlists",
+    title: "Master Many Languages",
     description:
-      "Add the videos you love and let the system keep everything updated.",
+      "Learning Spanish and Japanese? No problem. FluentBy.ai supports any language available on YouTube.",
+    icon: "🌍",
   },
   {
-    title: "Talk to the video",
+    title: "Chat with Videos",
     description:
-      "Ask questions and explore the details without scrubbing the timeline.",
+      "Don't just watch—interact. Have a conversation with the video characters or the content itself.",
+    icon: "💬",
   },
   {
-    title: "Wiki and summaries",
+    title: "Role-Play Scenarios",
     description:
-      "See key terms, wiki links, and concise takeaways for fast review.",
+      "Step into the scene. Practice real-world conversations simulated from the video context.",
+    icon: "🎭",
   },
   {
-    title: "Multilingual role-play",
+    title: "Import from Playlists",
     description:
-      "Practice in your target language with guided conversations and scenarios.",
+      "Your content, your choice. Select any video from your YouTube playlists to start learning immediately.",
+    icon: "📺",
   },
 ];
 
@@ -33,9 +37,12 @@ export function Features() {
           style={{ animationDelay: `${index * 120}ms` }}
         >
           <CardHeader>
-            <CardTitle className="text-base">{feature.title}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <span>{feature.icon}</span>
+              <span>{feature.title}</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground">
             {feature.description}
           </CardContent>
         </Card>

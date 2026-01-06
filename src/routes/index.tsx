@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { Features } from "~/lib/components/Features";
+import { FAQ } from "~/lib/components/FAQ";
 import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 import { Hero } from "~/lib/components/Hero";
@@ -131,6 +132,7 @@ function Home() {
         <div className="container mx-auto max-w-7xl px-6">
           <Hero />
           <Features />
+          <FAQ />
         </div>
       </main>
       <Footer />

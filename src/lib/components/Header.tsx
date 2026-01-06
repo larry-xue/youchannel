@@ -26,7 +26,7 @@ export function Header({ onSignOut }: HeaderProps) {
             {authUser ? (
               <>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/dashboard">Dashboard</Link>
+                  <Link to="/library">Library</Link>
                 </Button>
                 <Button
                   variant="ghost"
@@ -39,7 +39,7 @@ export function Header({ onSignOut }: HeaderProps) {
               </>
             ) : (
               <Button asChild variant="outline" size="sm">
-                <Link to="/signin" search={{ error: "", redirect: "/dashboard" }}>
+                <Link to="/signin" search={{ error: "", redirect: "/library" }}>
                   Sign in
                 </Link>
               </Button>

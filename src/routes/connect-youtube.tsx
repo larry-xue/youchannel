@@ -59,7 +59,7 @@ export const Route = createFileRoute("/connect-youtube")({
     // 检查是否已有账户，如果有则重定向到 dashboard
     const { hasAccount } = await getYouTubeAccountStatusFn();
     if (hasAccount) {
-      throw redirect({ to: "/dashboard/playlists" });
+      throw redirect({ to: "/library" });
     }
 
     return { email: user.email, isOAuthCallback: false };
@@ -102,7 +102,7 @@ function ConnectYouTube() {
         await router.invalidate();
         // 延迟一下让用户看到成功消息，然后重定向
         timeoutId = setTimeout(() => {
-          router.navigate({ to: "/dashboard/playlists" });
+          router.navigate({ to: "/library" });
         }, 1000);
       } catch (error) {
         if (!isMounted) return;

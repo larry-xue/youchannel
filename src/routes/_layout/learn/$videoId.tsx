@@ -25,7 +25,7 @@ const SIDEBAR_COLLAPSED_SIZE = 0;
 const BOTTOM_PANEL_DEFAULT_SIZE = 35;
 const BOTTOM_PANEL_MIN_SIZE = 20;
 
-export const Route = createFileRoute("/dashboard/learn/$videoId")({
+export const Route = createFileRoute("/_layout/learn/$videoId")({
   component: DashboardLearnVideo,
 });
 

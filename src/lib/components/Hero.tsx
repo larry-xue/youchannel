@@ -22,11 +22,11 @@ export function Hero() {
         <div className="flex flex-wrap gap-3">
           {user ? (
             <Button asChild size="lg">
-              <Link to="/dashboard">Go to Dashboard</Link>
+              <Link to="/library">Start now</Link>
             </Button>
           ) : (
             <Button asChild size="lg">
-              <Link to="/signin" search={{ error: "", redirect: "/dashboard" }}>
+              <Link to="/signin" search={{ error: "", redirect: "/library" }}>
                 Get started
               </Link>
             </Button>

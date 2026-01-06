@@ -21,7 +21,7 @@ export const signOutFn = createServerFn({ method: "POST" }).handler(async () => 
   return { success: true };
 });
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context, location }) => {
     const user = await resolveAuthUser(context.authStore, context.user);
     if (!user) {
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/dashboard")({
   },
 });
 
-const DASHBOARD_NAV_ITEMS = [{ label: "Playlist", to: "/dashboard/playlists" }];
+const DASHBOARD_NAV_ITEMS = [{ label: "Library", to: "/library" }];
 
 function DashboardLayout() {
   const router = useRouter();

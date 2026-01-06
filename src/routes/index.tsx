@@ -8,6 +8,14 @@ import { Hero } from "~/lib/components/Hero";
 import { setAuthUser } from "~/lib/store/auth";
 
 const REDIRECT_URL = "/connect-youtube";
+
+interface IndexSearch {
+  code?: string;
+  error?: string;
+  error_description?: string;
+  redirect?: string;
+}
+
 const normalizeRedirect = (value?: string) => {
   if (!value) return REDIRECT_URL;
   if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -33,13 +41,13 @@ export const signOutFn = createServerFn({ method: "POST" }).handler(async () => 
 });
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search?: Record<string, unknown>) => {
+  validateSearch: (search?: Record<string, unknown>): IndexSearch => {
     const safeSearch = search ?? {};
     return {
-      code: safeSearch.code as string | undefined,
-      error: safeSearch.error as string | undefined,
-      error_description: safeSearch.error_description as string | undefined,
-      redirect: safeSearch.redirect as string | undefined,
+      code: (safeSearch.code as string) || undefined,
+      error: (safeSearch.error as string) || undefined,
+      error_description: (safeSearch.error_description as string) || undefined,
+      redirect: (safeSearch.redirect as string) || undefined,
     };
   },
   loader: async ({ search }) => {
@@ -81,7 +89,8 @@ function Home() {
 
     const runExchange = async () => {
       const { default: supabaseClient } = await import("~/lib/auth-client");
-      const { error } = await supabaseClient.auth.exchangeCodeForSession(search.code);
+      // Checked above
+      const { error } = await supabaseClient.auth.exchangeCodeForSession(search.code!);
       if (error) {
         router.navigate({
           to: "/signin",
@@ -115,7 +124,7 @@ function Home() {
     try {
       await signOutFn();
       setAuthUser(router.options.context.authStore, null);
-      router.navigate({ to: "/signin", search: { error: "", redirect: "/dashboard" } });
+      router.navigate({ to: "/signin", search: { error: "", redirect: "/library" } });
     } catch (error) {
       console.error("Error signing out:", error);
     }

@@ -35,7 +35,7 @@ import {
 import type { PlaylistEntryStatus, VideoAnalysisSkipReason } from "~/schema";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/dashboard/playlists")({
+export const Route = createFileRoute("/_layout/library")({
   component: DashboardPlaylists,
 });
 
@@ -149,11 +149,10 @@ function DashboardPlaylists() {
       }
       const skippedText =
         result.skipped > 0
-          ? `, and ${result.skipped} couldn't be started${
-              skippedReasons.length > 0
-                ? ` (${skippedReasons.join(", ")})`
-                : ""
-            }`
+          ? `, and ${result.skipped} couldn't be started${skippedReasons.length > 0
+            ? ` (${skippedReasons.join(`, `)})`
+            : ""
+          }`
           : "";
 
       if (result.enqueued > 0) {
@@ -204,7 +203,7 @@ function DashboardPlaylists() {
 
   const handleOpenVideo = (video: VideoWithStatus) => {
     router.navigate({
-      to: "/dashboard/learn/$videoId",
+      to: "/learn/$videoId",
       params: { videoId: video.id },
     });
   };
@@ -428,155 +427,151 @@ function DashboardPlaylists() {
                 </div>
                 <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
                   {videos.map((video) => {
-                      const isSelectable = isVideoSelectable(video);
-                      const isProcessing =
-                        video.latest_analysis_status === "pending" ||
-                        video.latest_analysis_status === "processing";
-                      const hasTooManyFailures = (video.failed_count ?? 0) > 3;
-                      const isSelected = selectedVideoIds.includes(video.id);
-                      const durationLabel = formatVideoDuration(video.duration);
-                      const selectionLabel = isSelectable
-                        ? "Select"
-                        : hasTooManyFailures
-                          ? "Paused"
-                          : isProcessing
-                            ? "Processing"
-                            : "Locked";
-                      const selectionHint = hasTooManyFailures
-                        ? "This video failed analysis several times and is temporarily locked."
+                    const isSelectable = isVideoSelectable(video);
+                    const isProcessing =
+                      video.latest_analysis_status === "pending" ||
+                      video.latest_analysis_status === "processing";
+                    const hasTooManyFailures = (video.failed_count ?? 0) > 3;
+                    const isSelected = selectedVideoIds.includes(video.id);
+                    const durationLabel = formatVideoDuration(video.duration);
+                    const selectionLabel = isSelectable
+                      ? "Select"
+                      : hasTooManyFailures
+                        ? "Paused"
                         : isProcessing
-                          ? "This video is already being analyzed."
-                          : "Only synced videos can be selected.";
+                          ? "Processing"
+                          : "Locked";
+                    const selectionHint = hasTooManyFailures
+                      ? "This video failed analysis several times and is temporarily locked."
+                      : isProcessing
+                        ? "This video is already being analyzed."
+                        : "Only synced videos can be selected.";
 
-                      return (
-                        <div
-                          key={video.id}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Open learning view for ${video.title || "video"}`}
-                          onClick={() => handleOpenVideo(video)}
-                          onKeyDown={(event) => handleCardKeyDown(event, video)}
-                          className={`group flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md ${
-                            isSelected ? "ring-2 ring-primary/30" : ""
-                          } ${
-                            video.sync_status === "removed"
-                              ? "border-amber-500/30 opacity-70"
-                              : video.sync_status === "unavailable"
-                                ? "border-red-500/30 opacity-70"
-                                : "border-border/60"
+                    return (
+                      <div
+                        key={video.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open learning view for ${video.title || `video`}`}
+                        onClick={() => handleOpenVideo(video)}
+                        onKeyDown={(event) => handleCardKeyDown(event, video)}
+                        className={`group flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md ${isSelected ? "ring-2 ring-primary/30" : ""
+                          } ${video.sync_status === "removed"
+                            ? "border-amber-500/30 opacity-70"
+                            : video.sync_status === "unavailable"
+                              ? "border-red-500/30 opacity-70"
+                              : "border-border/60"
                           }`}
-                        >
-                          <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title || "Video thumbnail"}
-                                className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-                                No thumbnail
-                              </div>
-                            )}
-                            <div
-                              className="absolute left-2 top-2"
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                              title={hasTooManyFailures ? undefined : selectionHint}
-                            >
-                              {hasTooManyFailures ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <label
-                                      className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
-                                        isSelectable ? "" : "opacity-60"
-                                      }`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => handleToggleVideo(video.id)}
-                                        disabled={!isSelectable}
-                                        className="h-3.5 w-3.5"
-                                        aria-label={`Select ${video.title || "video"} for analysis`}
-                                      />
-                                      <span>{selectionLabel}</span>
-                                    </label>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    This video failed analysis several times and is temporarily locked. Please try again later.
-                                  </TooltipContent>
-                                </Tooltip>
-                              ) : (
-                                <label
-                                  className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
-                                    isSelectable ? "" : "opacity-60"
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => handleToggleVideo(video.id)}
-                                    disabled={!isSelectable}
-                                    className="h-3.5 w-3.5"
-                                    aria-label={`Select ${video.title || "video"} for analysis`}
-                                  />
-                                  <span>{selectionLabel}</span>
-                                </label>
-                              )}
+                      >
+                        <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
+                          {video.thumbnail_url ? (
+                            <img
+                              src={video.thumbnail_url}
+                              alt={video.title || "Video thumbnail"}
+                              className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+                              No thumbnail
                             </div>
-                            {video.sync_status !== "synced" && (
-                              <div className="absolute right-2 top-2">
-                                <VideoSyncStatusBadge status={video.sync_status} />
-                              </div>
-                            )}
-                            {durationLabel && (
-                              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
-                                {durationLabel}
-                              </div>
+                          )}
+                          <div
+                            className="absolute left-2 top-2"
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            title={hasTooManyFailures ? undefined : selectionHint}
+                          >
+                            {hasTooManyFailures ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <label
+                                    className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${isSelectable ? "" : "opacity-60"
+                                      }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => handleToggleVideo(video.id)}
+                                      disabled={!isSelectable}
+                                      className="h-3.5 w-3.5"
+                                      aria-label={`Select ${video.title || `video`} for analysis`}
+                                    />
+                                    <span>{selectionLabel}</span>
+                                  </label>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  This video failed analysis several times and is temporarily locked. Please try again later.
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <label
+                                className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${isSelectable ? "" : "opacity-60"
+                                  }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleVideo(video.id)}
+                                  disabled={!isSelectable}
+                                  className="h-3.5 w-3.5"
+                                  aria-label={`Select ${video.title || `video`} for analysis`}
+                                />
+                                <span>{selectionLabel}</span>
+                              </label>
                             )}
                           </div>
-                          <div className="flex flex-1 flex-col space-y-2 px-3 pb-3 pt-2">
-                            <p
-                              className="text-sm font-semibold leading-snug text-foreground"
-                              title={video.title || "Video"}
-                            >
-                              {truncate(video.title || "Video", 48)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(getVideoPublishedAt(video))}
-                            </p>
-                            <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
-                              <AnalysisStatusBadge
-                                count={video.analysis_count}
-                                latestAt={video.latest_analysis_at}
-                                status={video.latest_analysis_status}
-                                skipReason={video.latest_skip_reason}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleOpenVideo(video);
-                                }}
-                              >
-                                Learn
-                              </Button>
+                          {video.sync_status !== "synced" && (
+                            <div className="absolute right-2 top-2">
+                              <VideoSyncStatusBadge status={video.sync_status} />
                             </div>
+                          )}
+                          {durationLabel && (
+                            <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+                              {durationLabel}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-1 flex-col space-y-2 px-3 pb-3 pt-2">
+                          <p
+                            className="text-sm font-semibold leading-snug text-foreground"
+                            title={video.title || "Video"}
+                          >
+                            {truncate(video.title || "Video", 48)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(getVideoPublishedAt(video))}
+                          </p>
+                          <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
+                            <AnalysisStatusBadge
+                              count={video.analysis_count}
+                              latestAt={video.latest_analysis_at}
+                              status={video.latest_analysis_status}
+                              skipReason={video.latest_skip_reason}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleOpenVideo(video);
+                              }}
+                            >
+                              Learn
+                            </Button>
                           </div>
                         </div>
-                      );
+                      </div>
+                    );
                   })}
                 </div>
-                </>
-              )}
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </>
+        )}
       </div>
+    </div>
   );
 }
 
@@ -739,9 +734,9 @@ function QuotaBadge({ used, max }: { used: number; max: number }) {
         <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/80 px-2.5 py-1">
           <Progress
             value={percentage}
-            className={`h-1.5 w-16 ${isAtLimit ? "*:data-[slot=progress-indicator]:bg-red-500" : isNearLimit ? "*:data-[slot=progress-indicator]:bg-amber-500" : ""}`}
+            className={`h-1.5 w-16 ${isAtLimit ? `*:data-[slot=progress-indicator]:bg-red-500` : isNearLimit ? `*:data-[slot=progress-indicator]:bg-amber-500` : ``}`}
           />
-          <span className={`text-xs font-medium ${isAtLimit ? "text-red-500" : isNearLimit ? "text-amber-500" : "text-muted-foreground"}`}>
+          <span className={`text-xs font-medium ${isAtLimit ? `text-red-500` : isNearLimit ? `text-amber-500` : `text-muted-foreground`}`}>
             {used}/{max}
           </span>
         </div>
@@ -749,7 +744,7 @@ function QuotaBadge({ used, max }: { used: number; max: number }) {
       <TooltipContent side="bottom">
         {isAtLimit
           ? "Quota limit reached"
-          : `${max - used} analysis${max - used !== 1 ? "es" : ""} remaining`}
+          : `${max - used} analysis${max - used !== 1 ? `es` : ``} remaining`}
       </TooltipContent>
     </Tooltip>
   );

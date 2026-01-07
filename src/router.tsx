@@ -6,7 +6,6 @@ import { DefaultCatchBoundary } from "~/lib/components/DefaultCatchBoundary";
 import { NotFound } from "~/lib/components/NotFound";
 import { createAuthStore } from "~/lib/store/auth";
 import { routeTree } from "./routeTree.gen";
-import { deLocalizeUrl, localizeUrl } from "./paraglide/runtime.js";
 
 export function getRouter() {
   const queryClient = new QueryClient({
@@ -25,10 +24,6 @@ export function getRouter() {
   const router = routerWithQueryClient(
     createRouter({
       routeTree,
-      rewrite: {
-        input: ({ url }) => deLocalizeUrl(url),
-        output: ({ url }) => localizeUrl(url),
-      },
       context: { queryClient, authStore },
       defaultPreload: "intent",
       // react-query will handle data fetching & caching

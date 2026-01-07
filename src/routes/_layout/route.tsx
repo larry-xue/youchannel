@@ -16,7 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/lib/components/ui/dropdown-menu";
-import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
 import { getYouTubeAccountStatusFn } from "~/lib/dashboard/data";
 import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser, useAuthUser } from "~/lib/store/auth";
@@ -24,8 +23,8 @@ import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context }) => {
-    const user = await resolveAuthUser(context.authStore, context.user);
-    if (!user) {
+    // context.user is provided by root route's beforeLoad
+    if (!context.user) {
       throw redirect({ to: "/signin" });
     }
   },

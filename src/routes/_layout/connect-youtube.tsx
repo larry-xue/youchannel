@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
-import { resolveAuthUser } from "~/lib/auth/resolve-auth-user";
 import {
   completeYouTubeOauthFn,
   getYouTubeAccountStatusFn,
@@ -37,19 +36,10 @@ export const Route = createFileRoute("/_layout/connect-youtube")({
     state: search.state,
     error: search.error,
   }),
-  beforeLoad: async ({ context }) => {
-    const user = await resolveAuthUser(context.authStore, context.user);
-    if (!user) {
-      throw redirect({ to: "/signin" });
-    }
-  },
+  // No beforeLoad needed - parent _layout route already validates auth
   loader: async ({ context, deps }) => {
-    const user =
-      context.authStore.state.user ??
-      (await resolveAuthUser(context.authStore, context.user));
-    if (!user) {
-      throw redirect({ to: "/signin" });
-    }
+    // context.user is guaranteed by parent _layout route's beforeLoad
+    const user = context.user!;
 
     // 如果是 OAuth 回调，处理完成后重定向
     if (deps.code && deps.state) {

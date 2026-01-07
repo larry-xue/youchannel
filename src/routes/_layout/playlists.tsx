@@ -33,6 +33,10 @@ function DashboardPlaylists() {
   const playlistsQuery = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
     queryFn: () => getYouTubePlaylistsFn(),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const playlists = playlistsQuery.data || [];
@@ -70,6 +74,10 @@ function DashboardPlaylists() {
         },
       }),
     enabled: Boolean(activePlaylistId),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const playlistItems = itemsQuery.data?.items ?? [];

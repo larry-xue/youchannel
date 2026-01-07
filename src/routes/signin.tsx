@@ -1,6 +1,6 @@
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -10,6 +10,7 @@ import {
 } from "~/lib/components/ui/card";
 import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
+import { setAuthUser } from "~/lib/store/auth";
 
 const REDIRECT_URL = "/connect-youtube";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
@@ -40,7 +41,7 @@ function AuthPage() {
 
     try {
       const { default: supabaseClient } = await import("~/lib/auth-client");
-      const { error: authError } = await supabaseClient.auth.signInWithIdToken({
+      const { data, error: authError } = await supabaseClient.auth.signInWithIdToken({
         provider: "google",
         token: credentialResponse.credential,
       });
@@ -48,6 +49,17 @@ function AuthPage() {
       if (authError) {
         setError(authError.message || "Unable to sign in with Google");
         return;
+      }
+
+      if (data.user) {
+        const { id, email, user_metadata, app_metadata } = data.user;
+        setAuthUser(router.options.context.authStore, {
+          id,
+          email,
+          user_metadata: user_metadata as Record<string, object>,
+          app_metadata: app_metadata as Record<string, object>,
+        });
+        await router.invalidate();
       }
 
       router.navigate({ to: REDIRECT_URL, replace: true });
@@ -62,6 +74,24 @@ function AuthPage() {
   const handleGoogleError = () => {
     setError("Google sign-in was cancelled or failed. Please try again.");
   };
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        // Subtract padding if necessary, but offsetWidth is usually fine for the button width
+        // Google button might need slightly less to be safe from overflow?
+        // Let's settle on the container's inner width.
+        setContainerWidth(containerRef.current.offsetWidth.toString());
+      }
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -88,20 +118,19 @@ function AuthPage() {
                 </div>
               )}
 
-              <div className="flex flex-col items-center space-y-3">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  size="large"
-                  theme="outline"
-                  shape="circle"
-                  text="continue_with"
-                  width="360"
-                  use_fedcm_for_prompt
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use Google to sign in securely and keep your learning library synced.
-                </p>
+              <div ref={containerRef} className="flex flex-col items-center justify-center">
+                {!isLoading && containerWidth && (
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    size="large"
+                    theme="outline"
+                    shape="circle"
+                    text="continue_with"
+                    width={containerWidth}
+                    use_fedcm_for_prompt
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

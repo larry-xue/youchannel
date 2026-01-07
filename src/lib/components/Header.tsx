@@ -48,7 +48,7 @@ export function Header({ onSignOut }: HeaderProps) {
           <div className="flex items-center gap-3">
             {authUser ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {userAvatar ? (
                     <img
                       src={userAvatar}

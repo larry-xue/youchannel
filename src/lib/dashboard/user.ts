@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getSupabaseAndUser } from "./utils";
+import { getSupabaseAndUser } from "./utils.server";
 
 // User quota type
 export type UserQuota = {

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { Playlist } from "~/schema";
-import { getSupabaseAndUser } from "./utils";
+import { getSupabaseAndUser } from "./utils.server";
 import { YOUCHANNEL_PLAYLIST_TITLE, YOUCHANNEL_PLAYLIST_DESCRIPTION } from "./youtube-account";
 
 export const PLAYLISTS_QUERY_KEY = ["playlists"] as const;

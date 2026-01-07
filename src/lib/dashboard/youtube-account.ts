@@ -1,19 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getSupabaseAndUser } from "./utils";
-
+import { getSupabaseAndUser } from "./utils.server";
 export const YOUCHANNEL_PLAYLIST_TITLE = "YouChannel AI";
 export const YOUCHANNEL_PLAYLIST_DESCRIPTION = "Add videos here for AI analysis";
 
 export const getYouTubeAccountStatusFn = createServerFn({ method: "GET" }).handler(async () => {
-    const { getSupabaseServerClient } = await import("~/lib/server/auth.server");
-    const supabase = await getSupabaseServerClient();
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser();
+    const { supabase, user } = await getSupabaseAndUser();
 
-    if (error || !user) return { hasAccount: false };
+    if (!user) return { hasAccount: false };
 
     const { data: account, error: accountError } = await supabase
         .from("youtube_accounts")

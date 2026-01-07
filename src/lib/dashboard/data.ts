@@ -12,9 +12,6 @@
  * - user: User quota and sync logs
  */
 
-// Shared utilities
-export { getSupabaseAndUser } from "./utils";
-
 // YouTube Account
 export {
   YOUCHANNEL_PLAYLIST_TITLE,

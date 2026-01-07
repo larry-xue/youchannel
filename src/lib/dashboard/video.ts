@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { Video, VideoAnalysisSkipReason } from "~/schema";
-import { getSupabaseAndUser } from "./utils";
+import { getSupabaseAndUser } from "./utils.server";
 
 export type VideoWithStatus = Video & {
     analysis_count: number;

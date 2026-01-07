@@ -119,7 +119,7 @@ function Home() {
     try {
       await signOutFn();
       setAuthUser(router.options.context.authStore, null);
-      router.navigate({ to: "/signin", search: { error: "", redirect: "/library" } });
+      router.navigate({ to: "/" });
     } catch (error) {
       console.error("Error signing out:", error);
     }

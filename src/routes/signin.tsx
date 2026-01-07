@@ -1,6 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { Button } from "~/lib/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,6 +12,8 @@ import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 
 const REDIRECT_URL = "/connect-youtube";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
+
 const normalizeRedirect = (value?: string) => {
   if (!value) return REDIRECT_URL;
   if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -44,97 +46,99 @@ export const Route = createFileRoute("/signin")({
 
 function AuthPage() {
   const search = Route.useSearch();
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const handleSignOut = async () => {};
+  const [isLoading, setIsLoading] = useState(false);
+  const handleSignOut = async () => { };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) {
+      setError("No credential received from Google");
+      return;
+    }
+
     setError(null);
-    setMessage(null);
     setIsLoading(true);
 
     try {
-      const redirectPath = normalizeRedirect(search.redirect);
-      const redirectUrl = new URL("/auth/callback", window.location.origin);
-      redirectUrl.searchParams.set("redirect", redirectPath);
       const { default: supabaseClient } = await import("~/lib/auth-client");
-      const { data: authData, error } = await supabaseClient.auth.signInWithOAuth({
+      const { error: authError } = await supabaseClient.auth.signInWithIdToken({
         provider: "google",
-        options: {
-          redirectTo: redirectUrl.toString(),
-          skipBrowserRedirect: true,
-        },
+        token: credentialResponse.credential,
       });
 
-      if (error) {
-        setError(error.message || "Unable to start Google sign-in");
+      if (authError) {
+        setError(authError.message || "Unable to sign in with Google");
         return;
       }
 
-      if (!authData?.url) {
-        setError("Unable to start Google sign-in");
-        return;
-      }
-
-      window.location.assign(authData.url);
-    } catch (authError) {
-      console.error("Auth error:", authError);
+      const redirectTo = normalizeRedirect(search.redirect);
+      router.navigate({ to: redirectTo, replace: true });
+    } catch (err) {
+      console.error("Auth error:", err);
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGoogleError = () => {
+    setError("Google sign-in was cancelled or failed. Please try again.");
+  };
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header onSignOut={handleSignOut} />
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl">Welcome to YouChannel</CardTitle>
-            <CardDescription>
-              Sign in with Google to start learning with your playlists.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {search.error && (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {search.error === "unauthorized"
-                  ? "Please sign in to access this page."
-                  : search.error}
-              </div>
-            )}
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="flex min-h-screen flex-col">
+        <Header onSignOut={handleSignOut} />
+        <main className="flex flex-1 items-center justify-center px-6 py-12">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-2xl">Welcome to YouChannel</CardTitle>
+              <CardDescription>
+                Sign in with Google to start learning with your playlists.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {search.error && (
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {search.error === "unauthorized"
+                    ? "Please sign in to access this page."
+                    : search.error}
+                </div>
+              )}
 
-            {error && (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+              {error && (
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
 
-            {message && (
-              <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
-                {message}
-              </div>
-            )}
+              {isLoading && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
+                  Signing in...
+                </div>
+              )}
 
-            <div className="space-y-3">
-              <Button
-                type="button"
-                className="w-full"
-                disabled={isLoading}
-                onClick={handleGoogleSignIn}
-              >
-                {isLoading ? "Redirecting to Google..." : "Continue with Google"}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Use Google to sign in securely and keep your learning library synced.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-      <Footer />
-    </div>
+              <div className="flex flex-col items-center space-y-3">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  size="large"
+                  theme="outline"
+                  shape="circle"
+                  text="continue_with"
+                  width="360"
+                  use_fedcm_for_prompt
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use Google to sign in securely and keep your learning library synced.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    </GoogleOAuthProvider>
   );
 }

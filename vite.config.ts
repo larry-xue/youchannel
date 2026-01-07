@@ -12,29 +12,6 @@ export default defineConfig({
     port: 3000,
   },
   plugins: [
-    paraglideVitePlugin({
-      project: './project.inlang',
-      outdir: './src/paraglide',
-      outputStructure: 'message-modules',
-      cookieName: 'PARAGLIDE_LOCALE',
-      strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
-      urlPatterns: [
-        {
-          pattern: '/',
-          localized: [
-            ['en', '/en'],
-            ['de', '/de'],
-          ],
-        },
-        {
-          pattern: '/:path(.*)?',
-          localized: [
-            ['en', '/en/:path(.*)?'],
-            ['de', '/de/:path(.*)?'],
-          ],
-        },
-      ],
-    }),
     tsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
@@ -52,6 +29,30 @@ export default defineConfig({
           ],
         ],
       },
+    }),
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      outputStructure: 'message-modules',
+      cookieName: 'lang',
+      localStorageKey: 'lang',
+      strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
+      // urlPatterns: [
+      //   {
+      //     pattern: '/',
+      //     localized: [
+      //       ['en', '/en'],
+      //       ['de', '/de'],
+      //     ],
+      //   },
+      //   {
+      //     pattern: '/:path(.*)?',
+      //     localized: [
+      //       ['en', '/en/:path(.*)?'],
+      //       ['de', '/de/:path(.*)?'],
+      //     ],
+      //   },
+      // ],
     }),
   ],
 });

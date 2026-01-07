@@ -23,16 +23,10 @@ import { setAuthUser, useAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout")({
-  beforeLoad: async ({ context, location }) => {
+  beforeLoad: async ({ context }) => {
     const user = await resolveAuthUser(context.authStore, context.user);
     if (!user) {
-      throw redirect({
-        to: "/signin",
-        search: {
-          error: "unauthorized",
-          redirect: `${location.pathname}${location.search}${location.hash}`,
-        },
-      });
+      throw redirect({ to: "/signin" });
     }
   },
   pendingComponent: FullPageLoader,
@@ -41,14 +35,7 @@ export const Route = createFileRoute("/_layout")({
     // 检查是否有 YouTube 账户，没有则重定向到连接页面
     const { hasAccount } = await getYouTubeAccountStatusFn();
     if (!hasAccount) {
-      throw redirect({
-        to: "/connect-youtube",
-        search: {
-          code: undefined,
-          state: undefined,
-          error: undefined,
-        },
-      });
+      throw redirect({ to: "/connect-youtube" });
     }
 
     return {};

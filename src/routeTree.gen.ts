@@ -10,24 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SigninRouteImport } from './routes/signin'
-import { Route as ConnectYoutubeRouteImport } from './routes/connect-youtube'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as LayoutRouteRouteImport } from './routes/_layout/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ApiHumeTokenRouteImport } from './routes/api/hume-token'
 import { Route as ApiCharacterChatRouteImport } from './routes/api/character-chat'
 import { Route as LayoutLibraryRouteImport } from './routes/_layout/library'
+import { Route as LayoutConnectYoutubeRouteImport } from './routes/_layout/connect-youtube'
 import { Route as LayoutLearnVideoIdRouteImport } from './routes/_layout/learn/$videoId'
 
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConnectYoutubeRoute = ConnectYoutubeRouteImport.update({
-  id: '/connect-youtube',
-  path: '/connect-youtube',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SplatRoute = SplatRouteImport.update({
@@ -42,11 +36,6 @@ const LayoutRouteRoute = LayoutRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHumeTokenRoute = ApiHumeTokenRouteImport.update({
@@ -64,6 +53,11 @@ const LayoutLibraryRoute = LayoutLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => LayoutRouteRoute,
 } as any)
+const LayoutConnectYoutubeRoute = LayoutConnectYoutubeRouteImport.update({
+  id: '/connect-youtube',
+  path: '/connect-youtube',
+  getParentRoute: () => LayoutRouteRoute,
+} as any)
 const LayoutLearnVideoIdRoute = LayoutLearnVideoIdRouteImport.update({
   id: '/learn/$videoId',
   path: '/learn/$videoId',
@@ -73,23 +67,21 @@ const LayoutLearnVideoIdRoute = LayoutLearnVideoIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
+  '/connect-youtube': typeof LayoutConnectYoutubeRoute
   '/library': typeof LayoutLibraryRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
   '/api/hume-token': typeof ApiHumeTokenRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
+  '/connect-youtube': typeof LayoutConnectYoutubeRoute
   '/library': typeof LayoutLibraryRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
   '/api/hume-token': typeof ApiHumeTokenRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRoutesById {
@@ -97,12 +89,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_layout': typeof LayoutRouteRouteWithChildren
   '/$': typeof SplatRoute
-  '/connect-youtube': typeof ConnectYoutubeRoute
   '/signin': typeof SigninRoute
+  '/_layout/connect-youtube': typeof LayoutConnectYoutubeRoute
   '/_layout/library': typeof LayoutLibraryRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
   '/api/hume-token': typeof ApiHumeTokenRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/_layout/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRouteTypes {
@@ -110,35 +101,32 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
-    | '/connect-youtube'
     | '/signin'
+    | '/connect-youtube'
     | '/library'
     | '/api/character-chat'
     | '/api/hume-token'
-    | '/auth/callback'
     | '/learn/$videoId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/$'
-    | '/connect-youtube'
     | '/signin'
+    | '/connect-youtube'
     | '/library'
     | '/api/character-chat'
     | '/api/hume-token'
-    | '/auth/callback'
     | '/learn/$videoId'
   id:
     | '__root__'
     | '/'
     | '/_layout'
     | '/$'
-    | '/connect-youtube'
     | '/signin'
+    | '/_layout/connect-youtube'
     | '/_layout/library'
     | '/api/character-chat'
     | '/api/hume-token'
-    | '/auth/callback'
     | '/_layout/learn/$videoId'
   fileRoutesById: FileRoutesById
 }
@@ -146,11 +134,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LayoutRouteRoute: typeof LayoutRouteRouteWithChildren
   SplatRoute: typeof SplatRoute
-  ConnectYoutubeRoute: typeof ConnectYoutubeRoute
   SigninRoute: typeof SigninRoute
   ApiCharacterChatRoute: typeof ApiCharacterChatRoute
   ApiHumeTokenRoute: typeof ApiHumeTokenRoute
-  AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -160,13 +146,6 @@ declare module '@tanstack/react-router' {
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/connect-youtube': {
-      id: '/connect-youtube'
-      path: '/connect-youtube'
-      fullPath: '/connect-youtube'
-      preLoaderRoute: typeof ConnectYoutubeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$': {
@@ -190,13 +169,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/hume-token': {
       id: '/api/hume-token'
       path: '/api/hume-token'
@@ -218,6 +190,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutLibraryRouteImport
       parentRoute: typeof LayoutRouteRoute
     }
+    '/_layout/connect-youtube': {
+      id: '/_layout/connect-youtube'
+      path: '/connect-youtube'
+      fullPath: '/connect-youtube'
+      preLoaderRoute: typeof LayoutConnectYoutubeRouteImport
+      parentRoute: typeof LayoutRouteRoute
+    }
     '/_layout/learn/$videoId': {
       id: '/_layout/learn/$videoId'
       path: '/learn/$videoId'
@@ -229,11 +208,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface LayoutRouteRouteChildren {
+  LayoutConnectYoutubeRoute: typeof LayoutConnectYoutubeRoute
   LayoutLibraryRoute: typeof LayoutLibraryRoute
   LayoutLearnVideoIdRoute: typeof LayoutLearnVideoIdRoute
 }
 
 const LayoutRouteRouteChildren: LayoutRouteRouteChildren = {
+  LayoutConnectYoutubeRoute: LayoutConnectYoutubeRoute,
   LayoutLibraryRoute: LayoutLibraryRoute,
   LayoutLearnVideoIdRoute: LayoutLearnVideoIdRoute,
 }
@@ -246,11 +227,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LayoutRouteRoute: LayoutRouteRouteWithChildren,
   SplatRoute: SplatRoute,
-  ConnectYoutubeRoute: ConnectYoutubeRoute,
   SigninRoute: SigninRoute,
   ApiCharacterChatRoute: ApiCharacterChatRoute,
   ApiHumeTokenRoute: ApiHumeTokenRoute,
-  AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

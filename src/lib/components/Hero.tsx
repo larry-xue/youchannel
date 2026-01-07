@@ -35,7 +35,7 @@ export function Hero() {
               size="lg"
               className="h-12 rounded-full px-8 text-base shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30"
             >
-              <Link to="/signin" search={{ error: "", redirect: "/library" }}>
+              <Link to="/signin">
                 Get Started for Free
               </Link>
             </Button>

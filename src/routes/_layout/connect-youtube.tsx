@@ -17,12 +17,19 @@ import {
 } from "~/lib/dashboard/data";
 import { useAuthUser } from "~/lib/store/auth";
 
-export const Route = createFileRoute("/connect-youtube")({
-  validateSearch: (search: Record<string, unknown>) => {
+interface ConnectYouTubeSearch {
+  code?: string;
+  state?: string;
+  error?: string;
+}
+
+export const Route = createFileRoute("/_layout/connect-youtube")({
+  validateSearch: (search?: Record<string, unknown>): ConnectYouTubeSearch => {
+    const safeSearch = search ?? {};
     return {
-      code: search.code as string | undefined,
-      state: search.state as string | undefined,
-      error: search.error as string | undefined,
+      code: safeSearch.code as string | undefined,
+      state: safeSearch.state as string | undefined,
+      error: safeSearch.error as string | undefined,
     };
   },
   loaderDeps: ({ search }) => ({
@@ -30,16 +37,10 @@ export const Route = createFileRoute("/connect-youtube")({
     state: search.state,
     error: search.error,
   }),
-  beforeLoad: async ({ context, location }) => {
+  beforeLoad: async ({ context }) => {
     const user = await resolveAuthUser(context.authStore, context.user);
     if (!user) {
-      throw redirect({
-        to: "/signin",
-        search: {
-          error: "unauthorized",
-          redirect: `${location.pathname}${location.search}${location.hash}`,
-        },
-      });
+      throw redirect({ to: "/signin" });
     }
   },
   loader: async ({ context, deps }) => {
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/connect-youtube")({
       context.authStore.state.user ??
       (await resolveAuthUser(context.authStore, context.user));
     if (!user) {
-      throw redirect({ to: "/signin", search: { error: "unauthorized", redirect: undefined } });
+      throw redirect({ to: "/signin" });
     }
 
     // 如果是 OAuth 回调，处理完成后重定向
@@ -97,7 +98,7 @@ function ConnectYouTube() {
         });
         if (!isMounted) return;
         setOauthMessage(
-          'YouTube connected! Created "YouChannel AI" playlist for your video analysis.',
+          `YouTube connected! Created 'YouChannel AI' playlist for your video analysis.`,
         );
         await router.invalidate();
         // 延迟一下让用户看到成功消息，然后重定向

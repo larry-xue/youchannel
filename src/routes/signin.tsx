@@ -14,38 +14,16 @@ import { Header } from "~/lib/components/Header";
 const REDIRECT_URL = "/connect-youtube";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
 
-const normalizeRedirect = (value?: string) => {
-  if (!value) return REDIRECT_URL;
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    try {
-      const url = new URL(value);
-      return `${url.pathname}${url.search}${url.hash}` || REDIRECT_URL;
-    } catch {
-      return REDIRECT_URL;
-    }
-  }
-  return value;
-};
-
 export const Route = createFileRoute("/signin")({
-  validateSearch: (search: Record<string, unknown>) => {
-    return {
-      error: search.error as string | undefined,
-      redirect: search.redirect as string | undefined,
-    };
-  },
-  beforeLoad: async ({ context, search }) => {
+  beforeLoad: async ({ context }) => {
     if (context.user) {
-      throw redirect({
-        to: normalizeRedirect(search.redirect),
-      });
+      throw redirect({ to: REDIRECT_URL });
     }
   },
   component: AuthPage,
 });
 
 function AuthPage() {
-  const search = Route.useSearch();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,8 +50,7 @@ function AuthPage() {
         return;
       }
 
-      const redirectTo = normalizeRedirect(search.redirect);
-      router.navigate({ to: redirectTo, replace: true });
+      router.navigate({ to: REDIRECT_URL, replace: true });
     } catch (err) {
       console.error("Auth error:", err);
       setError("An unexpected error occurred");
@@ -99,14 +76,6 @@ function AuthPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {search.error && (
-                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {search.error === "unauthorized"
-                    ? "Please sign in to access this page."
-                    : search.error}
-                </div>
-              )}
-
               {error && (
                 <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {error}

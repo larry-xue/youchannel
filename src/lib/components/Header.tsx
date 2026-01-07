@@ -87,7 +87,7 @@ export function Header({ onSignOut }: HeaderProps) {
               </DropdownMenu>
             ) : (
               <Button asChild variant="outline" size="sm">
-                <Link to="/signin" search={{ error: "", redirect: "/library" }}>
+                <Link to="/signin">
                   Sign in
                 </Link>
               </Button>

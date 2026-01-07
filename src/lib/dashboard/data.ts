@@ -30,6 +30,9 @@ export {
   restorePlaylistFn,
 } from "./playlist";
 
+// YouTube Playlists (API only)
+export { getYouTubePlaylistsFn, getYouTubePlaylistItemsFn } from "./youtube-playlists";
+
 // Video
 export {
   type VideoWithStatus,

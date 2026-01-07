@@ -33,7 +33,17 @@ export type YouTubeVideoSummary = {
   publishedAt: string | null;
   thumbnailUrl: string | null;
   duration: string | null;
-  raw: Record<string, unknown>;
+  raw: Record<string, object | undefined>;
+};
+
+export type YouTubePlaylistItemsPage = {
+  items: YouTubeVideoSummary[];
+  nextPageToken?: string;
+  prevPageToken?: string;
+  pageInfo: {
+    totalResults?: number;
+    resultsPerPage?: number;
+  } | null;
 };
 
 function getOAuthConfig(): OAuthConfig {
@@ -477,4 +487,89 @@ export async function fetchPlaylistVideos(
       },
     };
   });
+}
+
+export async function fetchPlaylistVideosPage(
+  accessToken: string,
+  playlistId: string,
+  options: { pageToken?: string; pageSize?: number } = {},
+): Promise<YouTubePlaylistItemsPage> {
+  const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 50);
+  const url = new URL(`${YOUTUBE_API_BASE}/playlistItems`);
+  url.searchParams.set("part", "snippet,contentDetails");
+  url.searchParams.set("playlistId", playlistId);
+  url.searchParams.set("maxResults", String(pageSize));
+  if (options.pageToken) {
+    url.searchParams.set("pageToken", options.pageToken);
+  }
+
+  const data = await fetchYouTube<{
+    nextPageToken?: string;
+    prevPageToken?: string;
+    pageInfo?: { totalResults?: number; resultsPerPage?: number };
+    items?: Array<{
+      snippet?: Record<string, unknown>;
+      contentDetails?: { videoId?: string };
+    }>;
+  }>(url.toString(), accessToken);
+
+  const sampleVideoIds = (data.items || []).slice(0, 3).map((item) => {
+    const snippet = item.snippet as { resourceId?: { videoId?: string } } | undefined;
+    return item.contentDetails?.videoId || snippet?.resourceId?.videoId || null;
+  });
+  await writeYouTubeLog({
+    event: "playlistItems.list.page",
+    playlistId,
+    pageToken: options.pageToken,
+    itemCount: data.items?.length || 0,
+    pageInfo: data.pageInfo || null,
+    sampleVideoIds,
+  });
+
+  const playlistItems = (data.items || [])
+    .map((item) => {
+      const snippet = item.snippet as { resourceId?: { videoId?: string } } | undefined;
+      const videoId = item.contentDetails?.videoId || snippet?.resourceId?.videoId;
+      if (!videoId) return null;
+      return {
+        videoId,
+        snippet: item.snippet || {},
+      };
+    })
+    .filter(Boolean) as Array<{ videoId: string; snippet: Record<string, unknown> }>;
+
+  const detailsMap = await fetchVideoDetails(
+    accessToken,
+    playlistItems.map((item) => item.videoId),
+  );
+
+  const items = playlistItems.map((item) => {
+    const snippet = item.snippet as Record<string, unknown>;
+    const details = detailsMap[item.videoId] || {};
+    const snippetDetails = details.snippet as Record<string, unknown> | undefined;
+    const contentDetails = details.contentDetails as Record<string, unknown> | undefined;
+
+    return {
+      videoId: item.videoId,
+      title: (snippet?.title as string) || "Untitled video",
+      description: (snippet?.description as string) || null,
+      publishedAt: (snippet?.publishedAt as string) || null,
+      thumbnailUrl: pickThumbnail(
+        snippet?.thumbnails as Record<string, { url?: string }> | undefined,
+      ),
+      duration: (contentDetails?.duration as string) || null,
+      raw: {
+        playlistSnippet: snippet,
+        videoSnippet: snippetDetails,
+        contentDetails,
+      },
+    };
+  });
+
+  return {
+    items,
+    nextPageToken: data.nextPageToken,
+    prevPageToken: data.prevPageToken,
+    pageInfo: data.pageInfo || null,
+  };
 }

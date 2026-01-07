@@ -29,6 +29,7 @@ export interface VideoCardProps {
     isSelectable: boolean;
     onSelect: (videoId: string) => void;
     onOpen: (video: VideoWithStatus) => void;
+    actionLabel?: string;
 }
 
 export function VideoCard({
@@ -37,6 +38,7 @@ export function VideoCard({
     isSelectable,
     onSelect,
     onOpen,
+    actionLabel = "Learn",
 }: VideoCardProps) {
     const isProcessing =
         video.latest_analysis_status === "pending" ||
@@ -173,7 +175,7 @@ export function VideoCard({
                             onOpen(video);
                         }}
                     >
-                        Learn
+                        {actionLabel}
                     </Button>
                 </div>
             </div>

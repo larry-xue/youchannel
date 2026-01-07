@@ -41,7 +41,10 @@ export const Route = createFileRoute("/_layout")({
   },
 });
 
-const DASHBOARD_NAV_ITEMS = [{ label: "Library", to: "/library" }];
+const DASHBOARD_NAV_ITEMS = [
+  { label: "Library", to: "/library" },
+  { label: "Playlists", to: "/playlists" },
+];
 
 function DashboardLayout() {
   const router = useRouter();

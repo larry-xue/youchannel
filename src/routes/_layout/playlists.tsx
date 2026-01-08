@@ -214,15 +214,17 @@ function DashboardPlaylists() {
             Browse your YouTube playlists directly from the API.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
+        {hasAccount && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        )}
       </div>
 
       {actionError && (

@@ -1,9 +1,16 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, Loader2, Youtube } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Youtube } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "~/lib/components/ui/alert";
 import { Button } from "~/lib/components/ui/button";
+import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+} from "~/lib/components/ui/empty";
 import { completeYouTubeOauthFn, startYouTubeOAuthFn } from "~/lib/dashboard/data";
 
 interface ConnectYouTubeAlertProps {
@@ -62,64 +69,116 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
     if (status === "success") {
         return (
-            <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Success!</AlertTitle>
-                <AlertDescription>
-                    Your YouTube account has been connected. Loading your playlists...
-                </AlertDescription>
-            </Alert>
+            <Empty className="min-h-[400px] border bg-emerald-500/5">
+                <EmptyHeader>
+                    <EmptyMedia>
+                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/20 shadow-lg ring-1 ring-emerald-500/30">
+                            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                        </div>
+                    </EmptyMedia>
+                    <EmptyTitle className="text-emerald-600">Success!</EmptyTitle>
+                    <EmptyDescription>
+                        Your YouTube account has been connected. Loading your playlists...
+                    </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                    <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                </EmptyContent>
+            </Empty>
         );
     }
 
     if (status === "processing") {
         return (
-            <Alert className="border-primary/50 bg-primary/10">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <AlertTitle>Connecting...</AlertTitle>
-                <AlertDescription>
-                    Please wait while we link your YouTube account.
-                </AlertDescription>
-            </Alert>
+            <Empty className="min-h-[400px] border bg-primary/5">
+                <EmptyHeader>
+                    <EmptyMedia>
+                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/20 shadow-lg ring-1 ring-primary/30">
+                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        </div>
+                    </EmptyMedia>
+                    <EmptyTitle>Connecting...</EmptyTitle>
+                    <EmptyDescription>
+                        Please wait while we link your YouTube account.
+                    </EmptyDescription>
+                </EmptyHeader>
+            </Empty>
+        );
+    }
+
+    if (status === "error") {
+        return (
+            <Empty className="min-h-[400px] border bg-destructive/5">
+                <EmptyHeader>
+                    <EmptyMedia>
+                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-destructive/20 shadow-lg ring-1 ring-destructive/30">
+                            <AlertCircle className="h-10 w-10 text-destructive" />
+                        </div>
+                    </EmptyMedia>
+                    <EmptyTitle className="text-destructive">Connection Failed</EmptyTitle>
+                    <EmptyDescription>{errorMessage}</EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                    <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => connectMutation.mutate()}
+                        disabled={connectMutation.isPending}
+                        className="h-11 rounded-full px-8"
+                    >
+                        {connectMutation.isPending ? (
+                            <>
+                                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                Redirecting...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Try Again
+                            </>
+                        )}
+                    </Button>
+                </EmptyContent>
+            </Empty>
         );
     }
 
     return (
-        <Alert variant={status === "error" ? "destructive" : "default"} className="relative overflow-hidden">
-            {status === "error" ? (
-                <AlertCircle className="h-4 w-4" />
-            ) : (
-                <Youtube className="h-4 w-4 text-red-600" />
-            )}
-            <AlertTitle>
-                {status === "error" ? "Connection Failed" : "Connect YouTube"}
-            </AlertTitle>
-            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                    <p>
-                        {status === "error"
-                            ? errorMessage
-                            : "Start learning from your favorite content. Connect your YouTube account to import your playlists."}
-                    </p>
-                </div>
+        <Empty className="min-h-[400px] border bg-muted/20">
+            <EmptyHeader>
+                <EmptyMedia>
+                    <div className="relative">
+                        <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-xl" />
+                        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+                            <Youtube className="h-10 w-10 text-red-600" />
+                        </div>
+                    </div>
+                </EmptyMedia>
+                <EmptyTitle>Connect YouTube</EmptyTitle>
+                <EmptyDescription>
+                    Start learning from your favorite content. Connect your YouTube account to import your playlists.
+                </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
                 <Button
-                    size="sm"
-                    variant={status === "error" ? "outline" : "default"}
+                    size="lg"
                     onClick={() => connectMutation.mutate()}
                     disabled={connectMutation.isPending}
+                    className="h-11 rounded-full px-8 shadow-lg transition-all hover:shadow-primary/25"
                 >
                     {connectMutation.isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Redirecting...
                         </>
-                    ) : status === "error" ? (
-                        "Try Again"
                     ) : (
-                        "Connect YouTube"
+                        <>
+                            <Youtube className="mr-2 h-4 w-4" />
+                            Connect YouTube
+                        </>
                     )}
                 </Button>
-            </AlertDescription>
-        </Alert>
+            </EmptyContent>
+        </Empty>
     );
 }

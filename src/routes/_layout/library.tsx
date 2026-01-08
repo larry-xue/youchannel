@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { EmptyVideoState } from "~/lib/components/empty-video-state";
 import {
   AlertDialog,
@@ -14,8 +14,6 @@ import {
 } from "~/lib/components/ui/alert-dialog";
 import { Button } from "~/lib/components/ui/button";
 import { Loading } from "~/lib/components/ui/loading";
-import { Progress } from "~/lib/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import { VideoCard } from "~/lib/components/video-card";
 import {
   getYouTubeAccountStatusFn,
@@ -63,7 +61,7 @@ function DashboardPlaylists() {
   const pageSize = 12;
 
   const videosQuery = useQuery({
-    queryKey: ["videos", page],
+    queryKey: ["videos", page, pageSize],
     queryFn: () => getVideosFn({ data: { page, pageSize } }),
     enabled: hasAccount,
     placeholderData: keepPreviousData,
@@ -84,7 +82,11 @@ function DashboardPlaylists() {
   const eligibleVideoIds = videos
     .filter((video) => isVideoSelectable(video))
     .map((video) => video.id);
-  const selectedCount = selectedVideoIds.length;
+  const validSelectedVideoIds = useMemo(() => {
+    const eligible = new Set(eligibleVideoIds);
+    return selectedVideoIds.filter((id) => eligible.has(id));
+  }, [selectedVideoIds, eligibleVideoIds]);
+  const selectedCount = validSelectedVideoIds.length;
   const eligibleCount = eligibleVideoIds.length;
 
   const isLoading = videosQuery.isLoading;
@@ -123,21 +125,13 @@ function DashboardPlaylists() {
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       void videosQuery.refetch();
     },
-    onError: (error) => {
+    onError: () => {
       toast.error("We could not start", {
         description: "Please try again later. If this keeps happening, refresh the page.",
       });
       setShowAnalysisDialog(false);
     },
   });
-
-  useEffect(() => {
-    setSelectedVideoIds((prev) => {
-      const eligible = new Set(eligibleVideoIds);
-      const next = prev.filter((id) => eligible.has(id));
-      return next.length === prev.length ? prev : next;
-    });
-  }, [eligibleVideoIds]);
 
   const handleOpenVideo = (video: VideoWithStatus) => {
     navigate({
@@ -168,12 +162,21 @@ function DashboardPlaylists() {
   const handleConfirmAnalysis = () => {
     if (selectedCount === 0) return;
     triggerAnalysisMutation.mutate({
-      videoIds: selectedVideoIds,
+      videoIds: validSelectedVideoIds,
     });
   };
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-foreground">
+          Library
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Manage and analyze your saved videos from YouTube playlists.
+        </p>
+      </div>
+
       <AlertDialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -249,7 +252,7 @@ function DashboardPlaylists() {
                 <VideoCard
                   key={video.id}
                   video={video}
-                  isSelected={selectedVideoIds.includes(video.id)}
+                  isSelected={validSelectedVideoIds.includes(video.id)}
                   isSelectable={isVideoSelectable(video)}
                   onSelect={handleToggleVideo}
                   onOpen={handleOpenVideo}

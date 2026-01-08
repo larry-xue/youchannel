@@ -69,11 +69,14 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
     if (status === "success") {
         return (
-            <Empty className="min-h-[400px] border bg-emerald-500/5">
+            <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
                 <EmptyHeader>
                     <EmptyMedia>
-                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/20 shadow-lg ring-1 ring-emerald-500/30">
-                            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                        <div className="relative">
+                            <div className="absolute inset-0 animate-pulse rounded-full bg-emerald-500/20 blur-xl" />
+                            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+                                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                            </div>
                         </div>
                     </EmptyMedia>
                     <EmptyTitle className="text-emerald-600">Success!</EmptyTitle>
@@ -90,11 +93,14 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
     if (status === "processing") {
         return (
-            <Empty className="min-h-[400px] border bg-primary/5">
+            <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
                 <EmptyHeader>
                     <EmptyMedia>
-                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/20 shadow-lg ring-1 ring-primary/30">
-                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        <div className="relative">
+                            <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
+                            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                            </div>
                         </div>
                     </EmptyMedia>
                     <EmptyTitle>Connecting...</EmptyTitle>
@@ -108,11 +114,14 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
     if (status === "error") {
         return (
-            <Empty className="min-h-[400px] border bg-destructive/5">
+            <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
                 <EmptyHeader>
                     <EmptyMedia>
-                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-destructive/20 shadow-lg ring-1 ring-destructive/30">
-                            <AlertCircle className="h-10 w-10 text-destructive" />
+                        <div className="relative">
+                            <div className="absolute inset-0 animate-pulse rounded-full bg-destructive/20 blur-xl" />
+                            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+                                <AlertCircle className="h-10 w-10 text-destructive" />
+                            </div>
                         </div>
                     </EmptyMedia>
                     <EmptyTitle className="text-destructive">Connection Failed</EmptyTitle>
@@ -124,7 +133,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                         variant="outline"
                         onClick={() => connectMutation.mutate()}
                         disabled={connectMutation.isPending}
-                        className="h-11 rounded-full px-8"
+                        className="h-11 rounded-full px-8 shadow-lg transition-all hover:shadow-primary/25"
                     >
                         {connectMutation.isPending ? (
                             <>
@@ -144,7 +153,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
     }
 
     return (
-        <Empty className="min-h-[400px] border bg-muted/20">
+        <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
             <EmptyHeader>
                 <EmptyMedia>
                     <div className="relative">

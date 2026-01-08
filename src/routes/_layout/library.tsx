@@ -173,7 +173,7 @@ function DashboardPlaylists() {
           Library
         </h1>
         <p className="text-sm text-muted-foreground">
-          Manage and analyze your saved videos from YouTube playlists.
+          Manage and learn from your saved videos—directly chat with videos that are being analyzed or already analyzed.
         </p>
       </div>
 

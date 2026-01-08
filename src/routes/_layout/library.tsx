@@ -124,17 +124,9 @@ function DashboardPlaylists() {
       void videosQuery.refetch();
     },
     onError: (error) => {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      // Check if it's a quota-related error
-      if (errorMessage.toLowerCase().includes("quota") || errorMessage.toLowerCase().includes("limit")) {
-        toast.error("Quota Exceeded", {
-          description: "Your analysis quota has been exhausted. Please try again later or contact support.",
-        });
-      } else {
-        toast.error("We could not start", {
-          description: "Please try again later. If this keeps happening, refresh the page.",
-        });
-      }
+      toast.error("We could not start", {
+        description: "Please try again later. If this keeps happening, refresh the page.",
+      });
       setShowAnalysisDialog(false);
     },
   });

@@ -1,9 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  EmptyPlaylistState,
-} from "~/lib/components/empty-playlist-state";
+import { EmptyVideoState } from "~/lib/components/empty-video-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +12,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/lib/components/ui/alert-dialog";
-import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { Loading } from "~/lib/components/ui/loading";
 import { Progress } from "~/lib/components/ui/progress";
@@ -32,7 +29,6 @@ import {
   triggerOpenApiAnalysisFn,
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
-import type { PlaylistEntryStatus } from "~/schema";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_layout/library")({
@@ -46,7 +42,6 @@ const EMPTY_VIDEOS: VideoWithStatus[] = [];
 function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [actionError, setActionError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
@@ -68,20 +63,15 @@ function DashboardPlaylists() {
     enabled: hasAccount,
   });
 
-  const playlists = playlistsQuery.data || [];
-  const activePlaylist = playlists.find((playlist) => playlist.is_active) || null;
-  const activePlaylistId = activePlaylist?.id;
-
   const videosQuery = useQuery({
-    queryKey: ["videos", activePlaylistId],
+    queryKey: ["videos"],
     queryFn: () =>
       getVideosFn({
         data: {
-          playlistIds: activePlaylistId ? [activePlaylistId] : [],
           includeSyncStatus: ["synced", "removed", "unavailable"],
         },
       }),
-    enabled: Boolean(activePlaylistId),
+    enabled: hasAccount,
   });
 
   const videos = videosQuery.data ?? EMPTY_VIDEOS;
@@ -104,10 +94,9 @@ function DashboardPlaylists() {
     mutationFn: (playlistId: string) => restorePlaylistFn({ data: { playlistId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY });
-      setActionError(null);
     },
     onError: (error) => {
-      setActionError(error instanceof Error ? error.message : "Restore failed");
+      toast.error(error instanceof Error ? error.message : "Restore failed");
     },
   });
 
@@ -119,14 +108,14 @@ function DashboardPlaylists() {
       }
     },
     onError: (error) => {
-      setActionError(error instanceof Error ? error.message : "Re-authorization failed");
+      toast.error(error instanceof Error ? error.message : "Re-authorization failed");
     },
   });
 
   const isLoading = playlistsQuery.isLoading || videosQuery.isLoading;
 
   const triggerAnalysisMutation = useMutation({
-    mutationFn: (payload: { playlistId: string; videoIds: string[] }) =>
+    mutationFn: (payload: { videoIds: string[] }) =>
       triggerOpenApiAnalysisFn({ data: payload }),
     onSuccess: (result) => {
       const skippedReasons: string[] = [];
@@ -158,7 +147,6 @@ function DashboardPlaylists() {
       }
 
       setSelectedVideoIds([]);
-      setActionError(null);
       setShowAnalysisDialog(false);
       queryClient.invalidateQueries({ queryKey: ["videos"] });
       queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
@@ -176,7 +164,6 @@ function DashboardPlaylists() {
           description: "Please try again later. If this keeps happening, refresh the page.",
         });
       }
-      setActionError(null);
       setShowAnalysisDialog(false);
     },
   });
@@ -189,10 +176,6 @@ function DashboardPlaylists() {
     });
   }, [eligibleVideoIds]);
 
-  useEffect(() => {
-    setSelectedVideoIds([]);
-  }, [activePlaylistId]);
-
   const handleOpenVideo = (video: VideoWithStatus) => {
     router.navigate({
       to: "/learn/$videoId",
@@ -202,7 +185,6 @@ function DashboardPlaylists() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    setActionError(null);
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY }),
@@ -210,7 +192,7 @@ function DashboardPlaylists() {
         queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY }),
       ]);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Refresh failed");
+      toast.error(error instanceof Error ? error.message : "Refresh failed");
     } finally {
       setIsRefreshing(false);
     }
@@ -231,15 +213,13 @@ function DashboardPlaylists() {
   };
 
   const handleTriggerAnalysis = () => {
-    if (!activePlaylistId || selectedCount === 0) return;
+    if (selectedCount === 0) return;
     setShowAnalysisDialog(true);
   };
 
   const handleConfirmAnalysis = () => {
-    if (!activePlaylistId || selectedCount === 0) return;
-    setActionError(null);
+    if (selectedCount === 0) return;
     triggerAnalysisMutation.mutate({
-      playlistId: activePlaylistId,
       videoIds: selectedVideoIds,
     });
   };
@@ -247,14 +227,6 @@ function DashboardPlaylists() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h1 className="font-display text-2xl font-semibold text-foreground">
-            {activePlaylist?.title || "YouChannel AI"}
-          </h1>
-          {activePlaylist && (
-            <PlaylistStatusBadge status={activePlaylist.entry_status} />
-          )}
-        </div>
         <Button
           type="button"
           variant="outline"
@@ -265,53 +237,6 @@ function DashboardPlaylists() {
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
-
-      {/* Empty State for Connected Users */}
-      {hasAccount && !activePlaylist && !isLoading && (
-        <EmptyPlaylistState />
-      )}
-
-      {actionError && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-          {actionError}
-        </div>
-      )}
-
-      {activePlaylist?.entry_status === "lost" && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              Playlist not found on YouTube
-            </p>
-            <Button
-              onClick={() => restoreMutation.mutate(activePlaylist.id)}
-              disabled={restoreMutation.isPending}
-              size="sm"
-              className="bg-amber-600 text-white hover:bg-amber-700"
-            >
-              {restoreMutation.isPending ? "Restoring..." : "Restore"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {activePlaylist?.entry_status === "auth_invalid" && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              Authorization expired
-            </p>
-            <Button
-              onClick={() => reAuthMutation.mutate()}
-              disabled={reAuthMutation.isPending}
-              size="sm"
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              {reAuthMutation.isPending ? "Redirecting..." : "Re-authorize"}
-            </Button>
-          </div>
-        </div>
-      )}
 
       <AlertDialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
         <AlertDialogContent>
@@ -357,117 +282,72 @@ function DashboardPlaylists() {
       <div className="space-y-4">
         {isLoading ? (
           <Loading text="Loading videos..." size="md" />
-        ) : !activePlaylist ? (
-          /* Handled above by EmptyPlaylistState */
-          null
+        ) : videos.length === 0 ? (
+          <EmptyVideoState />
         ) : (
           <>
-            {videos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No videos yet. Add videos to the "YouChannel AI" playlist on YouTube, then come back here. Syncing may take a moment.
-              </p>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="font-medium text-foreground">
-                      {selectedCount} selected
-                    </span>
-                    <span className="text-muted-foreground">
-                      {eligibleCount} eligible
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {quotaQuery.data && (
-                      <QuotaBadge
-                        used={quotaQuery.data.analysis_count}
-                        max={quotaQuery.data.max_analyses}
-                      />
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSelectAllEligible}
-                      disabled={eligibleCount === 0}
-                    >
-                      Select all
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearSelection}
-                      disabled={selectedCount === 0}
-                    >
-                      Clear
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleTriggerAnalysis}
-                      disabled={selectedCount === 0 || triggerAnalysisMutation.isPending}
-                    >
-                      {triggerAnalysisMutation.isPending
-                        ? "Triggering..."
-                        : "Analyze"}
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-                  {videos.map((video) => (
-                    <VideoCard
-                      key={video.id}
-                      video={video}
-                      isSelected={selectedVideoIds.includes(video.id)}
-                      isSelectable={isVideoSelectable(video)}
-                      onSelect={handleToggleVideo}
-                      onOpen={handleOpenVideo}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5">
+              <div className="flex items-center gap-4 text-sm">
+                <span className="font-medium text-foreground">
+                  {selectedCount} selected
+                </span>
+                <span className="text-muted-foreground">
+                  {eligibleCount} eligible
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {quotaQuery.data && (
+                  <QuotaBadge
+                    used={quotaQuery.data.analysis_count}
+                    max={quotaQuery.data.max_analyses}
+                  />
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllEligible}
+                  disabled={eligibleCount === 0}
+                >
+                  Select all
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearSelection}
+                  disabled={selectedCount === 0}
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleTriggerAnalysis}
+                  disabled={selectedCount === 0 || triggerAnalysisMutation.isPending}
+                >
+                  {triggerAnalysisMutation.isPending
+                    ? "Triggering..."
+                    : "Analyze"}
+                </Button>
+              </div>
+            </div>
+            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+              {videos.map((video) => (
+                <VideoCard
+                  key={video.id}
+                  video={video}
+                  isSelected={selectedVideoIds.includes(video.id)}
+                  isSelectable={isVideoSelectable(video)}
+                  onSelect={handleToggleVideo}
+                  onOpen={handleOpenVideo}
+                />
+              ))}
+            </div>
           </>
-        )}
+        )
+        }
       </div>
     </div>
   );
 }
-
-
-
-function PlaylistStatusBadge({ status }: { status: PlaylistEntryStatus }) {
-  if (status === "active") {
-    return (
-      <Badge
-        variant="outline"
-        className="border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400"
-      >
-        Active
-      </Badge>
-    );
-  }
-
-  if (status === "lost") {
-    return (
-      <Badge
-        variant="outline"
-        className="border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
-      >
-        Playlist Lost
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge
-      variant="outline"
-      className="border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400"
-    >
-      Auth Invalid
-    </Badge>
-  );
-}
-
-
 
 function QuotaBadge({ used, max }: { used: number; max: number }) {
   const percentage = max > 0 ? Math.min((used / max) * 100, 100) : 0;

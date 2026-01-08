@@ -18,9 +18,7 @@ import { Progress } from "~/lib/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import { VideoCard } from "~/lib/components/video-card";
 import {
-  USER_QUOTA_QUERY_KEY,
   getYouTubeAccountStatusFn,
-  getUserQuotaFn,
   getVideosFn,
   triggerOpenApiAnalysisFn,
   type VideoWithStatus,
@@ -52,7 +50,6 @@ function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const navigate = Route.useNavigate();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
 
@@ -61,12 +58,6 @@ function DashboardPlaylists() {
     queryFn: () => getYouTubeAccountStatusFn(),
   });
   const hasAccount = accountQuery.data?.hasAccount ?? false;
-
-  const quotaQuery = useQuery({
-    queryKey: USER_QUOTA_QUERY_KEY,
-    queryFn: () => getUserQuotaFn(),
-    enabled: hasAccount,
-  });
 
   const { page } = Route.useSearch();
   const pageSize = 12;
@@ -109,9 +100,6 @@ function DashboardPlaylists() {
       if (result.skipReasons.duration_exceeded > 0) {
         skippedReasons.push(`${result.skipReasons.duration_exceeded} too long`);
       }
-      if (result.skipReasons.quota_exceeded > 0) {
-        skippedReasons.push(`${result.skipReasons.quota_exceeded} limit reached`);
-      }
       const skippedText =
         result.skipped > 0
           ? `, and ${result.skipped} couldn't be started${skippedReasons.length > 0
@@ -133,7 +121,6 @@ function DashboardPlaylists() {
       setSelectedVideoIds([]);
       setShowAnalysisDialog(false);
       queryClient.invalidateQueries({ queryKey: ["videos"] });
-      queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY });
       void videosQuery.refetch();
     },
     onError: (error) => {
@@ -204,21 +191,6 @@ function DashboardPlaylists() {
                 <p>
                   You have selected <strong>{selectedCount}</strong> video{selectedCount !== 1 ? "s" : ""} for analysis.
                 </p>
-                {quotaQuery.data && (
-                  <div className="space-y-1">
-                    <p>
-                      This will consume <strong>{selectedCount}</strong> analysis quota{selectedCount !== 1 ? "s" : ""}.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Current usage: {quotaQuery.data.analysis_count} / {quotaQuery.data.max_analyses}
-                    </p>
-                    {quotaQuery.data.analysis_count + selectedCount > quotaQuery.data.max_analyses && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                        Warning: This may exceed your quota limit
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -253,12 +225,6 @@ function DashboardPlaylists() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {quotaQuery.data && (
-                  <QuotaBadge
-                    used={quotaQuery.data.analysis_count}
-                    max={quotaQuery.data.max_analyses}
-                  />
-                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -409,32 +375,5 @@ function DashboardPlaylists() {
         )}
       </div>
     </div>
-  );
-}
-
-function QuotaBadge({ used, max }: { used: number; max: number }) {
-  const percentage = max > 0 ? Math.min((used / max) * 100, 100) : 0;
-  const isNearLimit = percentage >= 80;
-  const isAtLimit = used >= max;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/80 px-2.5 py-1">
-          <Progress
-            value={percentage}
-            className={`h-1.5 w-16 ${isAtLimit ? `*:data-[slot=progress-indicator]:bg-red-500` : isNearLimit ? `*:data-[slot=progress-indicator]:bg-amber-500` : ``}`}
-          />
-          <span className={`text-xs font-medium ${isAtLimit ? `text-red-500` : isNearLimit ? `text-amber-500` : `text-muted-foreground`}`}>
-            {used}/{max}
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        {isAtLimit
-          ? "Quota limit reached"
-          : `${max - used} analysis${max - used !== 1 ? `es` : ``} remaining`}
-      </TooltipContent>
-    </Tooltip>
   );
 }

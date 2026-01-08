@@ -8,7 +8,6 @@
  * - youtube-account: YouTube OAuth and account status
  * - video: Video listing and retrieval
  * - analysis: Video analysis operations
- * - user: User quota and sync logs
  */
 
 // YouTube Account
@@ -36,10 +35,3 @@ export {
   getVideoAnalysesFn,
   triggerOpenApiAnalysisFn,
 } from "./analysis";
-
-// User
-export {
-  type UserQuota,
-  USER_QUOTA_QUERY_KEY,
-  getUserQuotaFn,
-} from "./user";

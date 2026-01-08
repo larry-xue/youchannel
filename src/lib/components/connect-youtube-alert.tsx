@@ -18,11 +18,12 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
         code && state ? "processing" : error ? "error" : "idle"
     );
     const [errorMessage, setErrorMessage] = useState<string | null>(error || null);
+    const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
     const connectMutation = useMutation({
         mutationFn: () => startYouTubeOAuthFn(),
         onSuccess: ({ url }) => {
-            if (url) window.location.href = url;
+            if (url) setRedirectUrl(url);
         },
         onError: (err) => {
             setStatus("error");
@@ -30,7 +31,13 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
         },
     });
 
-    const callbackMutation = useMutation({
+    useEffect(() => {
+        if (redirectUrl) {
+            window.location.href = redirectUrl;
+        }
+    }, [redirectUrl]);
+
+    const { mutate: callbackMutate, submittedAt: callbackSubmittedAt } = useMutation({
         mutationFn: (data: { code: string; state: string }) =>
             completeYouTubeOauthFn({ data }),
         onSuccess: async () => {
@@ -48,10 +55,10 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
     });
 
     useEffect(() => {
-        if (code && state && status === "processing" && !callbackMutation.submittedAt) {
-            callbackMutation.mutate({ code, state });
+        if (code && state && status === "processing" && !callbackSubmittedAt) {
+            callbackMutate({ code, state });
         }
-    }, [code, state, status, callbackMutation]);
+    }, [code, state, status, callbackMutate, callbackSubmittedAt]);
 
     if (status === "success") {
         return (

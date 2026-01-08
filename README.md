@@ -45,7 +45,7 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 
 ## YouTube OAuth notes
 
-- Set the redirect URI to `http://localhost:3000/connect-youtube` (or your production URL).
+- Set the redirect URI to `http://localhost:3000/playlists` (or your production URL).
 - Enable the YouTube Data API in your Google Cloud project.
 - Use the `https://www.googleapis.com/auth/youtube` scope (full access for creating playlists).
 

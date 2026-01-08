@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  EmptyPlaylistState,
+} from "~/lib/components/empty-playlist-state";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,6 +24,7 @@ import {
   PLAYLISTS_QUERY_KEY,
   USER_QUOTA_QUERY_KEY,
   getPlaylistsFn,
+  getYouTubeAccountStatusFn,
   getUserQuotaFn,
   getVideosFn,
   restorePlaylistFn,
@@ -52,9 +56,16 @@ function DashboardPlaylists() {
     queryFn: () => getPlaylistsFn(),
   });
 
+  const accountQuery = useQuery({
+    queryKey: ["youtube-account-status"],
+    queryFn: () => getYouTubeAccountStatusFn(),
+  });
+  const hasAccount = accountQuery.data?.hasAccount ?? false;
+
   const quotaQuery = useQuery({
     queryKey: USER_QUOTA_QUERY_KEY,
     queryFn: () => getUserQuotaFn(),
+    enabled: hasAccount,
   });
 
   const playlists = playlistsQuery.data || [];
@@ -255,6 +266,11 @@ function DashboardPlaylists() {
         </Button>
       </div>
 
+      {/* Empty State for Connected Users */}
+      {hasAccount && !activePlaylist && !isLoading && (
+        <EmptyPlaylistState />
+      )}
+
       {actionError && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {actionError}
@@ -342,9 +358,8 @@ function DashboardPlaylists() {
         {isLoading ? (
           <Loading text="Loading videos..." size="md" />
         ) : !activePlaylist ? (
-          <p className="text-sm text-muted-foreground">
-            No playlist found. Please connect your YouTube account first.
-          </p>
+          /* Handled above by EmptyPlaylistState */
+          null
         ) : (
           <>
             {videos.length === 0 ? (

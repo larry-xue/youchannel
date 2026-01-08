@@ -17,7 +17,6 @@ import { Route as ApiHumeTokenRouteImport } from './routes/api/hume-token'
 import { Route as ApiCharacterChatRouteImport } from './routes/api/character-chat'
 import { Route as LayoutPlaylistsRouteImport } from './routes/_layout/playlists'
 import { Route as LayoutLibraryRouteImport } from './routes/_layout/library'
-import { Route as LayoutConnectYoutubeRouteImport } from './routes/_layout/connect-youtube'
 import { Route as LayoutLearnVideoIdRouteImport } from './routes/_layout/learn/$videoId'
 
 const SigninRoute = SigninRouteImport.update({
@@ -59,11 +58,6 @@ const LayoutLibraryRoute = LayoutLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => LayoutRouteRoute,
 } as any)
-const LayoutConnectYoutubeRoute = LayoutConnectYoutubeRouteImport.update({
-  id: '/connect-youtube',
-  path: '/connect-youtube',
-  getParentRoute: () => LayoutRouteRoute,
-} as any)
 const LayoutLearnVideoIdRoute = LayoutLearnVideoIdRouteImport.update({
   id: '/learn/$videoId',
   path: '/learn/$videoId',
@@ -74,7 +68,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/signin': typeof SigninRoute
-  '/connect-youtube': typeof LayoutConnectYoutubeRoute
   '/library': typeof LayoutLibraryRoute
   '/playlists': typeof LayoutPlaylistsRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
@@ -85,7 +78,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/signin': typeof SigninRoute
-  '/connect-youtube': typeof LayoutConnectYoutubeRoute
   '/library': typeof LayoutLibraryRoute
   '/playlists': typeof LayoutPlaylistsRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
@@ -98,7 +90,6 @@ export interface FileRoutesById {
   '/_layout': typeof LayoutRouteRouteWithChildren
   '/$': typeof SplatRoute
   '/signin': typeof SigninRoute
-  '/_layout/connect-youtube': typeof LayoutConnectYoutubeRoute
   '/_layout/library': typeof LayoutLibraryRoute
   '/_layout/playlists': typeof LayoutPlaylistsRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
@@ -111,7 +102,6 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/signin'
-    | '/connect-youtube'
     | '/library'
     | '/playlists'
     | '/api/character-chat'
@@ -122,7 +112,6 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/signin'
-    | '/connect-youtube'
     | '/library'
     | '/playlists'
     | '/api/character-chat'
@@ -134,7 +123,6 @@ export interface FileRouteTypes {
     | '/_layout'
     | '/$'
     | '/signin'
-    | '/_layout/connect-youtube'
     | '/_layout/library'
     | '/_layout/playlists'
     | '/api/character-chat'
@@ -209,13 +197,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutLibraryRouteImport
       parentRoute: typeof LayoutRouteRoute
     }
-    '/_layout/connect-youtube': {
-      id: '/_layout/connect-youtube'
-      path: '/connect-youtube'
-      fullPath: '/connect-youtube'
-      preLoaderRoute: typeof LayoutConnectYoutubeRouteImport
-      parentRoute: typeof LayoutRouteRoute
-    }
     '/_layout/learn/$videoId': {
       id: '/_layout/learn/$videoId'
       path: '/learn/$videoId'
@@ -227,14 +208,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface LayoutRouteRouteChildren {
-  LayoutConnectYoutubeRoute: typeof LayoutConnectYoutubeRoute
   LayoutLibraryRoute: typeof LayoutLibraryRoute
   LayoutPlaylistsRoute: typeof LayoutPlaylistsRoute
   LayoutLearnVideoIdRoute: typeof LayoutLearnVideoIdRoute
 }
 
 const LayoutRouteRouteChildren: LayoutRouteRouteChildren = {
-  LayoutConnectYoutubeRoute: LayoutConnectYoutubeRoute,
   LayoutLibraryRoute: LayoutLibraryRoute,
   LayoutPlaylistsRoute: LayoutPlaylistsRoute,
   LayoutLearnVideoIdRoute: LayoutLearnVideoIdRoute,

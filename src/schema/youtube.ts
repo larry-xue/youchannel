@@ -29,8 +29,6 @@ export type Playlist = {
   updated_at: string;
 };
 
-export type VideoSyncStatus = "synced" | "removed" | "unavailable";
-
 export type Video = {
   id: string;
   playlist_id: string;
@@ -40,7 +38,6 @@ export type Video = {
   published_at: string | null;
   thumbnail_url: string | null;
   duration: string | null;
-  sync_status: VideoSyncStatus;
   removed_at: string | null;
   created_at: string;
   updated_at: string;

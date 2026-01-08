@@ -72,13 +72,7 @@ export function VideoCard({
             aria-label={`Open learning view for ${video.title || `video`}`}
             onClick={() => onOpen(video)}
             onKeyDown={handleCardKeyDown}
-            className={`group flex w-full max-w-md cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md ${isSelected ? "ring-2 ring-primary/30" : ""
-                } ${video.sync_status === "removed"
-                    ? "border-amber-500/30 opacity-70"
-                    : video.sync_status === "unavailable"
-                        ? "border-red-500/30 opacity-70"
-                        : "border-border/60"
-                }`}
+            className={`group flex w-full max-w-md cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md`}
         >
             <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
                 {video.thumbnail_url ? (
@@ -138,11 +132,6 @@ export function VideoCard({
                         </label>
                     )}
                 </div>
-                {video.sync_status !== "synced" && (
-                    <div className="absolute right-2 top-2">
-                        <VideoSyncStatusBadge status={video.sync_status} />
-                    </div>
-                )}
                 {durationLabel && (
                     <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
                         {durationLabel}
@@ -270,30 +259,4 @@ function AnalysisStatusBadge({
             {resolvedStatus === "pending" ? "Pending" : "Completed"}
         </Badge>
     );
-}
-
-function VideoSyncStatusBadge({ status }: { status: string }) {
-    if (status === "removed") {
-        return (
-            <Badge
-                variant="outline"
-                className="border-amber-500/30 bg-amber-900/80 text-xs text-amber-200"
-            >
-                Removed
-            </Badge>
-        );
-    }
-
-    if (status === "unavailable") {
-        return (
-            <Badge
-                variant="outline"
-                className="border-red-500/30 bg-red-900/80 text-xs text-red-200"
-            >
-                Unavailable
-            </Badge>
-        );
-    }
-
-    return null;
 }

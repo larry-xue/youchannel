@@ -18,14 +18,10 @@ import { Progress } from "~/lib/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import { VideoCard } from "~/lib/components/video-card";
 import {
-  PLAYLISTS_QUERY_KEY,
   USER_QUOTA_QUERY_KEY,
-  getPlaylistsFn,
   getYouTubeAccountStatusFn,
   getUserQuotaFn,
   getVideosFn,
-  restorePlaylistFn,
-  startYouTubeOAuthFn,
   triggerOpenApiAnalysisFn,
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
@@ -46,11 +42,6 @@ function DashboardPlaylists() {
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
 
-  const playlistsQuery = useQuery({
-    queryKey: PLAYLISTS_QUERY_KEY,
-    queryFn: () => getPlaylistsFn(),
-  });
-
   const accountQuery = useQuery({
     queryKey: ["youtube-account-status"],
     queryFn: () => getYouTubeAccountStatusFn(),
@@ -65,18 +56,12 @@ function DashboardPlaylists() {
 
   const videosQuery = useQuery({
     queryKey: ["videos"],
-    queryFn: () =>
-      getVideosFn({
-        data: {
-          includeSyncStatus: ["synced", "removed", "unavailable"],
-        },
-      }),
+    queryFn: () => getVideosFn(),
     enabled: hasAccount,
   });
 
   const videos = videosQuery.data ?? EMPTY_VIDEOS;
   const isVideoSelectable = (video: VideoWithStatus) => {
-    if (video.sync_status !== "synced") return false;
     const isProcessing =
       video.latest_analysis_status === "pending" ||
       video.latest_analysis_status === "processing" ||
@@ -90,29 +75,7 @@ function DashboardPlaylists() {
   const selectedCount = selectedVideoIds.length;
   const eligibleCount = eligibleVideoIds.length;
 
-  const restoreMutation = useMutation({
-    mutationFn: (playlistId: string) => restorePlaylistFn({ data: { playlistId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY });
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Restore failed");
-    },
-  });
-
-  const reAuthMutation = useMutation({
-    mutationFn: () => startYouTubeOAuthFn(),
-    onSuccess: (result) => {
-      if (result.url) {
-        window.location.href = result.url;
-      }
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Re-authorization failed");
-    },
-  });
-
-  const isLoading = playlistsQuery.isLoading || videosQuery.isLoading;
+  const isLoading = videosQuery.isLoading;
 
   const triggerAnalysisMutation = useMutation({
     mutationFn: (payload: { videoIds: string[] }) =>
@@ -187,7 +150,6 @@ function DashboardPlaylists() {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: PLAYLISTS_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: ["videos"] }),
         queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY }),
       ]);

@@ -21,15 +21,6 @@ export {
   completeYouTubeOauthFn,
 } from "./youtube-account";
 
-// Playlist
-export {
-  PLAYLISTS_QUERY_KEY,
-  getPlaylistsFn,
-  syncPlaylistsFn,
-  setActivePlaylistFn,
-  restorePlaylistFn,
-} from "./playlist";
-
 // YouTube Playlists (API only)
 export { getYouTubePlaylistsFn, getYouTubePlaylistItemsFn } from "./youtube-playlists";
 
@@ -44,7 +35,6 @@ export {
 export {
   type OpenApiAnalysisResponse,
   getVideoAnalysesFn,
-  runVideoAnalysisFn,
   triggerOpenApiAnalysisFn,
 } from "./analysis";
 

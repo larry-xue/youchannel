@@ -122,7 +122,6 @@ function DashboardPlaylists() {
       published_at: item.publishedAt,
       thumbnail_url: item.thumbnailUrl,
       duration: item.duration,
-      sync_status: "synced",
       removed_at: null,
       created_at: item.publishedAt || fallbackTimestamp,
       updated_at: fallbackTimestamp,

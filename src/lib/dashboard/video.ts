@@ -12,29 +12,13 @@ export type VideoWithStatus = Video & {
 };
 
 export const getVideosFn = createServerFn({ method: "POST" })
-    .inputValidator((data) =>
-        z
-            .object({
-                playlistIds: z.array(z.string()).optional(),
-                includeSyncStatus: z.array(z.string()).optional(),
-            })
-            .parse(data),
-    )
-    .handler(async ({ data }) => {
-        const { supabase } = await getSupabaseAndUser();
-        const playlistIds = data?.playlistIds?.filter(Boolean) || [];
-        if (playlistIds.length === 0) return [] as VideoWithStatus[];
-
-        // Default to showing synced videos, optionally include removed/unavailable
-        const syncStatuses = data?.includeSyncStatus?.length
-            ? data.includeSyncStatus
-            : ["synced"];
+    .handler(async () => {
+        const { supabase, user } = await getSupabaseAndUser();
 
         const { data: videos, error } = await supabase
             .from("videos")
             .select("*")
-            .in("playlist_id", playlistIds)
-            .in("sync_status", syncStatuses)
+            .eq("user_id", user.id)
             .order("published_at", { ascending: false });
 
         if (error) throw error;

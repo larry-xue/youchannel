@@ -10,7 +10,6 @@ A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating
 - Prompted video analysis with Gemini via TanStack AI
 - Analysis history per video with status tracking
 - Free tier quota system (3 analyses, max 10 min video duration)
-- Playlist status management with restore/re-auth capabilities
 - Skip duplicate analysis runs when a prompt has already been processed
 
 ## Setup

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { EmptyVideoState } from "~/lib/components/empty-video-state";
@@ -26,18 +26,32 @@ import {
   type VideoWithStatus,
 } from "~/lib/dashboard/data";
 import { toast } from "sonner";
+import { z } from "zod";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "~/lib/components/ui/pagination";
+
+const videosSearchSchema = z.object({
+  page: z.number().catch(1),
+});
 
 export const Route = createFileRoute("/_layout/library")({
+  validateSearch: (search) => videosSearchSchema.parse(search),
   component: DashboardPlaylists,
 });
 
 const EMPTY_VIDEOS: VideoWithStatus[] = [];
 
-
-
 function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const navigate = Route.useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
@@ -54,13 +68,20 @@ function DashboardPlaylists() {
     enabled: hasAccount,
   });
 
+  const { page } = Route.useSearch();
+  const pageSize = 12;
+
   const videosQuery = useQuery({
-    queryKey: ["videos"],
-    queryFn: () => getVideosFn(),
+    queryKey: ["videos", page],
+    queryFn: () => getVideosFn({ data: { page, pageSize } }),
     enabled: hasAccount,
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const videos = videosQuery.data ?? EMPTY_VIDEOS;
+  const videos = videosQuery.data?.videos ?? EMPTY_VIDEOS;
+  const total = videosQuery.data?.total ?? 0;
+  const totalPages = Math.ceil(total / pageSize);
   const isVideoSelectable = (video: VideoWithStatus) => {
     const isProcessing =
       video.latest_analysis_status === "pending" ||
@@ -140,7 +161,7 @@ function DashboardPlaylists() {
   }, [eligibleVideoIds]);
 
   const handleOpenVideo = (video: VideoWithStatus) => {
-    router.navigate({
+    navigate({
       to: "/learn/$videoId",
       params: { videoId: video.id },
     });
@@ -306,6 +327,112 @@ function DashboardPlaylists() {
           </>
         )
         }
+
+        {totalPages > 1 && (
+          <Pagination className="mt-8">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href={
+                    page > 1
+                      ? router.buildLocation({ search: { page: page - 1 } }).href
+                      : undefined
+                  }
+                  className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  onClick={(e) => {
+                    if (page <= 1) e.preventDefault();
+                    else {
+                      e.preventDefault();
+                      navigate({ search: { page: page - 1 } });
+                    }
+                  }}
+                />
+              </PaginationItem>
+
+              {/* Simple pagination logic: show current, prev, next, first, last */}
+              {totalPages <= 7 ? (
+                Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      isActive={page === p}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate({ search: { page: p } });
+                      }}
+                      className="cursor-pointer"
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))
+              ) : (
+                <>
+                  {/* First and optionally second page */}
+                  <PaginationItem key="page-1">
+                    <PaginationLink
+                      isActive={page === 1}
+                      onClick={(e) => { e.preventDefault(); navigate({ search: { page: 1 } }); }}
+                      className="cursor-pointer"
+                    >
+                      1
+                    </PaginationLink>
+                  </PaginationItem>
+
+                  {page > 3 && (
+                    <PaginationItem key="ellipsis-start">
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+
+                  {page > 2 && page < totalPages - 1 && (
+                    <PaginationItem key={`page-${page}`}>
+                      <PaginationLink
+                        isActive={true}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+
+                  {page < totalPages - 2 && (
+                    <PaginationItem key="ellipsis-end">
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+
+                  <PaginationItem key={`page-${totalPages}`}>
+                    <PaginationLink
+                      isActive={page === totalPages}
+                      onClick={(e) => { e.preventDefault(); navigate({ search: { page: totalPages } }); }}
+                      className="cursor-pointer"
+                    >
+                      {totalPages}
+                    </PaginationLink>
+                  </PaginationItem>
+                </>
+              )}
+
+              <PaginationItem>
+                <PaginationNext
+                  href={
+                    page < totalPages
+                      ? router.buildLocation({ search: { page: page + 1 } }).href
+                      : undefined
+                  }
+                  className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  onClick={(e) => {
+                    if (page >= totalPages) e.preventDefault();
+                    else {
+                      e.preventDefault();
+                      navigate({ search: { page: page + 1 } });
+                    }
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </div>
   );

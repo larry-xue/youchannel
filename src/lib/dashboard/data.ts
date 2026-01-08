@@ -6,7 +6,6 @@
  *
  * Modules:
  * - youtube-account: YouTube OAuth and account status
- * - playlist: Playlist CRUD operations
  * - video: Video listing and retrieval
  * - analysis: Video analysis operations
  * - user: User quota and sync logs
@@ -43,5 +42,4 @@ export {
   type UserQuota,
   USER_QUOTA_QUERY_KEY,
   getUserQuotaFn,
-  getSyncLogsFn,
 } from "./user";

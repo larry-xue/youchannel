@@ -12,19 +12,39 @@ export type VideoWithStatus = Video & {
 };
 
 export const getVideosFn = createServerFn({ method: "POST" })
-    .handler(async () => {
+    .inputValidator((data: unknown) => {
+        return z
+            .object({
+                page: z.number().min(1).default(1),
+                pageSize: z.number().min(1).max(100).default(12),
+            })
+            .parse(data);
+    })
+    .handler(async ({ data }) => {
+        const { page, pageSize } = data;
         const { supabase, user } = await getSupabaseAndUser();
 
-        const { data: videos, error } = await supabase
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize - 1;
+
+        const { data: videos, error, count } = await supabase
             .from("videos")
-            .select("*")
+            .select("*", { count: "exact" })
             .eq("user_id", user.id)
-            .order("published_at", { ascending: false });
+            .order("published_at", { ascending: false })
+            .range(start, end);
 
         if (error) throw error;
 
         const videoIds = (videos || []).map((video) => video.id);
-        if (videoIds.length === 0) return [] as VideoWithStatus[];
+        const total = count ?? 0;
+
+        if (videoIds.length === 0) {
+            return {
+                videos: [] as VideoWithStatus[],
+                total,
+            };
+        }
 
         const { data: analyses } = await supabase
             .from("video_analyses")
@@ -65,7 +85,7 @@ export const getVideosFn = createServerFn({ method: "POST" })
             });
         }
 
-        return (videos || []).map((video) => ({
+        const videosWithStatus = (videos || []).map((video) => ({
             ...video,
             analysis_count: analysisMap.get(video.id)?.count || 0,
             latest_analysis_at: analysisMap.get(video.id)?.latest || null,
@@ -74,6 +94,11 @@ export const getVideosFn = createServerFn({ method: "POST" })
                 (analysisMap.get(video.id)?.skip_reason as VideoAnalysisSkipReason) || null,
             failed_count: analysisMap.get(video.id)?.failed_count ?? 0,
         })) as VideoWithStatus[];
+
+        return {
+            videos: videosWithStatus,
+            total,
+        };
     });
 
 export const getVideoByIdFn = createServerFn({ method: "POST" })
@@ -89,17 +114,6 @@ export const getVideoByIdFn = createServerFn({ method: "POST" })
             .single();
 
         if (error || !video) throw error || new Error("Video not found");
-
-        const { data: playlist, error: playlistError } = await supabase
-            .from("playlists")
-            .select("id")
-            .eq("id", video.playlist_id)
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-        if (playlistError || !playlist) {
-            throw playlistError || new Error("Unauthorized video access");
-        }
 
         return video as Video;
     });

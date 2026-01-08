@@ -100,7 +100,7 @@ function AuthPage() {
         <main className="flex flex-1 items-center justify-center px-6 py-12">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle className="text-2xl">Welcome to YouChannel</CardTitle>
+              <CardTitle className="text-2xl">Welcome to Fluentby.ai</CardTitle>
               <CardDescription>
                 Sign in with Google to start learning with your playlists.
               </CardDescription>

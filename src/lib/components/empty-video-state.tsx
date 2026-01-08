@@ -1,18 +1,16 @@
 import { useNavigate } from "@tanstack/react-router";
-import { CopyPlus, PlaySquare, AlertCircle, RefreshCw, Youtube } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "~/lib/components/ui/button";
-import { ReactNode } from "react";
 
 interface EmptyStateProps {
     title?: string;
     description?: string;
-    icon?: React.ElementType;
+    emoji?: string;
     action?: {
         label: string;
         onClick: () => void;
         isLoading?: boolean;
         loadingText?: string;
-        icon?: React.ElementType;
     };
     colorClass?: string;
 }
@@ -20,7 +18,7 @@ interface EmptyStateProps {
 export function EmptyVideoState({
     title = "No videos found",
     description = "You haven't added any videos yet. Go to your playlists to add videos to your library.",
-    icon: Icon = PlaySquare,
+    emoji = "📺",
     action,
     colorClass = "blue",
 }: EmptyStateProps) {
@@ -29,20 +27,18 @@ export function EmptyVideoState({
     const defaultAction = {
         label: "Manage Playlists",
         onClick: () => navigate({ to: "/playlists" }),
-        icon: CopyPlus,
         isLoading: false,
         loadingText: "",
     };
 
     const activeAction = { ...defaultAction, ...action };
-    const ActionIcon = activeAction.icon || CopyPlus;
 
     // Map color names to tailwind classes
-    const colorMap: Record<string, { bg: string; text: string; }> = {
-        blue: { bg: "bg-blue-500/20", text: "text-blue-600" },
-        red: { bg: "bg-red-500/20", text: "text-red-600" },
-        amber: { bg: "bg-amber-500/20", text: "text-amber-600" },
-        emerald: { bg: "bg-emerald-500/20", text: "text-emerald-600" },
+    const colorMap: Record<string, { bg: string }> = {
+        blue: { bg: "bg-blue-500/20" },
+        red: { bg: "bg-red-500/20" },
+        amber: { bg: "bg-amber-500/20" },
+        emerald: { bg: "bg-emerald-500/20" },
     };
 
     const colors = colorMap[colorClass] || colorMap.blue;
@@ -52,7 +48,7 @@ export function EmptyVideoState({
             <div className="relative mb-6">
                 <div className={`absolute inset-0 animate-pulse rounded-full ${colors.bg} blur-xl`} />
                 <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-                    <Icon className={`h-10 w-10 ${colors.text}`} />
+                    <span className="text-4xl">{emoji}</span>
                 </div>
             </div>
 
@@ -75,10 +71,7 @@ export function EmptyVideoState({
                         {activeAction.loadingText || "Loading..."}
                     </>
                 ) : (
-                    <>
-                        <ActionIcon className="mr-2 h-4 w-4" />
-                        {activeAction.label}
-                    </>
+                    activeAction.label
                 )}
             </Button>
         </div>

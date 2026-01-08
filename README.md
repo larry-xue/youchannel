@@ -1,11 +1,11 @@
-# YouChannel Studio
+# Fluentby.ai
 
 A TanStack Start + Supabase workspace for syncing a YouTube playlist, generating Gemini-powered video analyses, and chatting across one or more videos.
 
 ## Features
 
 - Email sign-up and sign-in with Supabase Auth
-- YouTube OAuth connect with automatic "YouChannel AI" playlist creation
+- YouTube OAuth connect with automatic "Fluentby AI" playlist creation
 - **Automated background sync** - System automatically detects new videos added to playlist
 - Prompted video analysis with Gemini via TanStack AI
 - Analysis history per video with status tracking

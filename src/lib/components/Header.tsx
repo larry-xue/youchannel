@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, Library } from "lucide-react";
+import { LogOut, Library, Play } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Button } from "./ui/button";
@@ -31,10 +31,8 @@ export function Header({ onSignOut }: HeaderProps) {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="container mx-auto max-w-7xl px-6">
         <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-1">
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl">
-              <img src="/logo.png" alt="FluentBy.ai Logo" className="h-full w-full object-cover" />
-            </div>
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-3xl">🎓</span>
             <div className="flex items-baseline text-lg font-bold">
               <span className="bg-linear-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
                 Fluent
@@ -76,6 +74,12 @@ export function Header({ onSignOut }: HeaderProps) {
                     <Link to="/library" search={{ page: 1 }} className="flex w-full cursor-pointer items-center">
                       <Library className="mr-2 h-4 w-4" />
                       Library
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/playlists" className="flex w-full cursor-pointer items-center">
+                      <Play className="mr-2 h-4 w-4" />
+                      Playlists
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

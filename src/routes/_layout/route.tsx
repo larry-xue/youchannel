@@ -58,13 +58,16 @@ function DashboardLayout() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="mx-auto flex w-full items-center gap-6 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-6">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/15 text-sm font-semibold text-primary">
-                YC
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold text-foreground">YouChannel</p>
-                <p className="text-xs text-muted-foreground">Studio</p>
+            <Link to="/" className="flex items-center gap-2">
+              <span className="text-3xl">🎓</span>
+              <div className="flex items-baseline text-lg font-bold">
+                <span className="bg-linear-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+                  Fluent
+                </span>
+                <span className="bg-linear-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+                  By
+                </span>
+                <span className="text-foreground">.ai</span>
               </div>
             </Link>
             <nav className="flex min-w-0 flex-wrap items-center gap-2">

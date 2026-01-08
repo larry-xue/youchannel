@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Youtube } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
@@ -75,7 +75,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                         <div className="relative">
                             <div className="absolute inset-0 animate-pulse rounded-full bg-emerald-500/20 blur-xl" />
                             <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-                                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                                <span className="text-4xl">✅</span>
                             </div>
                         </div>
                     </EmptyMedia>
@@ -99,7 +99,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                         <div className="relative">
                             <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
                             <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                <span className="text-4xl">⏳</span>
                             </div>
                         </div>
                     </EmptyMedia>
@@ -120,7 +120,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                         <div className="relative">
                             <div className="absolute inset-0 animate-pulse rounded-full bg-destructive/20 blur-xl" />
                             <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-                                <AlertCircle className="h-10 w-10 text-destructive" />
+                                <span className="text-4xl">❌</span>
                             </div>
                         </div>
                     </EmptyMedia>
@@ -141,10 +141,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                                 Redirecting...
                             </>
                         ) : (
-                            <>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Try Again
-                            </>
+                            "Try Again"
                         )}
                     </Button>
                 </EmptyContent>
@@ -159,7 +156,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                     <div className="relative">
                         <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-xl" />
                         <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-                            <Youtube className="h-10 w-10 text-red-600" />
+                            <span className="text-4xl">▶️</span>
                         </div>
                     </div>
                 </EmptyMedia>
@@ -181,10 +178,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                             Redirecting...
                         </>
                     ) : (
-                        <>
-                            <Youtube className="mr-2 h-4 w-4" />
-                            Connect YouTube
-                        </>
+                        "Connect YouTube"
                     )}
                 </Button>
             </EmptyContent>

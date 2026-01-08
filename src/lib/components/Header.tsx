@@ -73,7 +73,7 @@ export function Header({ onSignOut }: HeaderProps) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/library" className="flex w-full cursor-pointer items-center">
+                    <Link to="/library" search={{ page: 1 }} className="flex w-full cursor-pointer items-center">
                       <Library className="mr-2 h-4 w-4" />
                       Library
                     </Link>

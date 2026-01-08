@@ -96,9 +96,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      hume:
-        specifier: ^0.15.9
-        version: 0.15.9
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)

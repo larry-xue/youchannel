@@ -89,28 +89,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   }, [messages, readyState, activeCharacter?.name]);
 
   const fetchToken = useCallback(async () => {
-    if (accessToken) return accessToken;
-    setIsFetchingToken(true);
-    setTokenError(null);
-    try {
-      const response = await fetch("/api/hume-token");
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Failed to get access token");
-      }
-      const payload = (await response.json().catch(() => null)) as { accessToken?: string } | null;
-      if (!payload?.accessToken) {
-        throw new Error("Missing access token");
-      }
-      setAccessToken(payload.accessToken);
-      return payload.accessToken;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to fetch access token";
-      setTokenError(message);
-      throw error;
-    } finally {
-      setIsFetchingToken(false);
-    }
+    console.log("TODO")
   }, [accessToken]);
 
   const connectVoiceSession = useCallback(async () => {
@@ -120,7 +99,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     }
     setSessionError(null);
     try {
-      const token = await fetchToken();
+      const token = "DEMO";
       const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext);
 
       // Store the prompt to be sent after connection is fully open
@@ -391,7 +370,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 }
 
 // SSR-safe client detection using useSyncExternalStore
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

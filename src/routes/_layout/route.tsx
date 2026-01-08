@@ -72,7 +72,7 @@ function DashboardLayout() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  activeOptions={{ exact: true }}
+                  activeOptions={{ exact: false }}
                   className={cn(
                     "rounded-2xl border px-4 py-2 text-sm font-medium transition",
                     "border-border/60 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",

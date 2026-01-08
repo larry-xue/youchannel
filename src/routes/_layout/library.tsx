@@ -38,7 +38,7 @@ import {
 } from "~/lib/components/ui/pagination";
 
 const videosSearchSchema = z.object({
-  page: z.number().catch(1),
+  page: z.number().default(1).catch(1),
 });
 
 export const Route = createFileRoute("/_layout/library")({
@@ -268,7 +268,7 @@ function DashboardPlaylists() {
         ) : videos.length === 0 ? (
           <EmptyVideoState />
         ) : (
-          <>
+          <div className={videosQuery.isPlaceholderData ? "opacity-50 transition-opacity duration-200" : "transition-opacity duration-200"}>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5">
               <div className="flex items-center gap-4 text-sm">
                 <span className="font-medium text-foreground">
@@ -324,7 +324,7 @@ function DashboardPlaylists() {
                 />
               ))}
             </div>
-          </>
+          </div>
         )
         }
 
@@ -335,7 +335,7 @@ function DashboardPlaylists() {
                 <PaginationPrevious
                   href={
                     page > 1
-                      ? router.buildLocation({ search: { page: page - 1 } }).href
+                      ? router.buildLocation({ to: "/library", search: { page: page - 1 } }).href
                       : undefined
                   }
                   className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
@@ -417,7 +417,7 @@ function DashboardPlaylists() {
                 <PaginationNext
                   href={
                     page < totalPages
-                      ? router.buildLocation({ search: { page: page + 1 } }).href
+                      ? router.buildLocation({ to: "/library", search: { page: page + 1 } }).href
                       : undefined
                   }
                   className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}

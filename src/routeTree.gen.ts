@@ -13,7 +13,6 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as LayoutRouteRouteImport } from './routes/_layout/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiHumeTokenRouteImport } from './routes/api/hume-token'
 import { Route as ApiCharacterChatRouteImport } from './routes/api/character-chat'
 import { Route as LayoutPlaylistsRouteImport } from './routes/_layout/playlists'
 import { Route as LayoutLibraryRouteImport } from './routes/_layout/library'
@@ -36,11 +35,6 @@ const LayoutRouteRoute = LayoutRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiHumeTokenRoute = ApiHumeTokenRouteImport.update({
-  id: '/api/hume-token',
-  path: '/api/hume-token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCharacterChatRoute = ApiCharacterChatRouteImport.update({
@@ -71,7 +65,6 @@ export interface FileRoutesByFullPath {
   '/library': typeof LayoutLibraryRoute
   '/playlists': typeof LayoutPlaylistsRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
-  '/api/hume-token': typeof ApiHumeTokenRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRoutesByTo {
@@ -81,7 +74,6 @@ export interface FileRoutesByTo {
   '/library': typeof LayoutLibraryRoute
   '/playlists': typeof LayoutPlaylistsRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
-  '/api/hume-token': typeof ApiHumeTokenRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRoutesById {
@@ -93,7 +85,6 @@ export interface FileRoutesById {
   '/_layout/library': typeof LayoutLibraryRoute
   '/_layout/playlists': typeof LayoutPlaylistsRoute
   '/api/character-chat': typeof ApiCharacterChatRoute
-  '/api/hume-token': typeof ApiHumeTokenRoute
   '/_layout/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRouteTypes {
@@ -105,7 +96,6 @@ export interface FileRouteTypes {
     | '/library'
     | '/playlists'
     | '/api/character-chat'
-    | '/api/hume-token'
     | '/learn/$videoId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -115,7 +105,6 @@ export interface FileRouteTypes {
     | '/library'
     | '/playlists'
     | '/api/character-chat'
-    | '/api/hume-token'
     | '/learn/$videoId'
   id:
     | '__root__'
@@ -126,7 +115,6 @@ export interface FileRouteTypes {
     | '/_layout/library'
     | '/_layout/playlists'
     | '/api/character-chat'
-    | '/api/hume-token'
     | '/_layout/learn/$videoId'
   fileRoutesById: FileRoutesById
 }
@@ -136,7 +124,6 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   SigninRoute: typeof SigninRoute
   ApiCharacterChatRoute: typeof ApiCharacterChatRoute
-  ApiHumeTokenRoute: typeof ApiHumeTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -167,13 +154,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/hume-token': {
-      id: '/api/hume-token'
-      path: '/api/hume-token'
-      fullPath: '/api/hume-token'
-      preLoaderRoute: typeof ApiHumeTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/character-chat': {
@@ -229,7 +209,6 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   SigninRoute: SigninRoute,
   ApiCharacterChatRoute: ApiCharacterChatRoute,
-  ApiHumeTokenRoute: ApiHumeTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

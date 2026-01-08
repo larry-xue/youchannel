@@ -63,8 +63,7 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
         await supabase.from("youtube_oauth_states").delete().eq("id", stateRow.id);
 
         // Exchange code for tokens
-        const { exchangeCodeForTokens, createYouTubePlaylist, findPlaylistByTitle } =
-            await import("~/lib/server/youtube");
+        const { exchangeCodeForTokens } = await import("~/lib/server/youtube");
         const token = await exchangeCodeForTokens(data.code);
         const tokenExpiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
 
@@ -75,8 +74,6 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
             .eq("user_id", user.id)
             .eq("provider", "google")
             .maybeSingle();
-
-        let accountId = existingAccount?.id;
 
         if (existingAccount) {
             const refreshToken = token.refresh_token || existingAccount.refresh_token;
@@ -112,82 +109,7 @@ export const completeYouTubeOauthFn = createServerFn({ method: "POST" })
                 .single();
 
             if (insertError || !inserted) throw insertError || new Error("Account save failed");
-            accountId = inserted.id;
         }
 
-        const existingPlaylists = await supabase
-            .from("playlists")
-            .select("playlist_id, is_active")
-            .eq("user_id", user.id);
-
-        if (existingPlaylists.error) throw existingPlaylists.error;
-
-        const hasActive = (existingPlaylists.data || []).some((item) => item.is_active);
-
-        const existingPlaylist = await findPlaylistByTitle(
-            token.access_token,
-            YOUCHANNEL_PLAYLIST_TITLE,
-        );
-
-        const createdPlaylist = existingPlaylist
-            ? null
-            : await createYouTubePlaylist(
-                token.access_token,
-                YOUCHANNEL_PLAYLIST_TITLE,
-                YOUCHANNEL_PLAYLIST_DESCRIPTION,
-                "private",
-            );
-
-        const playlistId = existingPlaylist?.playlistId || createdPlaylist?.playlistId;
-        if (!playlistId) throw new Error("Unable to resolve YouChannel playlist");
-
-        const isActive = !hasActive
-            ? true
-            : (existingPlaylists.data || []).some(
-                (item) => item.is_active && item.playlist_id === playlistId,
-            );
-
-        const playlistTitle =
-            existingPlaylist?.title || createdPlaylist?.title || YOUCHANNEL_PLAYLIST_TITLE;
-        const playlistDescription =
-            existingPlaylist?.description || createdPlaylist?.description || YOUCHANNEL_PLAYLIST_DESCRIPTION;
-
-        const upsertResult = await supabase
-            .from("playlists")
-            .upsert(
-                {
-                    user_id: user.id,
-                    youtube_account_id: accountId,
-                    playlist_id: playlistId,
-                    title: playlistTitle,
-                    description: playlistDescription,
-                    thumbnail_url: existingPlaylist?.thumbnailUrl || null,
-                    custom_url: existingPlaylist?.customUrl || null,
-                    is_active: isActive,
-                },
-                { onConflict: "user_id,playlist_id" },
-            )
-            .select("id")
-            .single();
-
-        if (upsertResult.error) {
-            const fallback = await supabase
-                .from("playlists")
-                .select("id")
-                .eq("user_id", user.id)
-                .eq("playlist_id", playlistId)
-                .maybeSingle();
-
-            if (fallback.error || !fallback.data) throw upsertResult.error;
-        }
-
-        const { error: statusUpdateError } = await supabase
-            .from("playlists")
-            .update({ entry_status: "active" })
-            .eq("user_id", user.id)
-            .eq("entry_status", "auth_invalid");
-
-        if (statusUpdateError) throw statusUpdateError;
-
-        return { success: true, playlistTitle: playlistTitle || YOUCHANNEL_PLAYLIST_TITLE };
+        return { success: true };
     });

@@ -30,8 +30,12 @@ export const Route = createFileRoute("/_layout")({
   },
   pendingComponent: FullPageLoader,
   component: DashboardLayout,
-  loader: async () => {
+  loader: async ({ location }) => {
     // 检查是否有 YouTube 账户，没有则重定向到连接页面
+    if (location.pathname === "/connect-youtube") {
+      return {};
+    }
+
     const { hasAccount } = await getYouTubeAccountStatusFn();
     if (!hasAccount) {
       throw redirect({ to: "/connect-youtube" });

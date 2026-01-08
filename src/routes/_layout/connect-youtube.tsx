@@ -47,7 +47,7 @@ export const Route = createFileRoute("/_layout/connect-youtube")({
       return { email: user.email, isOAuthCallback: true };
     }
 
-    // 检查是否已有账户，如果有则重定向到 dashboard
+    // 检查是否已有账户，如果有则重定向到 library
     const { hasAccount } = await getYouTubeAccountStatusFn();
     if (hasAccount) {
       throw redirect({ to: "/library" });
@@ -138,51 +138,49 @@ function ConnectYouTube() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto flex min-h-screen max-w-4xl items-center justify-center px-6 py-16">
-        <Card className="w-full max-w-2xl">
-          <CardHeader>
-            <CardTitle>Connect YouTube</CardTitle>
-            <CardDescription>
-              Link your YouTube account to unlock playlist sync and analysis.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-              Signed in as <span className="text-foreground">{displayEmail}</span>
+    <div className="flex flex-1 flex-col items-center justify-center py-12">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="text-center">
+          <CardTitle>Connect YouTube</CardTitle>
+          <CardDescription>
+            Connect your YouTube account to turn playlists into language lessons.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            Signed in as <span className="text-foreground">{displayEmail}</span>
+          </div>
+          {oauthMessage && (
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
+              {oauthMessage}
             </div>
-            {oauthMessage && (
-              <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
-                {oauthMessage}
-              </div>
-            )}
-            {actionError && (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {actionError}
-              </div>
-            )}
-            {!isOAuthCallback && (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  We will create a private playlist called "YouChannel AI" on your YouTube
-                  account. Add videos to this playlist and we will automatically analyze
-                  them.
-                </p>
-                <p>You can revoke access anytime in your Google account settings.</p>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                onClick={() => connectMutation.mutate()}
-                disabled={connectMutation.isPending}
-              >
-                {connectMutation.isPending ? "Opening OAuth..." : "Connect YouTube"}
-              </Button>
+          )}
+          {actionError && (
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {actionError}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+          {!isOAuthCallback && (
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Import videos from your playlists for AI analysis. YouChannel lets you
+                learn languages and chat with your favorite content through interactive
+                conversations.
+              </p>
+              <p>You can revoke access anytime in your Google account settings.</p>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={() => connectMutation.mutate()}
+              disabled={connectMutation.isPending}
+            >
+              {connectMutation.isPending ? "Opening OAuth..." : "Connect YouTube"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

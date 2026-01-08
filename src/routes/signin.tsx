@@ -12,7 +12,7 @@ import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 import { setAuthUser } from "~/lib/store/auth";
 
-const REDIRECT_URL = "/connect-youtube";
+const REDIRECT_URL = "/library";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
 
 export const Route = createFileRoute("/signin")({

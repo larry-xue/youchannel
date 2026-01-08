@@ -1,7 +1,7 @@
 const OAUTH_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
-const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube";
+const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 
 type OAuthConfig = {
   clientId: string;

@@ -6,6 +6,20 @@ export type VideoAnalysisStatus =
   | "skipped"
   | "queued";
 
+export type Video = {
+  id: string;
+  playlist_id: string;
+  youtube_video_id: string;
+  title: string | null;
+  description: string | null;
+  published_at: string | null;
+  thumbnail_url: string | null;
+  duration: string | null;
+  removed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type VideoAnalysisSkipReason =
   | "quota_exceeded"
   | "duration_exceeded"

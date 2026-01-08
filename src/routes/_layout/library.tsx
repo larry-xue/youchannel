@@ -167,20 +167,6 @@ function DashboardPlaylists() {
     });
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["videos"] }),
-        queryClient.invalidateQueries({ queryKey: USER_QUOTA_QUERY_KEY }),
-      ]);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Refresh failed");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   const handleToggleVideo = (videoId: string) => {
     setSelectedVideoIds((prev) =>
       prev.includes(videoId) ? prev.filter((id) => id !== videoId) : [...prev, videoId],
@@ -209,18 +195,6 @@ function DashboardPlaylists() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isLoading || isRefreshing}
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
-      </div>
-
       <AlertDialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -269,7 +243,7 @@ function DashboardPlaylists() {
           <EmptyVideoState />
         ) : (
           <div className={videosQuery.isPlaceholderData ? "opacity-50 transition-opacity duration-200" : "transition-opacity duration-200"}>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 mb-4">
               <div className="flex items-center gap-4 text-sm">
                 <span className="font-medium text-foreground">
                   {selectedCount} selected

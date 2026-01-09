@@ -455,8 +455,6 @@ function DashboardPlaylists() {
 
   const handleStackWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (selectedVideos.length <= 1) return;
-    event.preventDefault();
-    event.stopPropagation();
     wheelAccumulatorRef.current += event.deltaY;
     if (Math.abs(wheelAccumulatorRef.current) < 40) return;
     const direction = wheelAccumulatorRef.current > 0 ? 1 : -1;

@@ -57,7 +57,7 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
             },
             body: JSON.stringify({
                 userId: user.id,
-                videoIds: data.videoIds,
+                videoIds: uniqueVideoIds,
             }),
         });
 

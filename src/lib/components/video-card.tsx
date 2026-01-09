@@ -30,6 +30,8 @@ export interface VideoCardProps {
     onSelect: (videoId: string) => void;
     onOpen: (video: VideoWithStatus) => void;
     actionLabel?: string;
+    selectionHint?: string;
+    selectionLabel?: string;
 }
 
 export function VideoCard({
@@ -39,24 +41,29 @@ export function VideoCard({
     onSelect,
     onOpen,
     actionLabel = "Learn",
+    selectionHint,
+    selectionLabel,
 }: VideoCardProps) {
     const isProcessing =
         video.latest_analysis_status === "pending" ||
         video.latest_analysis_status === "processing";
     const hasTooManyFailures = (video.failed_count ?? 0) > 3;
     const durationLabel = formatVideoDuration(video.duration);
-    const selectionLabel = isSelectable
+    const defaultSelectionLabel = isSelectable
         ? "Select"
         : hasTooManyFailures
             ? "Paused"
             : isProcessing
                 ? "Processing"
                 : "Locked";
-    const selectionHint = hasTooManyFailures
-        ? "This video failed analysis several times and is temporarily locked."
+    const defaultSelectionHint = hasTooManyFailures
+        ? "This video failed analysis several times and is temporarily locked. Please try again later."
         : isProcessing
             ? "This video is already being analyzed."
             : "Only synced videos can be selected.";
+    const resolvedSelectionLabel = selectionLabel ?? defaultSelectionLabel;
+    const resolvedSelectionHint = selectionHint ?? defaultSelectionHint;
+    const showTooltip = !isSelectable && (selectionHint || hasTooManyFailures);
 
     const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -91,9 +98,9 @@ export function VideoCard({
                     className="absolute left-2 top-2"
                     onClick={(event) => event.stopPropagation()}
                     onKeyDown={(event) => event.stopPropagation()}
-                    title={hasTooManyFailures ? undefined : selectionHint}
+                    title={!isSelectable && !showTooltip ? resolvedSelectionHint : undefined}
                 >
-                    {hasTooManyFailures ? (
+                    {showTooltip ? (
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <label
@@ -108,11 +115,11 @@ export function VideoCard({
                                         className="h-3.5 w-3.5"
                                         aria-label={`Select ${video.title || `video`} for analysis`}
                                     />
-                                    <span>{selectionLabel}</span>
+                                    <span>{resolvedSelectionLabel}</span>
                                 </label>
                             </TooltipTrigger>
                             <TooltipContent side="top">
-                                This video failed analysis several times and is temporarily locked. Please try again later.
+                                {resolvedSelectionHint}
                             </TooltipContent>
                         </Tooltip>
                     ) : (
@@ -128,7 +135,7 @@ export function VideoCard({
                                 className="h-3.5 w-3.5"
                                 aria-label={`Select ${video.title || `video`} for analysis`}
                             />
-                            <span>{selectionLabel}</span>
+                            <span>{resolvedSelectionLabel}</span>
                         </label>
                     )}
                 </div>

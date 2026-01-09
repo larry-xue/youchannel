@@ -379,7 +379,7 @@ async function fetchPlaylistItems(
 
   while (collected.length < maxResults) {
     const url = new URL(`${YOUTUBE_API_BASE}/playlistItems`);
-    url.searchParams.set("part", "snippet,contentDetails");
+    url.searchParams.set("part", "snippet,contentDetails,status");
     url.searchParams.set("playlistId", playlistId);
     url.searchParams.set("maxResults", "25");
     if (pageToken) url.searchParams.set("pageToken", pageToken);
@@ -442,6 +442,7 @@ async function fetchVideoDetails(
         id: string;
         snippet?: Record<string, unknown>;
         contentDetails?: Record<string, unknown>;
+        status?: Record<string, unknown>;
       }>;
     }>(url.toString(), accessToken);
 
@@ -449,6 +450,7 @@ async function fetchVideoDetails(
       details[item.id] = {
         snippet: item.snippet || {},
         contentDetails: item.contentDetails || {},
+        status: item.status || {},
       };
     }
   }
@@ -470,6 +472,7 @@ export async function fetchPlaylistVideos(
     const details = detailsMap[item.videoId] || {};
     const snippetDetails = details.snippet as Record<string, unknown> | undefined;
     const contentDetails = details.contentDetails as Record<string, unknown> | undefined;
+    const status = details.status as Record<string, unknown> | undefined;
 
     return {
       videoId: item.videoId,
@@ -484,6 +487,7 @@ export async function fetchPlaylistVideos(
         playlistSnippet: snippet,
         videoSnippet: snippetDetails,
         contentDetails,
+        status,
       },
     };
   });
@@ -548,6 +552,7 @@ export async function fetchPlaylistVideosPage(
     const details = detailsMap[item.videoId] || {};
     const snippetDetails = details.snippet as Record<string, unknown> | undefined;
     const contentDetails = details.contentDetails as Record<string, unknown> | undefined;
+    const status = details.status as Record<string, unknown> | undefined;
 
     return {
       videoId: item.videoId,
@@ -562,6 +567,7 @@ export async function fetchPlaylistVideosPage(
         playlistSnippet: snippet,
         videoSnippet: snippetDetails,
         contentDetails,
+        status,
       },
     };
   });

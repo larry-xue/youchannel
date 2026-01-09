@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
 import { ConnectYouTubeAlert } from "~/lib/components/connect-youtube-alert";
 import { Button } from "~/lib/components/ui/button";
@@ -52,8 +51,59 @@ export const Route = createFileRoute("/_layout/playlists")({
 const PAGE_SIZE = 50;
 const PLAYLISTS_QUERY_KEY = ["youtube-playlists"] as const;
 const PLAYLIST_ITEMS_QUERY_KEY = ["youtube-playlist-items"] as const;
-const EMPTY_VIDEOS: VideoWithStatus[] = [];
+const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const STACK_VISIBLE_RANGE = 4;
+const EMPTY_VIDEOS: PlaylistVideo[] = [];
+const QUOTA_COLORS = [
+  {
+    fill: "rgba(59, 130, 246, 0.35)",
+    fillActive: "rgba(59, 130, 246, 0.9)",
+    border: "rgba(59, 130, 246, 0.65)",
+    glow: "rgba(59, 130, 246, 0.35)",
+    glowActive: "rgba(59, 130, 246, 0.55)",
+  },
+  {
+    fill: "rgba(16, 185, 129, 0.35)",
+    fillActive: "rgba(16, 185, 129, 0.9)",
+    border: "rgba(16, 185, 129, 0.65)",
+    glow: "rgba(16, 185, 129, 0.35)",
+    glowActive: "rgba(16, 185, 129, 0.55)",
+  },
+  {
+    fill: "rgba(245, 158, 11, 0.35)",
+    fillActive: "rgba(245, 158, 11, 0.9)",
+    border: "rgba(245, 158, 11, 0.65)",
+    glow: "rgba(245, 158, 11, 0.35)",
+    glowActive: "rgba(245, 158, 11, 0.55)",
+  },
+  {
+    fill: "rgba(244, 63, 94, 0.35)",
+    fillActive: "rgba(244, 63, 94, 0.9)",
+    border: "rgba(244, 63, 94, 0.65)",
+    glow: "rgba(244, 63, 94, 0.35)",
+    glowActive: "rgba(244, 63, 94, 0.55)",
+  },
+  {
+    fill: "rgba(14, 165, 233, 0.35)",
+    fillActive: "rgba(14, 165, 233, 0.9)",
+    border: "rgba(14, 165, 233, 0.65)",
+    glow: "rgba(14, 165, 233, 0.35)",
+    glowActive: "rgba(14, 165, 233, 0.55)",
+  },
+  {
+    fill: "rgba(132, 204, 22, 0.35)",
+    fillActive: "rgba(132, 204, 22, 0.9)",
+    border: "rgba(132, 204, 22, 0.65)",
+    glow: "rgba(132, 204, 22, 0.35)",
+    glowActive: "rgba(132, 204, 22, 0.55)",
+  },
+] as const;
+
+type PlaylistVideo = VideoWithStatus & {
+  isSelectable: boolean;
+  selectionHint?: string;
+  selectionLabel?: string;
+};
 
 type SelectedVideo = Pick<
   VideoWithStatus,
@@ -79,6 +129,33 @@ function formatVideoDuration(duration: string | null) {
   return `${minutes}:${pad(seconds)}`;
 }
 
+function parseDurationSeconds(duration: string | null) {
+  if (!duration) return null;
+  const match = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!match) return null;
+  const hours = Number.parseInt(match[1] || "0", 10);
+  const minutes = Number.parseInt(match[2] || "0", 10);
+  const seconds = Number.parseInt(match[3] || "0", 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)) {
+    return null;
+  }
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function formatSeconds(value: number | null) {
+  if (value === null) return "Unknown";
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const seconds = Math.floor(value % 60);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
 function DashboardPlaylists() {
   const queryClient = useQueryClient();
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
@@ -87,6 +164,7 @@ function DashboardPlaylists() {
   const [selectedVideos, setSelectedVideos] = useState<SelectedVideo[]>([]);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const wheelAccumulatorRef = useRef(0);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const search = Route.useSearch();
@@ -151,24 +229,51 @@ function DashboardPlaylists() {
   const videos = useMemo(() => {
     if (!activePlaylistId) return EMPTY_VIDEOS;
     const fallbackTimestamp = new Date().toISOString();
-    return playlistItems.map((item) => ({
-      id: item.videoId,
-      playlist_id: activePlaylistId,
-      youtube_video_id: item.videoId,
-      title: item.title,
-      description: item.description,
-      published_at: item.publishedAt,
-      thumbnail_url: item.thumbnailUrl,
-      duration: item.duration,
-      removed_at: null,
-      created_at: item.publishedAt || fallbackTimestamp,
-      updated_at: fallbackTimestamp,
-      analysis_count: 0,
-      latest_analysis_at: null,
-      latest_analysis_status: null,
-      latest_skip_reason: null,
-      failed_count: 0,
-    }));
+    return playlistItems.map((item) => {
+      const durationSeconds = parseDurationSeconds(item.duration);
+      const rawStatus = (item.raw as { status?: { privacyStatus?: string } } | undefined)
+        ?.status;
+      const privacyStatus =
+        typeof rawStatus?.privacyStatus === "string" ? rawStatus.privacyStatus : null;
+      const isPrivate =
+        privacyStatus === "private" ||
+        (item.title || "").trim().toLowerCase() === "private video";
+      const isTooLong =
+        typeof durationSeconds === "number" && durationSeconds > MAX_VIDEO_DURATION_SEC;
+      const selectionHint = isPrivate
+        ? "Private videos cannot be selected."
+        : isTooLong
+          ? "Videos longer than 2 hours cannot be selected."
+          : undefined;
+      const selectionLabel = selectionHint
+        ? isPrivate
+          ? "Private"
+          : "Over 2h"
+        : undefined;
+      const isSelectable = !selectionHint;
+
+      return {
+        id: item.videoId,
+        playlist_id: activePlaylistId,
+        youtube_video_id: item.videoId,
+        title: item.title,
+        description: item.description,
+        published_at: item.publishedAt,
+        thumbnail_url: item.thumbnailUrl,
+        duration: item.duration,
+        removed_at: null,
+        created_at: item.publishedAt || fallbackTimestamp,
+        updated_at: fallbackTimestamp,
+        analysis_count: 0,
+        latest_analysis_at: null,
+        latest_analysis_status: null,
+        latest_skip_reason: null,
+        failed_count: 0,
+        isSelectable,
+        selectionHint,
+        selectionLabel,
+      };
+    });
   }, [activePlaylistId, playlistItems]);
 
   const totalResults = itemsQuery.data?.pageInfo?.totalResults ?? null;
@@ -194,6 +299,63 @@ function DashboardPlaylists() {
   const playlistLabel = selectedPlaylistCount === 1 ? "playlist" : "playlists";
   const activeSelectedVideo = selectedVideos[carouselIndex] ?? null;
   const activeDurationLabel = formatVideoDuration(activeSelectedVideo?.duration ?? null);
+  const selectionQuota = useMemo(() => {
+    let totalSeconds = 0;
+    let unknownCount = 0;
+    const perVideoSeconds = new Map<string, number | null>();
+    for (const video of selectedVideos) {
+      const seconds = parseDurationSeconds(video.duration);
+      if (typeof seconds === "number") {
+        totalSeconds += seconds;
+        perVideoSeconds.set(video.id, seconds);
+      } else {
+        unknownCount += 1;
+        perVideoSeconds.set(video.id, null);
+      }
+    }
+    return { totalSeconds, unknownCount, perVideoSeconds };
+  }, [selectedVideos]);
+  const totalQuotaLabel =
+    selectedCount === 0
+      ? "0s"
+      : selectionQuota.unknownCount > 0
+        ? `${formatSeconds(selectionQuota.totalSeconds)} + ${selectionQuota.unknownCount} unknown`
+        : formatSeconds(selectionQuota.totalSeconds);
+  const activeQuotaLabel = activeSelectedVideo
+    ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
+    : "Unknown";
+  const progressMinWidth = Math.max(120, selectedCount * 14);
+  const quotaSegments = useMemo(() => {
+    if (selectedVideos.length === 0) return [];
+    const secondsList = selectedVideos.map(
+      (video) => selectionQuota.perVideoSeconds.get(video.id) ?? null,
+    );
+    const knownSeconds = secondsList.filter(
+      (value): value is number => typeof value === "number",
+    );
+    const averageKnown =
+      knownSeconds.length > 0
+        ? Math.round(knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length)
+        : 1;
+    const fallbackSeconds = Math.max(averageKnown, 1);
+    const weights = secondsList.map((seconds) =>
+      typeof seconds === "number" ? seconds : fallbackSeconds,
+    );
+    const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+    return selectedVideos.map((video, index) => {
+      const seconds = secondsList[index];
+      const weight = weights[index];
+      const percent = totalWeight > 0 ? (weight / totalWeight) * 100 : 0;
+      const color = QUOTA_COLORS[index % QUOTA_COLORS.length];
+      return {
+        id: video.id,
+        percent,
+        seconds,
+        title: `${truncate(video.title || "Video", 36)} - ${formatSeconds(seconds)}`,
+        color,
+      };
+    });
+  }, [selectedVideos, selectionQuota]);
 
   useEffect(() => {
     if (selectedVideos.length === 0) {
@@ -257,7 +419,7 @@ function DashboardPlaylists() {
         return prev.filter((video) => video.id !== videoId);
       }
       const nextVideo = videoById.get(videoId);
-      if (!nextVideo) return prev;
+      if (!nextVideo || !nextVideo.isSelectable) return prev;
       return [
         ...prev,
         {
@@ -291,14 +453,17 @@ function DashboardPlaylists() {
     setSelectedVideos((prev) => prev.filter((video) => video.id !== videoId));
   };
 
-  const handlePrevSelected = () => {
+  const handleStackWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (selectedVideos.length <= 1) return;
-    setCarouselIndex((prev) => (prev - 1 + selectedVideos.length) % selectedVideos.length);
-  };
-
-  const handleNextSelected = () => {
-    if (selectedVideos.length <= 1) return;
-    setCarouselIndex((prev) => (prev + 1) % selectedVideos.length);
+    event.preventDefault();
+    event.stopPropagation();
+    wheelAccumulatorRef.current += event.deltaY;
+    if (Math.abs(wheelAccumulatorRef.current) < 40) return;
+    const direction = wheelAccumulatorRef.current > 0 ? 1 : -1;
+    wheelAccumulatorRef.current = 0;
+    setCarouselIndex(
+      (prev) => (prev + direction + selectedVideos.length) % selectedVideos.length,
+    );
   };
 
   const handleSubmitSelection = () => {
@@ -398,13 +563,22 @@ function DashboardPlaylists() {
       )}
 
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review selection</DialogTitle>
             <DialogDescription>
-              {selectedCount === 0
-                ? "Pick videos from any playlist to continue."
-                : `${selectedCount} ${selectionLabel} across ${selectedPlaylistCount} ${playlistLabel}.`}
+              {selectedCount === 0 ? (
+                "Pick videos from any playlist to continue."
+              ) : (
+                <>
+                  <span className="block">
+                    {`${selectedCount} ${selectionLabel} across ${selectedPlaylistCount} ${playlistLabel}.`}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Estimated quota: {totalQuotaLabel}
+                  </span>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           {selectedCount === 0 ? (
@@ -413,13 +587,20 @@ function DashboardPlaylists() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="relative flex h-[320px] items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-muted/20 p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[360px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]">
+              <div
+                className="relative flex h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-muted/20 p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[300px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
+                onWheel={handleStackWheel}
+              >
                 {selectedVideos.map((video, index) => {
                   const offset = index - carouselIndex;
                   const absOffset = Math.abs(offset);
                   if (absOffset > STACK_VISIBLE_RANGE) return null;
                   const isActive = offset === 0;
                   const durationLabel = formatVideoDuration(video.duration);
+                  const accent = QUOTA_COLORS[index % QUOTA_COLORS.length];
+                  const cardShadow = isActive
+                    ? `0 0 0 1px ${accent.border}, 0 12px 30px ${accent.glowActive}`
+                    : `0 0 0 1px ${accent.border}, 0 8px 22px ${accent.glow}`;
                   return (
                     <button
                       key={video.id}
@@ -434,9 +615,9 @@ function DashboardPlaylists() {
                     >
                       <div
                         className={cn(
-                          "overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-lg",
-                          isActive ? "ring-2 ring-primary/30" : "ring-1 ring-border/50",
+                          "overflow-hidden rounded-2xl border bg-background/95 shadow-lg transition-shadow",
                         )}
+                        style={{ borderColor: accent.border, boxShadow: cardShadow }}
                       >
                         <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
                           {video.thumbnail_url ? (
@@ -469,32 +650,8 @@ function DashboardPlaylists() {
                     </button>
                   );
                 })}
-                <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handlePrevSelected}
-                    disabled={selectedCount <= 1}
-                    aria-label="Previous video"
-                  >
-                    <ChevronLeft className="size-4" />
-                  </Button>
-                </div>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handleNextSelected}
-                    disabled={selectedCount <= 1}
-                    aria-label="Next video"
-                  >
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/80 px-4 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/80 px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">
                     {activeSelectedVideo?.title || "Video"}
@@ -507,6 +664,7 @@ function DashboardPlaylists() {
                       ? ` - ${formatDate(activeSelectedVideo.published_at)}`
                       : ""}
                     {activeDurationLabel ? ` - ${activeDurationLabel}` : ""}
+                    {activeSelectedVideo ? ` - Quota ${activeQuotaLabel}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -521,6 +679,41 @@ function DashboardPlaylists() {
                     Remove
                   </Button>
                 </div>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
+                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                  <span>Quota split</span>
+                  <span>Total quota <span className="font-semibold text-primary">{totalQuotaLabel}</span></span>
+                </div>
+                <div className="mt-2 w-full overflow-x-auto">
+                  <div className="flex h-3 items-stretch" style={{ minWidth: `${progressMinWidth}px` }}>
+                    {quotaSegments.map((segment, index) => {
+                      const isActive = segment.id === activeSelectedVideo?.id;
+                      const isFirst = index === 0;
+                      const isLast = index === quotaSegments.length - 1;
+                      const segmentFill = isActive ? segment.color.fillActive : segment.color.fill;
+                      return (
+                        <button
+                          key={segment.id}
+                          type="button"
+                          title={segment.title}
+                          aria-label={`Select ${segment.title}`}
+                          onClick={() => setCarouselIndex(index)}
+                          className={cn(
+                            "h-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            isActive ? "opacity-100" : "opacity-70 hover:opacity-100",
+                            isFirst ? "rounded-l-full" : "",
+                            isLast ? "rounded-r-full" : "",
+                          )}
+                          style={{ width: `${segment.percent}%`, backgroundColor: segmentFill }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Click any segment to preview that video in the stack.
+                </p>
               </div>
             </div>
           )}
@@ -734,7 +927,9 @@ function DashboardPlaylists() {
                           key={video.id}
                           video={video as VideoWithStatus}
                           isSelected={selectedVideoIdSet.has(video.id)}
-                          isSelectable
+                          isSelectable={video.isSelectable}
+                          selectionHint={video.selectionHint}
+                          selectionLabel={video.selectionLabel}
                           onSelect={handleToggleVideo}
                           onOpen={handleOpenVideo}
                           actionLabel="Open"

@@ -3,10 +3,6 @@ import { z } from "zod";
 import type { VideoAnalysis } from "~/schema";
 import { getSupabaseAndUser } from "./utils.server";
 
-
-const DEFAULT_ANALYSIS_PROMPT =
-    "Summarize the video in 5 bullet points and call out key insights.";
-
 export type OpenApiAnalysisResponse = {
     playlistId: string;
     userId: string;

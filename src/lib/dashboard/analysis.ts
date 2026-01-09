@@ -4,17 +4,33 @@ import type { VideoAnalysis } from "~/schema";
 import { getSupabaseAndUser } from "./utils.server";
 
 export type OpenApiAnalysisResponse = {
-    playlistId: string;
     userId: string;
-    candidateCount: number;
+    requestedCount: number;
+    uniqueCount: number;
+    insertedCount: number;
+    existingCount: number;
     enqueued: number;
     skipped: number;
     skipReasons: {
-        duration_exceeded: number;
-        analysis_exists: number;
-        quota_exceeded: number;
+        duration_exceeded?: number;
+        already_queued?: number;
+        already_completed?: number;
+        quota_exceeded?: number;
+        analysis_exists?: number;
+        [key: string]: number | undefined;
     };
 };
+
+const VideoInputSchema = z.object({
+    youtubeVideoId: z.string(),
+    title: z.string(),
+    description: z.string(),
+    thumbnailUrl: z.string().url(),
+    publishedAt: z.string().datetime(),
+    duration: z.string().regex(/^PT(\d+H)?(\d+M)?(\d+S)?$/),
+    url: z.string().url(),
+    raw: z.record(z.string(), z.any()).nullable().optional(),
+});
 
 export const getVideoAnalysesFn = createServerFn({ method: "POST" })
     .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
@@ -34,7 +50,9 @@ export const getVideoAnalysesFn = createServerFn({ method: "POST" })
 
 export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
     .inputValidator((data) =>
-        z.object({ videoIds: z.array(z.string()) }).parse(data),
+        z.object({
+            videos: z.array(VideoInputSchema)
+        }).parse(data),
     )
     .handler(async ({ data }) => {
         const { user } = await getSupabaseAndUser();
@@ -43,8 +61,7 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
         const sharedKey = process.env.OPENAPI_SHARED_KEY;
         if (!baseUrl || !sharedKey) throw new Error("OpenAPI service unavailable");
 
-        const uniqueVideoIds = Array.from(new Set(data.videoIds.filter(Boolean)));
-        if (uniqueVideoIds.length === 0) throw new Error("Missing videoIds");
+        if (data.videos.length === 0) throw new Error("Missing videos");
 
         const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
         const url = new URL("openapi/analysis", normalizedBase);
@@ -57,7 +74,7 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
             },
             body: JSON.stringify({
                 userId: user.id,
-                videoIds: uniqueVideoIds,
+                videos: data.videos,
             }),
         });
 
@@ -77,7 +94,7 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
             throw new Error(message);
         }
 
-        if (!payload || typeof payload !== "object" || !("candidateCount" in payload)) {
+        if (!payload || typeof payload !== "object" || !("enqueued" in payload)) {
             throw new Error("OpenAPI response invalid");
         }
 

@@ -366,17 +366,17 @@ function DashboardPlaylists() {
   }, [selectedVideos.length]);
 
   const submitSelectionMutation = useMutation({
-    mutationFn: (payload: { videoIds: string[] }) =>
+    mutationFn: (payload: { videos: any[] }) =>
       triggerOpenApiAnalysisFn({ data: payload }),
     onSuccess: (result) => {
       const skippedReasons: string[] = [];
-      if (result.skipReasons.analysis_exists > 0) {
+      if ((result.skipReasons.analysis_exists ?? 0) > 0) {
         skippedReasons.push(`${result.skipReasons.analysis_exists} already in progress`);
       }
-      if (result.skipReasons.duration_exceeded > 0) {
+      if ((result.skipReasons.duration_exceeded ?? 0) > 0) {
         skippedReasons.push(`${result.skipReasons.duration_exceeded} too long`);
       }
-      if (result.skipReasons.quota_exceeded > 0) {
+      if ((result.skipReasons.quota_exceeded ?? 0) > 0) {
         skippedReasons.push(`${result.skipReasons.quota_exceeded} quota limited`);
       }
       const skippedText =
@@ -467,7 +467,16 @@ function DashboardPlaylists() {
   const handleSubmitSelection = () => {
     if (selectedVideos.length === 0) return;
     submitSelectionMutation.mutate({
-      videoIds: selectedVideos.map((video) => video.id),
+      videos: selectedVideos.map((video) => ({
+        youtubeVideoId: video.id,
+        title: video.title || "Untitled Video",
+        description: video.description || "",
+        thumbnailUrl: video.thumbnail_url || "",
+        publishedAt: video.published_at || new Date().toISOString(),
+        duration: video.duration || "PT0S",
+        url: `https://www.youtube.com/watch?v=${video.id}`,
+        raw: null,
+      })),
     });
   };
 

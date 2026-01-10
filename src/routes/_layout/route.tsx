@@ -5,6 +5,7 @@ import {
   redirect,
   useRouter,
 } from "@tanstack/react-router";
+import * as m from "~/paraglide/messages";
 import { LogOut } from "lucide-react";
 import { FullPageLoader } from "~/lib/components/FullPageLoader";
 import ThemeToggle from "~/lib/components/ThemeToggle";
@@ -31,9 +32,11 @@ export const Route = createFileRoute("/_layout")({
   component: DashboardLayout,
 });
 
-const DASHBOARD_NAV_ITEMS = [
-  { label: "Library", to: "/library" },
-  { label: "Playlists", to: "/playlists" },
+// Don't define nav items outside if we're using function calls for i18n
+// OR wrap it in a function
+const getDashboardNavItems = () => [
+  { label: m.library(), to: "/library" },
+  { label: m.playlists(), to: "/playlists" },
 ];
 
 function DashboardLayout() {
@@ -71,7 +74,7 @@ function DashboardLayout() {
               </div>
             </Link>
             <nav className="flex min-w-0 flex-wrap items-center gap-2">
-              {DASHBOARD_NAV_ITEMS.map((item) => (
+              {getDashboardNavItems().map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
@@ -122,7 +125,7 @@ function DashboardLayout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} variant="destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
+                  {m.sign_out()}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

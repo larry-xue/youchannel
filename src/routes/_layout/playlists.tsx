@@ -242,14 +242,14 @@ function DashboardPlaylists() {
       const isTooLong =
         typeof durationSeconds === "number" && durationSeconds > MAX_VIDEO_DURATION_SEC;
       const selectionHint = isPrivate
-        ? "Private videos cannot be selected."
+        ? m.playlist_hint_private()
         : isTooLong
-          ? "Videos longer than 2 hours cannot be selected."
+          ? m.playlist_hint_too_long()
           : undefined;
       const selectionLabel = selectionHint
         ? isPrivate
-          ? "Private"
-          : "Over 2h"
+          ? m.playlist_label_private()
+          : m.playlist_label_too_long()
         : undefined;
       const isSelectable = !selectionHint;
 
@@ -296,8 +296,8 @@ function DashboardPlaylists() {
     return new Set(playlistIds).size;
   }, [selectedVideos]);
   const selectionPreview = selectedVideos.slice(0, 4);
-  const selectionLabel = selectedCount === 1 ? "video" : "videos";
-  const playlistLabel = selectedPlaylistCount === 1 ? "playlist" : "playlists";
+  const selectionLabel = selectedCount === 1 ? m.label_video() : m.label_videos();
+  const playlistLabel = selectedPlaylistCount === 1 ? m.label_playlist() : m.label_playlists();
   const activeSelectedVideo = selectedVideos[carouselIndex] ?? null;
   const activeDurationLabel = formatVideoDuration(activeSelectedVideo?.duration ?? null);
   const selectionQuota = useMemo(() => {
@@ -318,13 +318,13 @@ function DashboardPlaylists() {
   }, [selectedVideos]);
   const totalQuotaLabel =
     selectedCount === 0
-      ? "0s"
+      ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
-        ? `${formatSeconds(selectionQuota.totalSeconds)} + ${selectionQuota.unknownCount} unknown`
+        ? m.quota_with_unknown({ time: formatSeconds(selectionQuota.totalSeconds), count: selectionQuota.unknownCount })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
-    : "Unknown";
+    : m.quota_unknown();
   const progressMinWidth = Math.max(120, selectedCount * 14);
   const quotaSegments = useMemo(() => {
     if (selectedVideos.length === 0) return [];
@@ -352,7 +352,7 @@ function DashboardPlaylists() {
         id: video.id,
         percent,
         seconds,
-        title: `${truncate(video.title || "Video", 36)} - ${formatSeconds(seconds)}`,
+        title: m.review_stack_title({ title: truncate(video.title || m.default_video_title(), 36), time: formatSeconds(seconds) }),
         color,
       };
     });
@@ -372,13 +372,13 @@ function DashboardPlaylists() {
     onSuccess: (result) => {
       const skippedReasons: string[] = [];
       if ((result.skipReasons.analysis_exists ?? 0) > 0) {
-        skippedReasons.push(`${result.skipReasons.analysis_exists} already in progress`);
+        skippedReasons.push(m.skip_reason_progress_count({ count: result.skipReasons.analysis_exists ?? 0 }));
       }
       if ((result.skipReasons.duration_exceeded ?? 0) > 0) {
-        skippedReasons.push(`${result.skipReasons.duration_exceeded} too long`);
+        skippedReasons.push(m.skip_reason_too_long_count({ count: result.skipReasons.duration_exceeded ?? 0 }));
       }
       if ((result.skipReasons.quota_exceeded ?? 0) > 0) {
-        skippedReasons.push(`${result.skipReasons.quota_exceeded} quota limited`);
+        skippedReasons.push(m.skip_reason_quota_count({ count: result.skipReasons.quota_exceeded ?? 0 }));
       }
       const skippedText =
         result.skipped > 0
@@ -470,7 +470,7 @@ function DashboardPlaylists() {
     submitSelectionMutation.mutate({
       videos: selectedVideos.map((video) => ({
         youtubeVideoId: video.id,
-        title: video.title || "Untitled Video",
+        title: video.title || m.untitled_video(),
         description: video.description || "",
         thumbnailUrl: video.thumbnail_url || "",
         publishedAt: video.published_at || new Date().toISOString(),
@@ -637,7 +637,7 @@ function DashboardPlaylists() {
                             />
                           ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-                              No thumbnail
+                              {m.video_no_thumbnail()}
                             </div>
                           )}
                           {durationLabel && (
@@ -651,7 +651,7 @@ function DashboardPlaylists() {
                             {truncate(video.title || "Video", 40)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {video.source_playlist_title || "Selected video"}
+                            {video.source_playlist_title || m.review_source_selected()}
                           </p>
                         </div>
                       </div>
@@ -662,17 +662,17 @@ function DashboardPlaylists() {
               <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/80 px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">
-                    {activeSelectedVideo?.title || "Video"}
+                    {activeSelectedVideo?.title || m.default_video_title()}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {activeSelectedVideo?.source_playlist_title
-                      ? `From ${activeSelectedVideo.source_playlist_title}`
-                      : "Selected video"}
+                      ? m.review_source_from({ source: activeSelectedVideo.source_playlist_title })
+                      : m.review_source_selected()}
                     {activeSelectedVideo?.published_at
                       ? ` - ${formatDate(activeSelectedVideo.published_at)}`
                       : ""}
                     {activeDurationLabel ? ` - ${activeDurationLabel}` : ""}
-                    {activeSelectedVideo ? ` - Quota ${activeQuotaLabel}` : ""}
+                    {activeSelectedVideo ? m.review_quota_label({ quota: activeQuotaLabel }) : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -684,14 +684,14 @@ function DashboardPlaylists() {
                     onClick={() => handleRemoveSelected(activeSelectedVideo?.id)}
                     disabled={!activeSelectedVideo}
                   >
-                    Remove
+                    {m.review_remove()}
                   </Button>
                 </div>
               </div>
               <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
                 <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                  <span>Quota split</span>
-                  <span>Total quota <span className="font-semibold text-primary">{totalQuotaLabel}</span></span>
+                  <span>{m.review_quota_split()}</span>
+                  <span>{m.review_total_quota()}<span className="font-semibold text-primary">{totalQuotaLabel}</span></span>
                 </div>
                 <div className="mt-2 w-full overflow-x-auto">
                   <div className="flex h-3 items-stretch" style={{ minWidth: `${progressMinWidth}px` }}>
@@ -720,7 +720,7 @@ function DashboardPlaylists() {
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Click any segment to preview that video in the stack.
+                  {m.review_click_segment_hint()}
                 </p>
               </div>
             </div>
@@ -745,7 +745,7 @@ function DashboardPlaylists() {
       </Dialog>
 
       {accountQuery.isLoading ? (
-        <Loading text="Checking account status..." size="md" />
+        <Loading text={m.loading_checking_account()} size="md" />
       ) : (!hasAccount || search.code) ? (
         <ConnectYouTubeAlert
           code={search.code}
@@ -791,7 +791,7 @@ function DashboardPlaylists() {
                             {playlist.thumbnailUrl ? (
                               <img
                                 src={playlist.thumbnailUrl}
-                                alt={playlist.title || "Playlist thumbnail"}
+                                alt={playlist.title || m.aria_playlist_thumbnail()}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                               />

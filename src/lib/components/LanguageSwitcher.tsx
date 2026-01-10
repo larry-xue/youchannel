@@ -11,6 +11,10 @@ import { getLocale, locales, setLocale } from "~/paraglide/runtime";
 const localeNames: Record<string, string> = {
     en: "English",
     de: "Deutsch",
+    ja: "日本語",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    es: "Español",
 };
 
 export function LanguageSwitcher() {

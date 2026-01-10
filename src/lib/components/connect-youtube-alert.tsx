@@ -3,6 +3,7 @@ import { useRouter } from "@tanstack/react-router";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
+import * as m from "~/paraglide/messages";
 import {
     Empty,
     EmptyContent,
@@ -34,7 +35,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
         },
         onError: (err) => {
             setStatus("error");
-            setErrorMessage(err instanceof Error ? err.message : "Failed to initiate connection");
+            setErrorMessage(err instanceof Error ? err.message : m.connect_error_init_failed());
         },
     });
 
@@ -57,7 +58,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
         },
         onError: (err) => {
             setStatus("error");
-            setErrorMessage(err instanceof Error ? err.message : "Failed to complete connection");
+            setErrorMessage(err instanceof Error ? err.message : m.connect_error_complete_failed());
         },
     });
 
@@ -79,9 +80,9 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                             </div>
                         </div>
                     </EmptyMedia>
-                    <EmptyTitle className="text-emerald-600">Success!</EmptyTitle>
+                    <EmptyTitle className="text-emerald-600">{m.connect_success_title()}</EmptyTitle>
                     <EmptyDescription>
-                        Your YouTube account has been connected. Loading your playlists...
+                        {m.connect_success_desc()}
                     </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -103,9 +104,9 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                             </div>
                         </div>
                     </EmptyMedia>
-                    <EmptyTitle>Connecting...</EmptyTitle>
+                    <EmptyTitle>{m.connect_processing_title()}</EmptyTitle>
                     <EmptyDescription>
-                        Please wait while we link your YouTube account.
+                        {m.connect_processing_desc()}
                     </EmptyDescription>
                 </EmptyHeader>
             </Empty>
@@ -124,7 +125,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                             </div>
                         </div>
                     </EmptyMedia>
-                    <EmptyTitle className="text-destructive">Connection Failed</EmptyTitle>
+                    <EmptyTitle className="text-destructive">{m.connect_failure_title()}</EmptyTitle>
                     <EmptyDescription>{errorMessage}</EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -138,10 +139,10 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                         {connectMutation.isPending ? (
                             <>
                                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                Redirecting...
+                                {m.connect_redirecting()}
                             </>
                         ) : (
-                            "Try Again"
+                            m.connect_try_again()
                         )}
                     </Button>
                 </EmptyContent>
@@ -160,9 +161,9 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                         </div>
                     </div>
                 </EmptyMedia>
-                <EmptyTitle>Connect YouTube</EmptyTitle>
+                <EmptyTitle>{m.connect_youtube_title()}</EmptyTitle>
                 <EmptyDescription>
-                    Start learning from your favorite content. Connect your YouTube account to import your playlists.
+                    {m.connect_youtube_desc()}
                 </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -175,10 +176,10 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
                     {connectMutation.isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Redirecting...
+                            {m.connect_redirecting()}
                         </>
                     ) : (
-                        "Connect YouTube"
+                        m.connect_youtube_button()
                     )}
                 </Button>
             </EmptyContent>

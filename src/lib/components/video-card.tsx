@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/too
 import type { VideoWithStatus } from "~/lib/dashboard/data";
 import { formatDate, getVideoPublishedAt, truncate } from "~/lib/dashboard/utils";
 import type { VideoAnalysisSkipReason } from "~/schema";
+import * as m from "~/paraglide/messages";
 
 function formatVideoDuration(duration: string | null) {
     if (!duration) return null;
@@ -40,7 +41,7 @@ export function VideoCard({
     isSelectable,
     onSelect,
     onOpen,
-    actionLabel = "Learn",
+    actionLabel = "Learn", // This comes from parent, usually handled there
     selectionHint,
     selectionLabel,
 }: VideoCardProps) {
@@ -50,17 +51,17 @@ export function VideoCard({
     const hasTooManyFailures = (video.failed_count ?? 0) > 3;
     const durationLabel = formatVideoDuration(video.duration);
     const defaultSelectionLabel = isSelectable
-        ? "Select"
+        ? m.video_card_select()
         : hasTooManyFailures
-            ? "Paused"
+            ? m.video_card_paused()
             : isProcessing
-                ? "Processing"
-                : "Locked";
+                ? m.video_card_processing()
+                : m.video_card_locked();
     const defaultSelectionHint = hasTooManyFailures
-        ? "This video failed analysis several times and is temporarily locked. Please try again later."
+        ? m.video_card_hint_failed()
         : isProcessing
-            ? "This video is already being analyzed."
-            : "Only synced videos can be selected.";
+            ? m.video_card_hint_processing()
+            : m.video_card_hint_synced();
     const resolvedSelectionLabel = selectionLabel ?? defaultSelectionLabel;
     const resolvedSelectionHint = selectionHint ?? defaultSelectionHint;
     const showTooltip = !isSelectable && (selectionHint || hasTooManyFailures);
@@ -76,7 +77,7 @@ export function VideoCard({
         <div
             role="button"
             tabIndex={0}
-            aria-label={`Open learning view for ${video.title || `video`}`}
+            aria-label={m.aria_open_view({ title: video.title || m.default_video_title() })}
             onClick={() => onOpen(video)}
             onKeyDown={handleCardKeyDown}
             className={`group flex w-full max-w-md cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md`}
@@ -85,13 +86,13 @@ export function VideoCard({
                 {video.thumbnail_url ? (
                     <img
                         src={video.thumbnail_url}
-                        alt={video.title || "Video thumbnail"}
+                        alt={video.title || m.aria_video_thumbnail()}
                         className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
                         loading="lazy"
                     />
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-                        No thumbnail
+                        {m.video_no_thumbnail()}
                     </div>
                 )}
                 <div
@@ -113,7 +114,7 @@ export function VideoCard({
                                         onChange={() => onSelect(video.id)}
                                         disabled={!isSelectable}
                                         className="h-3.5 w-3.5"
-                                        aria-label={`Select ${video.title || `video`} for analysis`}
+                                        aria-label={m.aria_select_video({ title: video.title || m.default_video_title() })}
                                     />
                                     <span>{resolvedSelectionLabel}</span>
                                 </label>
@@ -133,7 +134,7 @@ export function VideoCard({
                                 onChange={() => onSelect(video.id)}
                                 disabled={!isSelectable}
                                 className="h-3.5 w-3.5"
-                                aria-label={`Select ${video.title || `video`} for analysis`}
+                                aria-label={m.aria_select_video({ title: video.title || m.default_video_title() })}
                             />
                             <span>{resolvedSelectionLabel}</span>
                         </label>
@@ -148,9 +149,9 @@ export function VideoCard({
             <div className="flex flex-1 flex-col space-y-2 px-3 pb-3 pt-2">
                 <p
                     className="text-sm font-semibold leading-snug text-foreground"
-                    title={video.title || "Video"}
+                    title={video.title || m.default_video_title()}
                 >
-                    {truncate(video.title || "Video", 48)}
+                    {truncate(video.title || m.default_video_title(), 48)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                     {formatDate(getVideoPublishedAt(video))}
@@ -196,7 +197,7 @@ function AnalysisStatusBadge({
                 variant="outline"
                 className="border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
             >
-                Not started
+                {m.status_not_started()}
             </Badge>
         );
     }
@@ -209,7 +210,7 @@ function AnalysisStatusBadge({
                 variant="outline"
                 className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
             >
-                Processing
+                {m.video_card_processing()}
             </Badge>
         );
     }
@@ -220,7 +221,7 @@ function AnalysisStatusBadge({
                 variant="outline"
                 className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
             >
-                Queued
+                {m.status_queued()}
             </Badge>
         );
     }
@@ -228,19 +229,19 @@ function AnalysisStatusBadge({
     if (resolvedStatus === "skipped") {
         const reasonText =
             skipReason === "quota_exceeded"
-                ? "Quota exceeded"
+                ? m.skip_reason_quota()
                 : skipReason === "duration_exceeded"
-                    ? "Duration exceeded"
+                    ? m.skip_reason_duration()
                     : skipReason === "video_unavailable"
-                        ? "Video unavailable"
+                        ? m.skip_reason_unavailable()
                         : null;
         return (
             <Badge
                 variant="outline"
                 className="border-slate-500/30 bg-slate-500/10 text-xs text-slate-600 dark:text-slate-400"
-                title={reasonText ? `Skipped: ${reasonText}` : undefined}
+                title={reasonText ? m.status_skipped_with_reason({ reason: reasonText }) : undefined}
             >
-                Skipped
+                {m.status_skipped()}
             </Badge>
         );
     }
@@ -250,9 +251,9 @@ function AnalysisStatusBadge({
             <Badge
                 variant="outline"
                 className="border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400"
-                title={latestAt ? `Last: ${formatDate(latestAt)}` : undefined}
+                title={latestAt ? m.status_failed_last({ date: formatDate(latestAt) }) : undefined}
             >
-                Failed
+                {m.status_failed()}
             </Badge>
         );
     }
@@ -261,9 +262,9 @@ function AnalysisStatusBadge({
         <Badge
             variant="outline"
             className="border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400"
-            title={latestAt ? `Completed: ${formatDate(latestAt)}` : undefined}
+            title={latestAt ? m.status_completed_date({ date: formatDate(latestAt) }) : undefined}
         >
-            {resolvedStatus === "pending" ? "Pending" : "Completed"}
+            {resolvedStatus === "pending" ? m.status_pending() : m.status_completed()}
         </Badge>
     );
 }

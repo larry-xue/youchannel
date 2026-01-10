@@ -88,6 +88,7 @@ function DashboardPlaylists() {
                   key={video.id}
                   video={video}
                   isSelected={false}
+                  hideCheckbox={true}
                   onSelect={() => { }}
                   isSelectable={false}
                   onOpen={handleOpenVideo}

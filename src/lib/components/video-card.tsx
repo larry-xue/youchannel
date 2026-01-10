@@ -4,7 +4,7 @@ import { Button } from "~/lib/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import type { VideoWithStatus } from "~/lib/dashboard/data";
 import { formatDate, getVideoPublishedAt, truncate } from "~/lib/dashboard/utils";
-import type { VideoAnalysisSkipReason } from "~/schema";
+import type { VideoAnalysisStatus } from "~/schema";
 import * as m from "~/paraglide/messages";
 
 function formatVideoDuration(duration: string | null) {
@@ -28,6 +28,7 @@ export interface VideoCardProps {
     video: VideoWithStatus;
     isSelected: boolean;
     isSelectable: boolean;
+    hideCheckbox?: boolean;
     onSelect: (videoId: string) => void;
     onOpen: (video: VideoWithStatus) => void;
     actionLabel?: string;
@@ -39,15 +40,14 @@ export function VideoCard({
     video,
     isSelected,
     isSelectable,
+    hideCheckbox = false,
     onSelect,
     onOpen,
     actionLabel = "Learn", // This comes from parent, usually handled there
     selectionHint,
     selectionLabel,
 }: VideoCardProps) {
-    const isProcessing =
-        video.latest_analysis_status === "pending" ||
-        video.latest_analysis_status === "processing";
+    const isProcessing = video.status === "pending";
     const hasTooManyFailures = (video.failed_count ?? 0) > 3;
     const durationLabel = formatVideoDuration(video.duration);
     const defaultSelectionLabel = isSelectable
@@ -101,44 +101,45 @@ export function VideoCard({
                     onKeyDown={(event) => event.stopPropagation()}
                     title={!isSelectable && !showTooltip ? resolvedSelectionHint : undefined}
                 >
-                    {showTooltip ? (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <label
-                                    className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${isSelectable ? "" : "opacity-60"
-                                        }`}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => onSelect(video.id)}
-                                        disabled={!isSelectable}
-                                        className="h-3.5 w-3.5"
-                                        aria-label={m.aria_select_video({ title: video.title || m.default_video_title() })}
-                                    />
-                                    <span>{resolvedSelectionLabel}</span>
-                                </label>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                {resolvedSelectionHint}
-                            </TooltipContent>
-                        </Tooltip>
-                    ) : (
-                        <label
-                            className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${isSelectable ? "" : "opacity-60"
-                                }`}
-                        >
-                            <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => onSelect(video.id)}
-                                disabled={!isSelectable}
-                                className="h-3.5 w-3.5"
-                                aria-label={m.aria_select_video({ title: video.title || m.default_video_title() })}
-                            />
-                            <span>{resolvedSelectionLabel}</span>
-                        </label>
-                    )}
+                    {!hideCheckbox &&
+                        (showTooltip ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <label
+                                        className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${isSelectable ? "" : "opacity-60"
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => onSelect(video.id)}
+                                            disabled={!isSelectable}
+                                            className="h-3.5 w-3.5"
+                                            aria-label={m.aria_select_video({ title: video.title || m.default_video_title() })}
+                                        />
+                                        <span>{resolvedSelectionLabel}</span>
+                                    </label>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {resolvedSelectionHint}
+                                </TooltipContent>
+                            </Tooltip>
+                        ) : (
+                            <label
+                                className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${isSelectable ? "" : "opacity-60"
+                                    }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => onSelect(video.id)}
+                                    disabled={!isSelectable}
+                                    className="h-3.5 w-3.5"
+                                    aria-label={m.aria_select_video({ title: video.title || m.default_video_title() })}
+                                />
+                                <span>{resolvedSelectionLabel}</span>
+                            </label>
+                        ))}
                 </div>
                 {durationLabel && (
                     <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
@@ -158,10 +159,7 @@ export function VideoCard({
                 </p>
                 <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
                     <AnalysisStatusBadge
-                        count={video.analysis_count}
-                        latestAt={video.latest_analysis_at}
-                        status={video.latest_analysis_status}
-                        skipReason={video.latest_skip_reason}
+                        status={video.status}
                     />
                     <Button
                         variant="ghost"
@@ -181,90 +179,34 @@ export function VideoCard({
 }
 
 function AnalysisStatusBadge({
-    count,
-    latestAt,
     status,
-    skipReason,
 }: {
-    count: number;
-    latestAt: string | null;
-    status: string | null;
-    skipReason: VideoAnalysisSkipReason | null;
+    status: VideoAnalysisStatus | null;
 }) {
-    if (count === 0) {
-        return (
-            <Badge
-                variant="outline"
-                className="border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
-            >
-                {m.status_not_started()}
-            </Badge>
-        );
+    const resolvedStatus: VideoAnalysisStatus = status || "pending";
+    const statusMap = {
+        pending: m.status_pending(),
+        completed: m.status_completed(),
+        failed: m.status_failed(),
     }
-
-    const resolvedStatus = status || "pending";
-
-    if (resolvedStatus === "processing") {
-        return (
-            <Badge
-                variant="outline"
-                className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
-            >
-                {m.video_card_processing()}
-            </Badge>
-        );
+    const typeMap: Record<VideoAnalysisStatus, "outline" | "default" | "destructive"> = {
+        pending: "outline",
+        completed: "default",
+        failed: "destructive",
     }
-
-    if (resolvedStatus === "queued") {
-        return (
-            <Badge
-                variant="outline"
-                className="border-blue-500/30 bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400"
-            >
-                {m.status_queued()}
-            </Badge>
-        );
-    }
-
-    if (resolvedStatus === "skipped") {
-        const reasonText =
-            skipReason === "quota_exceeded"
-                ? m.skip_reason_quota()
-                : skipReason === "duration_exceeded"
-                    ? m.skip_reason_duration()
-                    : skipReason === "video_unavailable"
-                        ? m.skip_reason_unavailable()
-                        : null;
-        return (
-            <Badge
-                variant="outline"
-                className="border-slate-500/30 bg-slate-500/10 text-xs text-slate-600 dark:text-slate-400"
-                title={reasonText ? m.status_skipped_with_reason({ reason: reasonText }) : undefined}
-            >
-                {m.status_skipped()}
-            </Badge>
-        );
-    }
-
-    if (resolvedStatus === "failed") {
-        return (
-            <Badge
-                variant="outline"
-                className="border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400"
-                title={latestAt ? m.status_failed_last({ date: formatDate(latestAt) }) : undefined}
-            >
-                {m.status_failed()}
-            </Badge>
-        );
+    const classNameMap: Record<VideoAnalysisStatus, string> = {
+        pending: "text-xs",
+        completed: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        failed: "border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400",
     }
 
     return (
         <Badge
-            variant="outline"
-            className="border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400"
-            title={latestAt ? m.status_completed_date({ date: formatDate(latestAt) }) : undefined}
+            variant={typeMap[resolvedStatus]}
+            className={classNameMap[resolvedStatus]}
+            title={statusMap[resolvedStatus]}
         >
-            {resolvedStatus === "pending" ? m.status_pending() : m.status_completed()}
-        </Badge>
+            {statusMap[resolvedStatus]}
+        </Badge >
     );
 }

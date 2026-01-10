@@ -1,4 +1,3 @@
-import { VoiceProvider, VoiceReadyState, useVoice } from "@humeai/voice-react";
 import { ArrowLeft, Mic, MicOff, Sparkles, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "~/lib/components/ui/button";
@@ -9,6 +8,7 @@ import {
   type AnalysisCharacter,
 } from "~/lib/dashboard/learn/analysis";
 import { cn } from "~/lib/utils";
+import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
 
 type ChatSidebarProps = {
   className?: string;
@@ -52,11 +52,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string): strin
 
 function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [tokenError, setTokenError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [isFetchingToken, setIsFetchingToken] = useState(false);
-  const [pendingSystemPrompt, setPendingSystemPrompt] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const trimmedAnalysis = analysisText?.trim() ?? "";
@@ -73,24 +69,26 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     [characters, selectedCharacterName],
   );
 
-  const { connect, disconnect, readyState, messages, sendSessionSettings } = useVoice();
+  // Removed hardcoded API key dependency
+  const { connect, disconnect, startRecording, stopRecording, status, error, isRecording, messages } = useGeminiLive({
+    apiKey: "", // We will provide token at connection time
+  });
 
-  // Send session settings when connection is fully open
+  // Sync internal error state
   useEffect(() => {
-    if (readyState === VoiceReadyState.OPEN && pendingSystemPrompt) {
-      console.log("[ChatSidebar] Sending session settings with systemPrompt");
-      sendSessionSettings({ systemPrompt: pendingSystemPrompt });
-      setPendingSystemPrompt(null);
-    }
-  }, [readyState, pendingSystemPrompt, sendSessionSettings]);
+    if (error) setSessionError(error);
+  }, [error]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-  }, [messages, readyState, activeCharacter?.name]);
+  }, [messages, status, activeCharacter?.name]);
 
-  const fetchToken = useCallback(async () => {
-    console.log("TODO")
-  }, [accessToken]);
+  // When connected, start recording automatically (simulating seamless voice chat)
+  useEffect(() => {
+    if (status === 'connected' && !isRecording) {
+      startRecording();
+    }
+  }, [status, isRecording, startRecording]);
 
   const connectVoiceSession = useCallback(async () => {
     if (!hasContext || !activeCharacter || !analysisContext) {
@@ -99,26 +97,23 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     }
     setSessionError(null);
     try {
-      const token = "DEMO";
+      // Fetch ephemeral token from server
+      console.log("Client: Fetching ephemeral token...");
+      const { getGeminiToken } = await import("~/lib/gemini/actions");
+      const { token } = await getGeminiToken();
+      console.log("Client: Got token", token ? "Success" : "Empty");
+
       const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext);
-
-      // Store the prompt to be sent after connection is fully open
-      setPendingSystemPrompt(systemPrompt);
-
-      // Connect with config ID
-      await connect({
-        auth: { type: "accessToken", value: token },
-        configId: import.meta.env.VITE_PUBLIC_HUME_CONFIG_ID,
-      });
+      await connect(systemPrompt, token);
     } catch (error) {
+      console.error("Client: Connection error", error);
       const message = error instanceof Error ? error.message : "Failed to start voice chat";
       setSessionError(message);
-      setPendingSystemPrompt(null);
     }
-  }, [activeCharacter, analysisContext, connect, fetchToken, hasContext]);
+  }, [activeCharacter, analysisContext, connect, hasContext]);
 
   const handleSelectCharacter = (name: string) => {
-    if (readyState === VoiceReadyState.OPEN || readyState === VoiceReadyState.CONNECTING) {
+    if (status === 'connected' || status === 'connecting') {
       disconnect();
     }
     setSessionError(null);
@@ -126,7 +121,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   };
 
   const handleBackToDirectory = () => {
-    if (readyState === VoiceReadyState.OPEN || readyState === VoiceReadyState.CONNECTING) {
+    if (status === 'connected' || status === 'connecting') {
       disconnect();
     }
     setSelectedCharacterName(null);
@@ -134,7 +129,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   };
 
   const handleToggleSession = async () => {
-    if (readyState === VoiceReadyState.OPEN || readyState === VoiceReadyState.CONNECTING) {
+    if (status === 'connected' || status === 'connecting') {
       disconnect();
       return;
     }
@@ -145,26 +140,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const noCharactersMessage = hasContext
     ? "No character profiles were returned in this analysis."
     : "Video analysis is not available yet. Generate analysis to enable character chat.";
-  const transcriptMessages = useMemo(() => {
-    return messages
-      .map((msg, index) => {
-        if (msg.type !== "user_message" && msg.type !== "assistant_message") {
-          return null;
-        }
-        const role = msg.type === "assistant_message" ? "Assistant" : "User";
-        const content = msg.message?.content;
-        if (!content) return null;
-        return {
-          id: `${msg.type}-${index}`,
-          role,
-          content,
-        };
-      })
-      .filter(Boolean) as Array<{ id: string; role: string; content: string }>;
-  }, [messages]);
 
-  const isActiveSession = readyState === VoiceReadyState.OPEN;
-  const isConnecting = readyState === VoiceReadyState.CONNECTING;
+  const isActiveSession = status === 'connected';
+  const isConnecting = status === 'connecting';
 
   return (
     <aside className={cn("flex h-full flex-col", className)}>
@@ -278,25 +256,30 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                     Video analysis is not available yet.
                   </p>
                 </div>
-              ) : transcriptMessages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center gap-4 py-12 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                    <Mic className="h-7 w-7 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Ready to chat</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Start a voice session below
-                    </p>
-                  </div>
-                </div>
               ) : (
-                <div className="flex flex-col gap-4">
-                  {transcriptMessages.map((message) => {
-                    const isUser = message.role?.toLowerCase() === "user";
+                <div className={cn("flex flex-col gap-4", messages.length === 0 ? "h-full items-center justify-center text-center py-12" : "")}>
+                  {/* Gemini Live Visual Indicator (kept small if messages exist) */}
+                  {isActiveSession && (
+                    <div className="flex flex-col items-center justify-center gap-2 py-4 shrink-0">
+                      <div className={cn("relative flex items-center justify-center", messages.length > 0 ? "h-20 w-20" : "h-32 w-32")}>
+                        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
+                        <div className="absolute inset-3 rounded-full bg-primary/30 animate-pulse"></div>
+                        <div className={cn("relative rounded-full bg-background border-4 border-primary flex items-center justify-center shadow-xl", messages.length > 0 ? "h-16 w-16" : "h-24 w-24")}>
+                          <Mic className={cn("text-primary", messages.length > 0 ? "h-6 w-6" : "h-10 w-10")} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground animate-pulse">
+                        {messages.length > 0 ? "Listening..." : "Listening & Speaking..."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Transcript Messages */}
+                  {messages.map((message, index) => {
+                    const isUser = message.role === "user";
                     return (
                       <div
-                        key={message.id}
+                        key={index}
                         className={cn("flex", isUser ? "justify-end" : "justify-start")}
                       >
                         <div
@@ -312,6 +295,21 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                       </div>
                     );
                   })}
+
+                  {/* Fallback empty state if no messages and not active */}
+                  {!isActiveSession && messages.length === 0 && (
+                    <>
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                        <Mic className="h-7 w-7 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Ready to chat</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Start a voice session below
+                        </p>
+                      </div>
+                    </>
+                  )}
                   <div ref={bottomRef} />
                 </div>
               )}
@@ -320,9 +318,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
             {/* Voice control footer */}
             <div className="px-6 py-5">
               {/* Error message */}
-              {(sessionError || tokenError) && (
+              {sessionError && (
                 <p className="mb-3 rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
-                  {sessionError || tokenError}
+                  {sessionError}
                 </p>
               )}
 
@@ -337,7 +335,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                 )}
                 type="button"
                 aria-label={isActiveSession ? "End voice session" : "Start voice session"}
-                disabled={!canChat || isConnecting || isFetchingToken}
+                disabled={!canChat || isConnecting}
                 onClick={handleToggleSession}
               >
                 {isActiveSession ? (
@@ -348,7 +346,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                 ) : (
                   <>
                     <Mic className="mr-3 h-5 w-5" aria-hidden />
-                    {isConnecting || isFetchingToken ? "Connecting..." : "Start Voice Chat"}
+                    {isConnecting ? "Connecting..." : "Start Voice Chat"}
                   </>
                 )}
               </Button>
@@ -356,7 +354,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
               {/* Status hint */}
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {isActiveSession
-                  ? "Listening... Speak to chat with the character"
+                  ? "Speaking to Gemini Live"
                   : canChat
                     ? "Tap to start a voice conversation"
                     : "Analysis required to enable chat"}
@@ -369,7 +367,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   );
 }
 
-// SSR-safe client detection using useSyncExternalStore
+// SSR-safe client detection
 const emptySubscribe = () => () => { };
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
@@ -381,7 +379,6 @@ function useIsClient() {
 export function ChatSidebar(props: ChatSidebarProps) {
   const isClient = useIsClient();
 
-  // VoiceProvider uses browser-only APIs, so we must skip SSR
   if (!isClient) {
     return (
       <aside className={cn("flex h-full flex-col", props.className)}>
@@ -395,9 +392,6 @@ export function ChatSidebar(props: ChatSidebarProps) {
     );
   }
 
-  return (
-    <VoiceProvider>
-      <ChatSidebarContent {...props} />
-    </VoiceProvider>
-  );
+  // Removed VoiceProvider since we use our custom hook
+  return <ChatSidebarContent {...props} />;
 }

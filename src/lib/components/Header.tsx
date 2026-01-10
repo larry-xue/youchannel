@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useAuthUser } from "~/lib/store/auth";
+import * as m from "~/paraglide/messages";
 
 interface HeaderProps {
   onSignOut: () => Promise<void>;
@@ -35,10 +36,10 @@ export function Header({ onSignOut }: HeaderProps) {
             <span className="text-3xl">🎓</span>
             <div className="flex items-baseline text-lg font-bold">
               <span className="bg-linear-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                Fluent
+                {m.app_name_part1()}
               </span>
               <span className="bg-linear-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
-                By
+                {m.app_name_part2()}
               </span>
               <span className="text-foreground">.ai</span>
             </div>
@@ -73,26 +74,26 @@ export function Header({ onSignOut }: HeaderProps) {
                   <DropdownMenuItem asChild>
                     <Link to="/library" search={{ page: 1 }} className="flex w-full cursor-pointer items-center">
                       <Library className="mr-2 h-4 w-4" />
-                      Library
+                      {m.library()}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/playlists" className="flex w-full cursor-pointer items-center">
                       <Play className="mr-2 h-4 w-4" />
-                      Playlists
+                      {m.playlists()}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onSignOut} variant="destructive">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
+                    {m.sign_out()}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <Button asChild variant="outline" size="sm">
                 <Link to="/signin">
-                  Sign in
+                  {m.sign_in()}
                 </Link>
               </Button>
             )}

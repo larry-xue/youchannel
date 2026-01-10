@@ -1,28 +1,26 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
-const features = [
+import * as m from "~/paraglide/messages";
+
+const features = () => [
   {
-    title: "Master Many Languages",
-    description:
-      "Learning Spanish and Japanese? No problem. FluentBy.ai supports any language available on YouTube.",
+    title: m.features_title_1(),
+    description: m.features_desc_1(),
     icon: "🌍",
   },
   {
-    title: "Chat with Videos",
-    description:
-      "Don't just watch—interact. Have a conversation with the video characters or the content itself.",
+    title: m.features_title_2(),
+    description: m.features_desc_2(),
     icon: "💬",
   },
   {
-    title: "Role-Play Scenarios",
-    description:
-      "Step into the scene. Practice real-world conversations simulated from the video context.",
+    title: m.features_title_3(),
+    description: m.features_desc_3(),
     icon: "🎭",
   },
   {
-    title: "Import from Playlists",
-    description:
-      "Your content, your choice. Select any video from your YouTube playlists to start learning immediately.",
+    title: m.features_title_4(),
+    description: m.features_desc_4(),
     icon: "📺",
   },
 ];
@@ -30,7 +28,7 @@ const features = [
 export function Features() {
   return (
     <section className="grid animate-rise gap-4 pb-20 md:grid-cols-2">
-      {features.map((feature, index) => (
+      {features().map((feature, index) => (
         <Card
           key={feature.title}
           className="animate-rise"

@@ -36,7 +36,7 @@ export default defineConfig({
       outputStructure: 'message-modules',
       cookieName: 'lang',
       localStorageKey: 'lang',
-      strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
+      strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
       // urlPatterns: [
       //   {
       //     pattern: '/',

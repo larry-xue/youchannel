@@ -143,5 +143,20 @@
   "aria_playlist_thumbnail": "播放列表缩略图",
   "pagination_previous": "上一页",
   "pagination_next": "下一页",
-  "pagination_more": "更多页面"
+  "pagination_more": "更多页面",
+  "playlist_count_videos": "{count} 个视频",
+  "playlist_loading_single": "正在加载播放列表...",
+  "playlist_select_hint": "选择一个播放列表以加载其视频。",
+  "playlist_no_description": "无描述",
+  "playlist_untitled": "无标题播放列表",
+  "playlist_items_error": "无法加载播放列表项。",
+  "playlist_items_empty": "此播放列表尚无视频。",
+  "button_prev": "上一页",
+  "button_next": "下一页",
+  "action_clear": "清除",
+  "action_review_submit": "查看并提交",
+  "video_card_action_open": "打开",
+  "playlist_video_placeholder": "VID",
+  "playlist_page_info": "第 {current} 页，共 {total} 页",
+  "playlist_page_current": "第 {current} 页"
 }

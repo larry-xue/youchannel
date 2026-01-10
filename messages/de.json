@@ -143,5 +143,20 @@
   "aria_playlist_thumbnail": "Wiedergabelisten-Vorschaubild",
   "pagination_previous": "Zurück",
   "pagination_next": "Weiter",
-  "pagination_more": "Weitere Seiten"
+  "pagination_more": "Weitere Seiten",
+  "playlist_count_videos": "{count} Videos",
+  "playlist_loading_single": "Lade Wiedergabeliste...",
+  "playlist_select_hint": "Wähle eine Wiedergabeliste, um deren Videos zu laden.",
+  "playlist_no_description": "Keine Beschreibung",
+  "playlist_untitled": "Unbenannte Wiedergabeliste",
+  "playlist_items_error": "Wiedergabelisteneinträge konnten nicht geladen werden.",
+  "playlist_items_empty": "Diese Wiedergabeliste enthält noch keine Videos.",
+  "button_prev": "Zurück",
+  "button_next": "Weiter",
+  "action_clear": "Leeren",
+  "action_review_submit": "Überprüfen & Absenden",
+  "video_card_action_open": "Öffnen",
+  "playlist_video_placeholder": "VID",
+  "playlist_page_info": "Seite {current} von {total}",
+  "playlist_page_current": "Seite {current}"
 }

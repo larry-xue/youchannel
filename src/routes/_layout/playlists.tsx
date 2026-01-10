@@ -280,8 +280,8 @@ function DashboardPlaylists() {
   const totalResults = itemsQuery.data?.pageInfo?.totalResults ?? null;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : null;
   const pageLabel = totalPages
-    ? `Page ${pageIndex + 1} of ${totalPages}`
-    : `Page ${pageIndex + 1}`;
+    ? m.playlist_page_info({ current: pageIndex + 1, total: totalPages })
+    : m.playlist_page_current({ current: pageIndex + 1 });
   const videoById = useMemo(
     () => new Map(videos.map((video) => [video.id, video])),
     [videos],
@@ -803,10 +803,10 @@ function DashboardPlaylists() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-foreground">
-                              {playlist.title || "Untitled playlist"}
+                              {playlist.title || m.playlist_untitled()}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
-                              {playlist.description || "No description"}
+                              {playlist.description || m.playlist_no_description()}
                             </p>
                           </div>
                         </button>
@@ -821,22 +821,22 @@ function DashboardPlaylists() {
           <div className="min-w-0 flex-1 space-y-4">
             {isLoadingPlaylists ? (
               <div className="flex h-40 items-center justify-center rounded-2xl border border-border/60 bg-background/70">
-                <Loading text="Loading playlist..." size="sm" />
+                <Loading text={m.playlist_loading_single()} size="sm" />
               </div>
             ) : activePlaylist ? (
               <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
                 <div className="min-w-0">
                   <h2 className="truncate text-lg font-semibold text-foreground">
-                    {activePlaylist.title || "Untitled playlist"}
+                    {activePlaylist.title || m.playlist_untitled()}
                   </h2>
                   <p className="truncate text-sm text-muted-foreground">
-                    {activePlaylist.description || "No description"}
+                    {activePlaylist.description || m.playlist_no_description()}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{pageLabel}</span>
                   {typeof totalResults === "number" && (
-                    <span>{totalResults} videos</span>
+                    <span>{m.playlist_count_videos({ count: totalResults })}</span>
                   )}
                   <div className="flex items-center gap-2">
                     <Button
@@ -845,7 +845,7 @@ function DashboardPlaylists() {
                       onClick={handlePrevPage}
                       disabled={!canPrev || isLoadingItems}
                     >
-                      Prev
+                      {m.button_prev()}
                     </Button>
                     <Button
                       variant="outline"
@@ -853,14 +853,14 @@ function DashboardPlaylists() {
                       onClick={handleNextPage}
                       disabled={!canNext || isLoadingItems}
                     >
-                      Next
+                      {m.button_next()}
                     </Button>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-                Select a playlist to load its videos.
+                {m.playlist_select_hint()}
               </div>
             )}
 
@@ -878,13 +878,13 @@ function DashboardPlaylists() {
                             {video.thumbnail_url ? (
                               <img
                                 src={video.thumbnail_url}
-                                alt={video.title || "Video thumbnail"}
+                                alt={video.title || m.aria_video_thumbnail()}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                               />
                             ) : (
                               <span className="text-[10px] font-semibold text-muted-foreground">
-                                VID
+                                {m.playlist_video_placeholder()}
                               </span>
                             )}
                           </div>
@@ -911,27 +911,27 @@ function DashboardPlaylists() {
                         onClick={handleClearSelection}
                         disabled={submitSelectionMutation.isPending}
                       >
-                        Clear
+                        {m.action_clear()}
                       </Button>
                       <Button
                         size="sm"
                         onClick={handleOpenReviewDialog}
                         disabled={submitSelectionMutation.isPending}
                       >
-                        Review & Submit
+                        {m.action_review_submit()}
                       </Button>
                     </div>
                   </div>
                 )}
                 {isLoadingItems ? (
-                  <Loading text="Loading videos..." size="md" />
+                  <Loading text={m.library_loading()} size="md" />
                 ) : itemsQuery.isError ? (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-                    Unable to load playlist items.
+                    {m.playlist_items_error()}
                   </div>
                 ) : videos.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    This playlist has no videos yet.
+                    {m.playlist_items_empty()}
                   </p>
                 ) : (
                   <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(220px,220px))]">
@@ -945,7 +945,7 @@ function DashboardPlaylists() {
                         selectionLabel={video.selectionLabel}
                         onSelect={handleToggleVideo}
                         onOpen={handleOpenVideo}
-                        actionLabel="Open"
+                        actionLabel={m.video_card_action_open()}
                       />
                     ))}
                   </div>

@@ -143,5 +143,20 @@
   "aria_playlist_thumbnail": "プレイリストのサムネイル",
   "pagination_previous": "前へ",
   "pagination_next": "次へ",
-  "pagination_more": "その他のページ"
+  "pagination_more": "その他のページ",
+  "playlist_count_videos": "{count} 動画",
+  "playlist_loading_single": "プレイリストを読み込み中...",
+  "playlist_select_hint": "プレイリストを選択して動画を読み込みます。",
+  "playlist_no_description": "説明なし",
+  "playlist_untitled": "無題のプレイリスト",
+  "playlist_items_error": "プレイリスト項目を読み込めません。",
+  "playlist_items_empty": "このプレイリストにはまだ動画がありません。",
+  "button_prev": "前へ",
+  "button_next": "次へ",
+  "action_clear": "クリア",
+  "action_review_submit": "確認して送信",
+  "video_card_action_open": "開く",
+  "playlist_video_placeholder": "VID",
+  "playlist_page_info": "ページ {current} / {total}",
+  "playlist_page_current": "ページ {current}"
 }

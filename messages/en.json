@@ -143,5 +143,20 @@
   "aria_playlist_thumbnail": "Playlist thumbnail",
   "pagination_previous": "Previous",
   "pagination_next": "Next",
-  "pagination_more": "More pages"
+  "pagination_more": "More pages",
+  "playlist_count_videos": "{count} videos",
+  "playlist_loading_single": "Loading playlist...",
+  "playlist_select_hint": "Select a playlist to load its videos.",
+  "playlist_no_description": "No description",
+  "playlist_untitled": "Untitled playlist",
+  "playlist_items_error": "Unable to load playlist items.",
+  "playlist_items_empty": "This playlist has no videos yet.",
+  "button_prev": "Prev",
+  "button_next": "Next",
+  "action_clear": "Clear",
+  "action_review_submit": "Review & Submit",
+  "video_card_action_open": "Open",
+  "playlist_video_placeholder": "VID",
+  "playlist_page_info": "Page {current} of {total}",
+  "playlist_page_current": "Page {current}"
 }

@@ -143,5 +143,20 @@
   "aria_playlist_thumbnail": "播放清單縮圖",
   "pagination_previous": "上一頁",
   "pagination_next": "下一頁",
-  "pagination_more": "更多頁面"
+  "pagination_more": "更多頁面",
+  "playlist_count_videos": "{count} 個影片",
+  "playlist_loading_single": "正在載入播放清單...",
+  "playlist_select_hint": "選擇一個播放清單以載入其影片。",
+  "playlist_no_description": "無描述",
+  "playlist_untitled": "無標題播放清單",
+  "playlist_items_error": "無法載入播放清單項目。",
+  "playlist_items_empty": "此播放清單尚無影片。",
+  "button_prev": "上一頁",
+  "button_next": "下一頁",
+  "action_clear": "清除",
+  "action_review_submit": "查看並提交",
+  "video_card_action_open": "打開",
+  "playlist_video_placeholder": "VID",
+  "playlist_page_info": "第 {current} 頁，共 {total} 頁",
+  "playlist_page_current": "第 {current} 頁"
 }

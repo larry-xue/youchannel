@@ -54,7 +54,7 @@ function DashboardPlaylists() {
   const videos = videosQuery.data?.videos ?? EMPTY_VIDEOS;
   const total = videosQuery.data?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
-  const isLoading = videosQuery.isLoading;
+  const isLoading = videosQuery.isLoading || accountQuery.isLoading;
 
   const handleOpenVideo = (video: VideoWithStatus) => {
     navigate({

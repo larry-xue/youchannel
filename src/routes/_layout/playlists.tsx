@@ -743,212 +743,217 @@ function DashboardPlaylists() {
         </DialogContent>
       </Dialog>
 
-      {
-        (!hasAccount || search.code) ? (
-          <ConnectYouTubeAlert
-            code={search.code}
-            state={search.state}
-            error={search.error}
-          />
-        ) : (
-          <div className="flex flex-col gap-6 lg:flex-row">
-            <aside className="lg:w-72 lg:shrink-0">
-              <div className="flex max-h-[70vh] flex-col rounded-2xl border border-border/60 bg-background/70 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)]">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <h2 className="text-sm font-semibold text-foreground">Your playlists</h2>
-                  <span className="text-xs text-muted-foreground">{playlists.length}</span>
-                </div>
-                <ScrollArea className="flex-1 px-3 pb-4 overflow-y-auto">
-                  {isLoadingPlaylists ? (
-                    <Loading size="sm" text="Loading playlists..." />
-                  ) : playlistsQuery.isError ? (
-                    <p className="px-2 text-sm text-destructive">
-                      Unable to load playlists. Please try reconnecting.
-                    </p>
-                  ) : playlists.length === 0 ? (
-                    <p className="px-2 text-sm text-muted-foreground">
-                      No playlists found.
-                    </p>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {playlists.map((playlist) => {
-                        const isActive = playlist.playlistId === activePlaylistId;
-                        return (
-                          <button
-                            key={playlist.playlistId}
-                            type="button"
-                            onClick={() => handleSelectPlaylist(playlist.playlistId)}
-                            className={cn(
-                              "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition",
-                              isActive
-                                ? "border-primary/40 bg-primary/10"
-                                : "border-border/60 bg-background/70 hover:bg-accent/40",
-                            )}
-                          >
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/60">
-                              {playlist.thumbnailUrl ? (
-                                <img
-                                  src={playlist.thumbnailUrl}
-                                  alt={playlist.title || "Playlist thumbnail"}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <span className="text-xs font-semibold text-muted-foreground">
-                                  PL
-                                </span>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-foreground">
-                                {playlist.title || "Untitled playlist"}
-                              </p>
-                              <p className="truncate text-xs text-muted-foreground">
-                                {playlist.description || "No description"}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </ScrollArea>
+      {accountQuery.isLoading ? (
+        <Loading text="Checking account status..." size="md" />
+      ) : (!hasAccount || search.code) ? (
+        <ConnectYouTubeAlert
+          code={search.code}
+          state={search.state}
+          error={search.error}
+        />
+      ) : (
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <aside className="lg:w-72 lg:shrink-0">
+            <div className="flex max-h-[70vh] flex-col rounded-2xl border border-border/60 bg-background/70 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)]">
+              <div className="flex items-center justify-between px-4 py-3">
+                <h2 className="text-sm font-semibold text-foreground">Your playlists</h2>
+                <span className="text-xs text-muted-foreground">{playlists.length}</span>
               </div>
-            </aside>
-
-            <div className="min-w-0 flex-1 space-y-4">
-              {activePlaylist ? (
-                <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-                  <div className="min-w-0">
-                    <h2 className="truncate text-lg font-semibold text-foreground">
-                      {activePlaylist.title || "Untitled playlist"}
-                    </h2>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {activePlaylist.description || "No description"}
-                    </p>
+              <ScrollArea className="flex-1 px-3 pb-4 overflow-y-auto">
+                {isLoadingPlaylists ? (
+                  <Loading size="sm" text="Loading playlists..." />
+                ) : playlistsQuery.isError ? (
+                  <p className="px-2 text-sm text-destructive">
+                    Unable to load playlists. Please try reconnecting.
+                  </p>
+                ) : playlists.length === 0 ? (
+                  <p className="px-2 text-sm text-muted-foreground">
+                    No playlists found.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {playlists.map((playlist) => {
+                      const isActive = playlist.playlistId === activePlaylistId;
+                      return (
+                        <button
+                          key={playlist.playlistId}
+                          type="button"
+                          onClick={() => handleSelectPlaylist(playlist.playlistId)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition",
+                            isActive
+                              ? "border-primary/40 bg-primary/10"
+                              : "border-border/60 bg-background/70 hover:bg-accent/40",
+                          )}
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/60">
+                            {playlist.thumbnailUrl ? (
+                              <img
+                                src={playlist.thumbnailUrl}
+                                alt={playlist.title || "Playlist thumbnail"}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                PL
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {playlist.title || "Untitled playlist"}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {playlist.description || "No description"}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{pageLabel}</span>
-                    {typeof totalResults === "number" && (
-                      <span>{totalResults} videos</span>
-                    )}
+                )}
+              </ScrollArea>
+            </div>
+          </aside>
+
+          <div className="min-w-0 flex-1 space-y-4">
+            {isLoadingPlaylists ? (
+              <div className="flex h-40 items-center justify-center rounded-2xl border border-border/60 bg-background/70">
+                <Loading text="Loading playlist..." size="sm" />
+              </div>
+            ) : activePlaylist ? (
+              <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-semibold text-foreground">
+                    {activePlaylist.title || "Untitled playlist"}
+                  </h2>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {activePlaylist.description || "No description"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>{pageLabel}</span>
+                  {typeof totalResults === "number" && (
+                    <span>{totalResults} videos</span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePrevPage}
+                      disabled={!canPrev || isLoadingItems}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextPage}
+                      disabled={!canNext || isLoadingItems}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+                Select a playlist to load its videos.
+              </div>
+            )}
+
+            {activePlaylist && (
+              <>
+                {selectedCount > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex -space-x-3">
+                        {selectionPreview.map((video) => (
+                          <div
+                            key={video.id}
+                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-background/80 bg-background/80 shadow-sm"
+                          >
+                            {video.thumbnail_url ? (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title || "Video thumbnail"}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span className="text-[10px] font-semibold text-muted-foreground">
+                                VID
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {selectedCount > selectionPreview.length && (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-xs font-semibold text-muted-foreground shadow-sm">
+                            +{selectedCount - selectionPreview.length}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {selectedCount} {selectionLabel}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedPlaylistCount} {playlistLabel}
+                        </p>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handlePrevPage}
-                        disabled={!canPrev || isLoadingItems}
+                        onClick={handleClearSelection}
+                        disabled={submitSelectionMutation.isPending}
                       >
-                        Prev
+                        Clear
                       </Button>
                       <Button
-                        variant="outline"
                         size="sm"
-                        onClick={handleNextPage}
-                        disabled={!canNext || isLoadingItems}
+                        onClick={handleOpenReviewDialog}
+                        disabled={submitSelectionMutation.isPending}
                       >
-                        Next
+                        Review & Submit
                       </Button>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-                  Select a playlist to load its videos.
-                </div>
-              )}
-
-              {activePlaylist && (
-                <>
-                  {selectedCount > 0 && (
-                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex -space-x-3">
-                          {selectionPreview.map((video) => (
-                            <div
-                              key={video.id}
-                              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-background/80 bg-background/80 shadow-sm"
-                            >
-                              {video.thumbnail_url ? (
-                                <img
-                                  src={video.thumbnail_url}
-                                  alt={video.title || "Video thumbnail"}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <span className="text-[10px] font-semibold text-muted-foreground">
-                                  VID
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                          {selectedCount > selectionPreview.length && (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-xs font-semibold text-muted-foreground shadow-sm">
-                              +{selectedCount - selectionPreview.length}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">
-                            {selectedCount} {selectionLabel}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {selectedPlaylistCount} {playlistLabel}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleClearSelection}
-                          disabled={submitSelectionMutation.isPending}
-                        >
-                          Clear
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={handleOpenReviewDialog}
-                          disabled={submitSelectionMutation.isPending}
-                        >
-                          Review & Submit
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  {isLoadingItems ? (
-                    <Loading text="Loading videos..." size="md" />
-                  ) : itemsQuery.isError ? (
-                    <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-                      Unable to load playlist items.
-                    </div>
-                  ) : videos.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      This playlist has no videos yet.
-                    </p>
-                  ) : (
-                    <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(220px,220px))]">
-                      {videos.map((video) => (
-                        <VideoCard
-                          key={video.id}
-                          video={video as VideoWithStatus}
-                          isSelected={selectedVideoIdSet.has(video.id)}
-                          isSelectable={video.isSelectable}
-                          selectionHint={video.selectionHint}
-                          selectionLabel={video.selectionLabel}
-                          onSelect={handleToggleVideo}
-                          onOpen={handleOpenVideo}
-                          actionLabel="Open"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+                )}
+                {isLoadingItems ? (
+                  <Loading text="Loading videos..." size="md" />
+                ) : itemsQuery.isError ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+                    Unable to load playlist items.
+                  </div>
+                ) : videos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    This playlist has no videos yet.
+                  </p>
+                ) : (
+                  <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(220px,220px))]">
+                    {videos.map((video) => (
+                      <VideoCard
+                        key={video.id}
+                        video={video as VideoWithStatus}
+                        isSelected={selectedVideoIdSet.has(video.id)}
+                        isSelectable={video.isSelectable}
+                        selectionHint={video.selectionHint}
+                        selectionLabel={video.selectionLabel}
+                        onSelect={handleToggleVideo}
+                        onOpen={handleOpenVideo}
+                        actionLabel="Open"
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        )
+        </div>
+      )
       }
     </div >
   );

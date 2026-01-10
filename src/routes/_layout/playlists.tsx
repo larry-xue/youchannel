@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
 import { ConnectYouTubeAlert } from "~/lib/components/connect-youtube-alert";
 import { Button } from "~/lib/components/ui/button";
+import * as m from "~/paraglide/messages";
 import {
   Dialog,
   DialogContent,
@@ -388,12 +389,12 @@ function DashboardPlaylists() {
           : "";
 
       if (result.enqueued > 0) {
-        toast.success("We are on it", {
-          description: `We are working on ${result.enqueued} ${result.enqueued === 1 ? "video" : "videos"}${skippedText}. This may take a few minutes - please wait for updates.`,
+        toast.success(m.toast_success_title(), {
+          description: m.toast_success_desc({ count: result.enqueued, label: result.enqueued === 1 ? "video" : "videos" }),
         });
       } else {
-        toast.info("Nothing to start yet", {
-          description: `We could not start on the current selection${skippedText}. Please try again later.`,
+        toast.info(m.toast_info_title(), {
+          description: m.toast_info_desc(),
         });
       }
 
@@ -401,8 +402,8 @@ function DashboardPlaylists() {
       setShowReviewDialog(false);
     },
     onError: () => {
-      toast.error("We could not start", {
-        description: "Please try again later. If this keeps happening, refresh the page.",
+      toast.error(m.toast_error_title(), {
+        description: m.toast_error_desc(),
       });
     },
   });
@@ -518,7 +519,7 @@ function DashboardPlaylists() {
         queryClient.invalidateQueries({ queryKey: PLAYLIST_ITEMS_QUERY_KEY }),
       ]);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Refresh failed");
+      setActionError(error instanceof Error ? error.message : m.playlists_error_action());
     } finally {
       setIsRefreshing(false);
     }
@@ -544,10 +545,10 @@ function DashboardPlaylists() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-semibold text-foreground">
-            Playlists
+            {m.playlists_title()}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Browse your YouTube playlists directly from the API.
+            {m.playlists_description()}
           </p>
         </div>
         {hasAccount && (
@@ -558,7 +559,7 @@ function DashboardPlaylists() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            {isRefreshing ? "Refreshing..." : "Refresh"}
+            {isRefreshing ? m.playlists_refreshing() : m.playlists_refresh()}
           </Button>
         )}
       </div>
@@ -572,17 +573,17 @@ function DashboardPlaylists() {
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
         <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Review selection</DialogTitle>
+            <DialogTitle>{m.review_selection_title()}</DialogTitle>
             <DialogDescription>
               {selectedCount === 0 ? (
-                "Pick videos from any playlist to continue."
+                m.review_selection_empty()
               ) : (
                 <>
                   <span className="block">
-                    {`${selectedCount} ${selectionLabel} across ${selectedPlaylistCount} ${playlistLabel}.`}
+                    {m.review_selection_count({ count: selectedCount, label: selectionLabel, playlistCount: selectedPlaylistCount, playlistLabel: playlistLabel })}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    Estimated quota: {totalQuotaLabel}
+                    {m.review_selection_quota({ quota: totalQuotaLabel })}
                   </span>
                 </>
               )}
@@ -590,7 +591,7 @@ function DashboardPlaylists() {
           </DialogHeader>
           {selectedCount === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
-              No videos selected yet.
+              {m.review_selection_no_videos()}
             </div>
           ) : (
             <div className="space-y-4">
@@ -730,14 +731,14 @@ function DashboardPlaylists() {
               variant="outline"
               onClick={() => setShowReviewDialog(false)}
             >
-              Cancel
+              {m.review_selection_cancel()}
             </Button>
             <Button
               type="button"
               onClick={handleSubmitSelection}
               disabled={selectedCount === 0 || submitSelectionMutation.isPending}
             >
-              {submitSelectionMutation.isPending ? "Submitting..." : "Submit selection"}
+              {submitSelectionMutation.isPending ? m.review_selection_submitting() : m.review_selection_submit()}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -756,19 +757,19 @@ function DashboardPlaylists() {
           <aside className="lg:w-72 lg:shrink-0">
             <div className="flex max-h-[70vh] flex-col rounded-2xl border border-border/60 bg-background/70 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)]">
               <div className="flex items-center justify-between px-4 py-3">
-                <h2 className="text-sm font-semibold text-foreground">Your playlists</h2>
+                <h2 className="text-sm font-semibold text-foreground">{m.playlists_your_playlists()}</h2>
                 <span className="text-xs text-muted-foreground">{playlists.length}</span>
               </div>
               <ScrollArea className="flex-1 px-3 pb-4 overflow-y-auto">
                 {isLoadingPlaylists ? (
-                  <Loading size="sm" text="Loading playlists..." />
+                  <Loading size="sm" text={m.playlists_loading()} />
                 ) : playlistsQuery.isError ? (
                   <p className="px-2 text-sm text-destructive">
-                    Unable to load playlists. Please try reconnecting.
+                    {m.playlists_error_load()}
                   </p>
                 ) : playlists.length === 0 ? (
                   <p className="px-2 text-sm text-muted-foreground">
-                    No playlists found.
+                    {m.playlists_empty()}
                   </p>
                 ) : (
                   <div className="flex flex-col gap-2">

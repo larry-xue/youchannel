@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import * as m from "~/paraglide/messages";
 import { useRef, useState } from "react";
 import { getVideoAnalysesFn, getVideoByIdFn } from "~/lib/dashboard/data";
 import type { VideoAnalysis } from "~/schema";
@@ -91,7 +92,7 @@ function DashboardLearnVideo() {
     <div className="space-y-6">
       {hasError && (
         <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Unable to load this video right now.
+          {m.learn_error_load()}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Home, Search } from "lucide-react";
 import { Button } from "./ui/button";
+import * as m from "~/paraglide/messages";
 
 export function NotFound() {
   return (
@@ -17,20 +18,20 @@ export function NotFound() {
         {/* 404 Display */}
         <div className="relative mb-8">
           <h1 className="font-display text-[10rem] sm:text-[12rem] font-bold leading-none tracking-tighter bg-gradient-to-br from-primary via-primary/80 to-accent-foreground bg-clip-text text-transparent select-none">
-            404
+            {m.not_found_404()}
           </h1>
           <div className="absolute inset-0 font-display text-[10rem] sm:text-[12rem] font-bold leading-none tracking-tighter text-primary/10 blur-xl select-none" aria-hidden="true">
-            404
+            {m.not_found_404()}
           </div>
         </div>
 
         {/* Message */}
         <div className="space-y-3 mb-10">
           <h2 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
-            Page not found
+            {m.not_found_title()}
           </h2>
           <p className="text-muted-foreground text-base sm:text-lg max-w-md mx-auto leading-relaxed">
-            Oops! The page you're looking for seems to have wandered off. Let's get you back on track.
+            {m.not_found_message()}
           </p>
         </div>
 
@@ -43,12 +44,12 @@ export function NotFound() {
             className="w-full sm:w-auto group"
           >
             <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" />
-            Go back
+            {m.not_found_go_back()}
           </Button>
           <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto group">
             <Link to="/">
               <Home className="size-4" />
-              Back to Home
+              {m.not_found_back_home()}
             </Link>
           </Button>
         </div>

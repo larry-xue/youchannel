@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import { Button } from "~/lib/components/ui/button";
+import * as m from "~/paraglide/messages";
 
 interface EmptyStateProps {
     title?: string;
@@ -16,8 +17,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyVideoState({
-    title = "No videos found",
-    description = "You haven't added any videos yet. Go to your playlists to add videos to your library.",
+    title = m.empty_video_title(),
+    description = m.empty_video_description(),
     emoji = "📺",
     action,
     colorClass = "blue",
@@ -25,7 +26,7 @@ export function EmptyVideoState({
     const navigate = useNavigate();
 
     const defaultAction = {
-        label: "Manage Playlists",
+        label: m.empty_video_action(),
         onClick: () => navigate({ to: "/playlists" }),
         isLoading: false,
         loadingText: "",
@@ -68,7 +69,7 @@ export function EmptyVideoState({
                 {activeAction.isLoading ? (
                     <>
                         <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        {activeAction.loadingText || "Loading..."}
+                        {activeAction.loadingText || m.empty_video_loading()}
                     </>
                 ) : (
                     activeAction.label

@@ -11,6 +11,7 @@ import {
 import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 import { setAuthUser } from "~/lib/store/auth";
+import * as m from "~/paraglide/messages";
 
 const REDIRECT_URL = "/library";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
@@ -18,7 +19,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
 export const Route = createFileRoute("/signin")({
   beforeLoad: async ({ context }) => {
     if (context.user) {
-      throw redirect({ to: REDIRECT_URL });
+      throw redirect({ to: REDIRECT_URL, search: { page: 1 } });
     }
   },
   component: AuthPage,
@@ -32,7 +33,7 @@ function AuthPage() {
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) {
-      setError("No credential received from Google");
+      setError(m.signin_error_missing_credential());
       return;
     }
 
@@ -47,7 +48,7 @@ function AuthPage() {
       });
 
       if (authError) {
-        setError(authError.message || "Unable to sign in with Google");
+        setError(authError.message || m.signin_error_generic());
         return;
       }
 
@@ -62,17 +63,17 @@ function AuthPage() {
         await router.invalidate();
       }
 
-      router.navigate({ to: REDIRECT_URL, replace: true });
+      router.navigate({ to: REDIRECT_URL, replace: true, search: { page: 1 } });
     } catch (err) {
       console.error("Auth error:", err);
-      setError("An unexpected error occurred");
+      setError(m.signin_error_unexpected());
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleError = () => {
-    setError("Google sign-in was cancelled or failed. Please try again.");
+    setError(m.signin_cancelled());
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,9 +101,9 @@ function AuthPage() {
         <main className="flex flex-1 items-center justify-center px-6 py-12">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle className="text-2xl">Welcome to Fluentby.ai</CardTitle>
+              <CardTitle className="text-2xl">{m.signin_welcome()}</CardTitle>
               <CardDescription>
-                Sign in with Google to start learning with your playlists.
+                {m.signin_description()}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -114,7 +115,7 @@ function AuthPage() {
 
               {isLoading && (
                 <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
-                  Signing in...
+                  {m.signin_loading()}
                 </div>
               )}
 

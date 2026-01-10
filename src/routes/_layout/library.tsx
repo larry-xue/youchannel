@@ -3,6 +3,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { EmptyVideoState } from "~/lib/components/empty-video-state";
 import { Loading } from "~/lib/components/ui/loading";
 import { VideoCard } from "~/lib/components/video-card";
+import * as m from "~/paraglide/messages";
 import {
   getYouTubeAccountStatusFn,
   getVideosFn,
@@ -67,16 +68,16 @@ function DashboardPlaylists() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-semibold text-foreground">
-          Library
+          {m.library_title()}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Manage and learn from your saved videos—directly chat with videos that are being analyzed or already analyzed.
+          {m.library_description()}
         </p>
       </div>
 
       <div className="space-y-4">
         {isLoading ? (
-          <Loading text="Loading videos..." size="md" />
+          <Loading text={m.library_loading()} size="md" />
         ) : videos.length === 0 ? (
           <EmptyVideoState />
         ) : (

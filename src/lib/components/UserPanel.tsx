@@ -18,6 +18,7 @@ import {
 } from "./ui/dialog";
 import { useAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
+import { LearningSettings } from "./LearningSettings";
 
 interface UserPanelProps {
   onSignOut: () => Promise<void>;
@@ -48,10 +49,11 @@ export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
   return (
     <>
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{m.user_settings()}</DialogTitle>
           </DialogHeader>
+          <LearningSettings />
         </DialogContent>
       </Dialog>
       <DropdownMenu>

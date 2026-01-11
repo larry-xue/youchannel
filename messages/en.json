@@ -179,7 +179,6 @@
   "chat_sidebar_chat_button": "Chat ({voice})",
   "chat_sidebar_connecting": "Connecting...",
   "chat_sidebar_end_session": "End Session",
-  "chat_sidebar_status_speaking": "Speaking to Gemini Live",
   "chat_sidebar_status_tap": "Tap to start a voice conversation",
   "chat_sidebar_status_analysis_required": "Analysis required to enable chat",
   "chat_sidebar_loading": "Loading voice chat...",

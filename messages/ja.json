@@ -179,7 +179,6 @@
   "chat_sidebar_chat_button": "チャット ( {voice} )",
   "chat_sidebar_connecting": "接続中...",
   "chat_sidebar_end_session": "セッション終了",
-  "chat_sidebar_status_speaking": "ジェミニライブに語る",
   "chat_sidebar_status_tap": "タップして音声会話を開始",
   "chat_sidebar_status_analysis_required": "チャットを有効にするには分析が必要です",
   "chat_sidebar_loading": "ボイスチャットを読み込んでいます...",

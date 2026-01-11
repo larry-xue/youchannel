@@ -441,7 +441,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
               {/* Status hint */}
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {isActiveSession
-                  ? m.chat_sidebar_status_speaking()
+                  ? ""
                   : canChat
                     ? m.chat_sidebar_status_tap()
                     : m.chat_sidebar_status_analysis_required()}

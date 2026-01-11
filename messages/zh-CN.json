@@ -179,7 +179,6 @@
   "chat_sidebar_chat_button": "聊天（ {voice} ）",
   "chat_sidebar_connecting": "正在连接...",
   "chat_sidebar_end_session": "会议结束",
-  "chat_sidebar_status_speaking": "接受 Gemini Live 采访时",
   "chat_sidebar_status_tap": "点击即可开始语音对话",
   "chat_sidebar_status_analysis_required": "启用聊天功能需要进行分析",
   "chat_sidebar_loading": "正在加载语音聊天...",

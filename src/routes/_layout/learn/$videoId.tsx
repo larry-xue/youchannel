@@ -89,7 +89,7 @@ function DashboardLearnVideo() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-[84vh] min-h-[600px]">
       {hasError && (
         <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {m.learn_error_load()}
@@ -98,7 +98,7 @@ function DashboardLearnVideo() {
 
       <ResizablePanelGroup
         direction="horizontal"
-        className="h-[84vh] min-h-[600px] rounded-lg border"
+        className="rounded-lg border"
       >
         {/* Main content area */}
         <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>

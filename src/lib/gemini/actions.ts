@@ -8,7 +8,7 @@ export const getGeminiToken = createServerFn({ method: "POST" })
     // Ensure properly authenticated user 
     await getSupabaseAndUser();
 
-    const apiKey = process.env.GOOGLE_API_KEY;
+    const apiKey = process.env.GOOGLE_LIVE_API_KEY;
     if (!apiKey) {
       console.error("Server: GOOGLE_API_KEY not found");
       throw new Error("GOOGLE_API_KEY is not set on the server.");

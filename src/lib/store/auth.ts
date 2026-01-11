@@ -5,8 +5,8 @@ import { Store, useStore } from "@tanstack/react-store";
 export interface AuthUser {
   id: string;
   email?: string;
-  user_metadata: Record<string, object>;
-  app_metadata: Record<string, object>;
+  user_metadata: Record<string, any>;
+  app_metadata: Record<string, any>;
 }
 
 export type AuthStatus = "unknown" | "authenticated" | "unauthenticated";

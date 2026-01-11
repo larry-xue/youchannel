@@ -6,19 +6,11 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import * as m from "~/paraglide/messages";
-import { LogOut } from "lucide-react";
 import { FullPageLoader } from "~/lib/components/FullPageLoader";
 import ThemeToggle from "~/lib/components/ThemeToggle";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/lib/components/ui/dropdown-menu";
+import { UserPanel } from "~/lib/components/UserPanel";
 import { signOutFn } from "~/lib/server/auth";
-import { setAuthUser, useAuthUser } from "~/lib/store/auth";
+import { setAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout")({
@@ -32,8 +24,6 @@ export const Route = createFileRoute("/_layout")({
   component: DashboardLayout,
 });
 
-// Don't define nav items outside if we're using function calls for i18n
-// OR wrap it in a function
 const getDashboardNavItems = () => [
   { label: m.library(), to: "/library" },
   { label: m.playlists(), to: "/playlists" },
@@ -41,15 +31,6 @@ const getDashboardNavItems = () => [
 
 function DashboardLayout() {
   const router = useRouter();
-  const authUser = useAuthUser();
-
-  // Extract user info from metadata
-  const userAvatar = authUser?.user_metadata?.avatar_url as string | undefined;
-  const userName = (authUser?.user_metadata?.full_name as string | undefined) ||
-    authUser?.email?.split("@")[0] ||
-    "User";
-  const userInitial = userName[0]?.toUpperCase() || "U";
-
   const handleSignOut = async () => {
     await signOutFn();
     setAuthUser(router.options.context.authStore, null);
@@ -94,41 +75,7 @@ function DashboardLayout() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-full p-1 transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                {userAvatar ? (
-                  <img
-                    src={userAvatar}
-                    alt="Avatar"
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-                    {userInitial}
-                  </div>
-                )}
-                <span className="hidden text-sm font-medium text-foreground sm:inline">
-                  {userName}
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">
-                      {userName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {authUser?.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} variant="destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  {m.sign_out()}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <UserPanel onSignOut={handleSignOut} showMenuItems={false} />
             <ThemeToggle />
           </div>
         </div>

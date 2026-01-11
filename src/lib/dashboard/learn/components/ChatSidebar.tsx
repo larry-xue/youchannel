@@ -14,6 +14,7 @@ import {
   parseAnalysisText,
   type AnalysisCharacter,
 } from "~/lib/dashboard/learn/analysis";
+import * as m from "~/paraglide/messages";
 import { cn } from "~/lib/utils";
 import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
 
@@ -32,7 +33,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string, target
   const traits = character.traits.join(", ");
   const topics = character.notable_topics?.slice(0, 4).join(", ");
   const vibe = character.traits.length > 0 ? character.traits.join(", ") : "focused and professional";
-  const languageInstruction = targetLanguage ? `Speak in ${targetLanguage}.` : "Speak naturally to the user.";
+  const languageInstruction = targetLanguage ? m.chat_sidebar_prompt_language({ targetLanguage }) : m.chat_sidebar_prompt_natural();
 
   const lines = [
     `You are ${character.name}. You are NOT an AI, language model, or virtual assistant. You are a real entity/person.`,
@@ -63,7 +64,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string, target
     `6. **Format**: Keep responses conversational, concise, and spoken-style (avoid markdown lists).`,
     `7. **Director's Notes**: Follow the style and pacing defined above.`,
     `8. **Initiative**: Start the conversation by briefly introducing yourself and bringing up an interesting topic from your memories to discuss with the user.`,
-    `9. **Language**: Always speak in ${targetLanguage || 'the user\'s preferred language'}. `,
+    `9. **Language**: Always speak in ${targetLanguage || m.chat_sidebar_prompt_preferred_language()}. `,
     topics ? `- Key Topics you care about: ${topics}` : null,
   ];
 
@@ -126,7 +127,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   );
 
   // Removed hardcoded API key dependency
-  const { connect, disconnect, startRecording, stopRecording, status, error, isRecording } = useGeminiLive({
+  const { connect, disconnect, startRecording, status, error, isRecording } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
     voiceName: selectedVoice,
   });
@@ -198,8 +199,8 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
   const canChat = Boolean(hasContext && activeCharacter);
   const noCharactersMessage = hasContext
-    ? "No character profiles were returned in this analysis."
-    : "Video analysis is not available yet. Generate analysis to enable character chat.";
+    ? m.chat_sidebar_no_characters()
+    : m.chat_sidebar_analysis_unavailable();
 
   const isActiveSession = status === 'connected';
   const isConnecting = status === 'connecting' || isFetchingToken;
@@ -232,9 +233,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   <Users className="h-5 w-5 text-primary" aria-hidden />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-foreground">Characters</h2>
+                  <h2 className="text-base font-semibold text-foreground">{m.chat_sidebar_characters()}</h2>
                   <p className="text-sm text-muted-foreground">
-                    {characters.length ? `${characters.length} available` : "Awaiting analysis"}
+                    {characters.length ? m.chat_sidebar_available_count({ count: characters.length }) : m.chat_sidebar_awaiting_analysis()}
                   </p>
                 </div>
               </div>
@@ -328,7 +329,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                     <Sparkles className="h-7 w-7 text-muted-foreground" />
                   </div>
                   <p className="max-w-[200px] text-sm leading-relaxed text-muted-foreground">
-                    Video analysis is not available yet.
+                    {m.chat_sidebar_analysis_unavailable_short()}
                   </p>
                 </div>
               ) : (
@@ -345,10 +346,10 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                       </div>
                       <div className="space-y-2">
                         <p className="text-lg font-medium animate-pulse text-foreground">
-                          Speaking with {activeCharacter.name}...
+                          {m.chat_sidebar_speaking_with({ name: activeCharacter.name })}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Listening & Speaking Active
+                          {m.chat_sidebar_listening_active()}
                         </p>
                       </div>
                     </div>
@@ -359,9 +360,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                         <Mic className="h-9 w-9 text-primary" />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-base font-medium text-foreground">Ready to chat</p>
+                        <p className="text-base font-medium text-foreground">{m.chat_sidebar_ready()}</p>
                         <p className="text-sm text-muted-foreground max-w-[240px] mx-auto">
-                          Start a voice session to talk with this character about the video.
+                          {m.chat_sidebar_start_session_hint()}
                         </p>
                       </div>
                     </>
@@ -426,12 +427,12 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   {isActiveSession ? (
                     <>
                       <MicOff className="mr-3 h-5 w-5" aria-hidden />
-                      End Session
+                      {m.chat_sidebar_end_session()}
                     </>
                   ) : (
                     <>
                       <Mic className="mr-3 h-5 w-5" aria-hidden />
-                      {isConnecting ? "Connecting..." : `Chat (${selectedVoice})`}
+                      {isConnecting ? m.chat_sidebar_connecting() : m.chat_sidebar_chat_button({ voice: selectedVoice })}
                     </>
                   )}
                 </Button>
@@ -440,10 +441,10 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
               {/* Status hint */}
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {isActiveSession
-                  ? "Speaking to Gemini Live"
+                  ? m.chat_sidebar_status_speaking()
                   : canChat
-                    ? "Tap to start a voice conversation"
-                    : "Analysis required to enable chat"}
+                    ? m.chat_sidebar_status_tap()
+                    : m.chat_sidebar_status_analysis_required()}
               </p>
             </div>
           </div>
@@ -472,7 +473,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Mic className="h-7 w-7 text-muted-foreground animate-pulse" />
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">Loading voice chat...</p>
+          <p className="mt-4 text-sm text-muted-foreground">{m.chat_sidebar_loading()}</p>
         </div>
       </aside>
     );

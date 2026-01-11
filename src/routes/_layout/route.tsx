@@ -13,6 +13,7 @@ import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
 import { LanguageAppCheck } from "~/lib/components/LanguageAppCheck";
+import { LanguageSwitcher } from "~/lib/components/LanguageSwitcher";
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context }) => {
@@ -89,6 +90,7 @@ function DashboardLayout() {
           </div>
           <div className="flex items-center gap-3">
             <UserPanel onSignOut={handleSignOut} showMenuItems={false} />
+            <LanguageSwitcher />
             <ThemeToggle />
           </div>
         </div>

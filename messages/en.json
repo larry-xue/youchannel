@@ -159,5 +159,11 @@
   "video_card_action_open": "Open",
   "playlist_video_placeholder": "VID",
   "playlist_page_info": "Page {current} of {total}",
-  "playlist_page_current": "Page {current}"
+  "playlist_page_current": "Page {current}",
+  "learning_settings_title": "I want to learn...",
+  "learning_settings_select_language": "Select a language",
+  "learning_settings_save": "Save",
+  "learning_settings_success": "Learning preferences updated",
+  "learning_settings_error": "Failed to update preferences",
+  "learning_settings_modal_instruction": "Please select a language to start learning."
 }

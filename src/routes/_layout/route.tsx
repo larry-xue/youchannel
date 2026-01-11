@@ -12,6 +12,7 @@ import { UserPanel } from "~/lib/components/UserPanel";
 import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
+import { LanguageAppCheck } from "~/lib/components/LanguageAppCheck";
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context }) => {
@@ -83,7 +84,9 @@ function DashboardLayout() {
 
       <main className="mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
         <div className="min-w-0">
-          <Outlet />
+          <LanguageAppCheck>
+            <Outlet />
+          </LanguageAppCheck>
         </div>
       </main>
     </div>

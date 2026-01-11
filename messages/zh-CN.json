@@ -159,5 +159,11 @@
   "video_card_action_open": "打开",
   "playlist_video_placeholder": "VID",
   "playlist_page_info": "第 {current} 页，共 {total} 页",
-  "playlist_page_current": "第 {current} 页"
+  "playlist_page_current": "第 {current} 页",
+  "learning_settings_title": "我想学习...",
+  "learning_settings_select_language": "选择语言",
+  "learning_settings_save": "保存",
+  "learning_settings_success": "学习偏好已更新",
+  "learning_settings_error": "更新失败",
+  "learning_settings_modal_instruction": "请选择一门语言开始学习。"
 }

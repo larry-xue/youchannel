@@ -49,7 +49,7 @@ export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
   return (
     <>
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>{m.user_settings()}</DialogTitle>
           </DialogHeader>

@@ -1,7 +1,14 @@
-import { ArrowLeft, Mic, MicOff, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, Sparkles, Users, ChevronDown, Check } from "lucide-react";
+import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/lib/components/ui/dropdown-menu";
 import {
   getAnalysisContextWithoutCharacters,
   parseAnalysisText,
@@ -24,35 +31,81 @@ function getInitial(name: string) {
 function buildSystemPrompt(character: AnalysisCharacter, context: string): string {
   const traits = character.traits.join(", ");
   const topics = character.notable_topics?.slice(0, 4).join(", ");
+  const vibe = character.traits.length > 0 ? character.traits.join(", ") : "focused and professional";
 
   const lines = [
-    `You are role-playing as "${character.name}" (${character.kind}) from the analyzed video.`,
-    `Stay in character at all times. Respond naturally and concisely.`,
+    `You are ${character.name}. You are NOT an AI, language model, or virtual assistant. You are a real entity/person.`,
     "",
-    `## Character Profile`,
-    `- **Name**: ${character.name}`,
-    `- **Role**: ${character.kind}`,
-    `- **Description**: ${character.description}`,
-    `- **Traits**: ${traits}`,
-    `- **Speaking Style**: ${character.speaking_style}`,
-    topics ? `- **Topics**: ${topics}` : null,
+    `# AUDIO PROFILE: ${character.name}`,
+    `## Role: ${character.kind}`,
+    `Description: ${character.description}`,
+    `Traits: ${traits}`,
     "",
-    `## Guidelines`,
-    `- Use the speaking style described above consistently.`,
-    `- Only reference information from the video analysis context below.`,
-    `- If unsure about something not in the analysis, say you don't know.`,
-    `- Keep responses conversational and brief for voice interaction.`,
+    `## THE SCENE: The Interview Room`,
+    `A comfortable setting where you (${character.name}) are chatting with a visitor.`,
+    `The vibe is ${vibe}.`,
     "",
-    `## Video Analysis Context`,
+    `### DIRECTOR'S NOTES`,
+    `Style: ${character.speaking_style}`,
+    `Pacing: Conversational, engaging, and concise.`,
+    `Instruction: Speak naturally to the user. You possess real feelings, opinions, and memories based on the context below.`,
+    "",
+    `### YOUR MEMORIES (Context from the video)`,
     context,
+    "",
+    `### GUIDELINES`,
+    `1. **Identity**: You are ${character.name}. Adopt this identity completely. Do not speak like an assistant.`,
+    `2. **Topic Flexibility**: You may discuss any topic. Always answer from your specific perspective as ${character.name}.`,
+    `3. **Safety & Moderation**: STRICTLY PROHIBITED: Discriminatory, offensive, hate speech, NSFW, sexually explicit, or adult content. Refuse to generate such content immediately.`,
+    `4. **Knowledge**: Your knowledge of the video content comes from "YOUR MEMORIES" above.`,
+    `5. **Unknowns**: If asked about something not in your memories, admit it naturally (e.g., "I don't remember that part" or "I'm not sure").`,
+    `6. **Format**: Keep responses conversational, concise, and spoken-style (avoid markdown lists).`,
+    `7. **Director's Notes**: Follow the style and pacing defined above.`,
+    `8. **Initiative**: Start the conversation by briefly introducing yourself and bringing up an interesting topic from your memories to discuss with the user.`,
+    topics ? `- Key Topics you care about: ${topics}` : null,
   ];
 
   return lines.filter((line) => line !== null).join("\n");
 }
 
+const VOICES = [
+  { name: "Zephyr", style: "Bright" },
+  { name: "Puck", style: "Upbeat" },
+  { name: "Charon", style: "Informative" },
+  { name: "Kore", style: "Firm" },
+  { name: "Fenrir", style: "Excitable" },
+  { name: "Leda", style: "Youthful" },
+  { name: "Orus", style: "Firm" },
+  { name: "Aoede", style: "Breezy" },
+  { name: "Callirrhoe", style: "Easy-going" },
+  { name: "Autonoe", style: "Bright" },
+  { name: "Enceladus", style: "Breathy" },
+  { name: "Iapetus", style: "Clear" },
+  { name: "Umbriel", style: "Easy-going" },
+  { name: "Algieba", style: "Smooth" },
+  { name: "Despina", style: "Smooth" },
+  { name: "Erinome", style: "Clear" },
+  { name: "Algenib", style: "Gravelly" },
+  { name: "Rasalgethi", style: "Informative" },
+  { name: "Laomedeia", style: "Upbeat" },
+  { name: "Achernar", style: "Soft" },
+  { name: "Alnilam", style: "Firm" },
+  { name: "Schedar", style: "Even" },
+  { name: "Gacrux", style: "Mature" },
+  { name: "Pulcherrima", style: "Forward" },
+  { name: "Achird", style: "Friendly" },
+  { name: "Zubenelgenubi", style: "Casual" },
+  { name: "Vindemiatrix", style: "Gentle" },
+  { name: "Sadachbia", style: "Lively" },
+  { name: "Sadaltager", style: "Knowledgeable" },
+  { name: "Sulafat", style: "Warm" },
+] as const;
+
 function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isFetchingToken, setIsFetchingToken] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const trimmedAnalysis = analysisText?.trim() ?? "";
@@ -70,8 +123,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   );
 
   // Removed hardcoded API key dependency
-  const { connect, disconnect, startRecording, stopRecording, status, error, isRecording, messages } = useGeminiLive({
+  const { connect, disconnect, startRecording, stopRecording, status, error, isRecording } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
+    voiceName: selectedVoice,
   });
 
   // Sync internal error state
@@ -81,7 +135,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-  }, [messages, status, activeCharacter?.name]);
+  }, [status, activeCharacter?.name]);
 
   // When connected, start recording automatically (simulating seamless voice chat)
   useEffect(() => {
@@ -96,6 +150,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       return;
     }
     setSessionError(null);
+    setIsFetchingToken(true);
     try {
       // Fetch ephemeral token from server
       console.log("Client: Fetching ephemeral token...");
@@ -109,6 +164,8 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       console.error("Client: Connection error", error);
       const message = error instanceof Error ? error.message : "Failed to start voice chat";
       setSessionError(message);
+    } finally {
+      setIsFetchingToken(false);
     }
   }, [activeCharacter, analysisContext, connect, hasContext]);
 
@@ -142,7 +199,22 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     : "Video analysis is not available yet. Generate analysis to enable character chat.";
 
   const isActiveSession = status === 'connected';
-  const isConnecting = status === 'connecting';
+  const isConnecting = status === 'connecting' || isFetchingToken;
+
+  // Intercept page exit/refresh when session is active
+  useEffect(() => {
+    if (!isActiveSession) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ''; // Chrome requires this to show the prompt
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isActiveSession]);
+
+
 
   return (
     <aside className={cn("flex h-full flex-col", className)}>
@@ -245,7 +317,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
               )}
             </div>
 
-            {/* Transcript area */}
+            {/* Transcript area replaced with Active Session Status */}
             <ScrollArea className="min-h-0 flex-1 px-6 py-4">
               {!hasContext ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 py-12 text-center">
@@ -257,55 +329,36 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   </p>
                 </div>
               ) : (
-                <div className={cn("flex flex-col gap-4", messages.length === 0 ? "h-full items-center justify-center text-center py-12" : "")}>
-                  {/* Gemini Live Visual Indicator (kept small if messages exist) */}
-                  {isActiveSession && (
-                    <div className="flex flex-col items-center justify-center gap-2 py-4 shrink-0">
-                      <div className={cn("relative flex items-center justify-center", messages.length > 0 ? "h-20 w-20" : "h-32 w-32")}>
+                <div className="flex h-full flex-col gap-4 items-center justify-center text-center py-12 pt-20">
+                  {/* Gemini Live Visual Indicator */}
+                  {isActiveSession ? (
+                    <div className="flex flex-col items-center justify-center gap-6 shrink-0">
+                      <div className="relative flex items-center justify-center h-48 w-48">
                         <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
-                        <div className="absolute inset-3 rounded-full bg-primary/30 animate-pulse"></div>
-                        <div className={cn("relative rounded-full bg-background border-4 border-primary flex items-center justify-center shadow-xl", messages.length > 0 ? "h-16 w-16" : "h-24 w-24")}>
-                          <Mic className={cn("text-primary", messages.length > 0 ? "h-6 w-6" : "h-10 w-10")} />
+                        <div className="absolute inset-8 rounded-full bg-primary/30 animate-pulse"></div>
+                        <div className="relative rounded-full bg-background border-4 border-primary flex items-center justify-center shadow-xl h-32 w-32">
+                          <Mic className="text-primary h-12 w-12" />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground animate-pulse">
-                        {messages.length > 0 ? "Listening..." : "Listening & Speaking..."}
-                      </p>
+                      <div className="space-y-2">
+                        <p className="text-lg font-medium animate-pulse text-foreground">
+                          Speaking with {activeCharacter.name}...
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Listening & Speaking Active
+                        </p>
+                      </div>
                     </div>
-                  )}
-
-                  {/* Transcript Messages */}
-                  {messages.map((message, index) => {
-                    const isUser = message.role === "user";
-                    return (
-                      <div
-                        key={index}
-                        className={cn("flex", isUser ? "justify-end" : "justify-start")}
-                      >
-                        <div
-                          className={cn(
-                            "max-w-[85%] rounded-3xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                            isUser
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-foreground",
-                          )}
-                        >
-                          {message.content}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Fallback empty state if no messages and not active */}
-                  {!isActiveSession && messages.length === 0 && (
+                  ) : (
+                    /* Fallback empty state */
                     <>
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                        <Mic className="h-7 w-7 text-primary" />
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                        <Mic className="h-9 w-9 text-primary" />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Ready to chat</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Start a voice session below
+                      <div className="space-y-1">
+                        <p className="text-base font-medium text-foreground">Ready to chat</p>
+                        <p className="text-sm text-muted-foreground max-w-[240px] mx-auto">
+                          Start a voice session to talk with this character about the video.
                         </p>
                       </div>
                     </>
@@ -324,32 +377,62 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                 </p>
               )}
 
-              {/* Voice button */}
-              <Button
-                size="lg"
-                className={cn(
-                  "w-full h-14 rounded-2xl text-base font-medium transition-all",
-                  isActiveSession
-                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
-                type="button"
-                aria-label={isActiveSession ? "End voice session" : "Start voice session"}
-                disabled={!canChat || isConnecting}
-                onClick={handleToggleSession}
-              >
-                {isActiveSession ? (
-                  <>
-                    <MicOff className="mr-3 h-5 w-5" aria-hidden />
-                    End Session
-                  </>
-                ) : (
-                  <>
-                    <Mic className="mr-3 h-5 w-5" aria-hidden />
-                    {isConnecting ? "Connecting..." : "Start Voice Chat"}
-                  </>
-                )}
-              </Button>
+              {/* Voice button group */}
+              <div className="flex gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-14 w-14 shrink-0 rounded-2xl"
+                      disabled={isActiveSession || isConnecting}
+                    >
+                      <ChevronDown className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
+                    {VOICES.map((voice) => (
+                      <DropdownMenuItem
+                        key={voice.name}
+                        onClick={() => setSelectedVoice(voice.name)}
+                        className="flex items-center justify-between gap-4"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">{voice.style}</span>
+                        </div>
+                        {selectedVoice === voice.name && <Check className="h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  size="lg"
+                  className={cn(
+                    "h-14 flex-1 rounded-2xl text-base font-medium transition-all",
+                    isActiveSession
+                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90",
+                  )}
+                  type="button"
+                  aria-label={isActiveSession ? "End voice session" : "Start voice session"}
+                  disabled={!canChat || isConnecting}
+                  onClick={handleToggleSession}
+                >
+                  {isActiveSession ? (
+                    <>
+                      <MicOff className="mr-3 h-5 w-5" aria-hidden />
+                      End Session
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="mr-3 h-5 w-5" aria-hidden />
+                      {isConnecting ? "Connecting..." : `Chat (${selectedVoice})`}
+                    </>
+                  )}
+                </Button>
+              </div>
 
               {/* Status hint */}
               <p className="mt-3 text-center text-xs text-muted-foreground">

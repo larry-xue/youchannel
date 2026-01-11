@@ -7,7 +7,6 @@ import * as m from "~/paraglide/messages";
 import {
   getYouTubeAccountStatusFn,
   getVideosFn,
-  type VideoWithStatus,
 } from "~/lib/dashboard/data";
 import { z } from "zod";
 import {
@@ -19,6 +18,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "~/lib/components/ui/pagination";
+import { Video } from "~/schema";
 
 const videosSearchSchema = z.object({
   page: z.number().default(1).catch(1),
@@ -28,8 +28,6 @@ export const Route = createFileRoute("/_layout/library")({
   validateSearch: (search) => videosSearchSchema.parse(search),
   component: DashboardPlaylists,
 });
-
-const EMPTY_VIDEOS: VideoWithStatus[] = [];
 
 function DashboardPlaylists() {
   const router = useRouter();
@@ -52,12 +50,12 @@ function DashboardPlaylists() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const videos = videosQuery.data?.videos ?? EMPTY_VIDEOS;
+  const videos = videosQuery.data?.videos ?? [];
   const total = videosQuery.data?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
   const isLoading = videosQuery.isLoading || accountQuery.isLoading;
 
-  const handleOpenVideo = (video: VideoWithStatus) => {
+  const handleOpenVideo = (video: Video) => {
     navigate({
       to: "/learn/$videoId",
       params: { videoId: video.id },

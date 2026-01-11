@@ -1,5 +1,5 @@
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from '@google/genai';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createBlob, decode, decodeAudioData } from './utils';
 
 export type GeminiLiveStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -63,9 +63,13 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
 
       const config: any = {
         responseModalities: [Modality.AUDIO],
+        thinkingConfig: {
+          thinkingBudget: 1024,
+        },
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName } }
         },
+        enableAffectiveDialog: true,
       };
 
       if (systemInstruction) {
@@ -110,36 +114,13 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
               }
             }
 
-            // Text/Transcript handling
-            const textParts = message.serverContent?.modelTurn?.parts?.filter(p => p.text);
-            if (textParts && textParts.length > 0) {
-              const textContent = textParts.map(p => p.text).join("");
-              if (textContent) {
-                setMessages(prev => {
-                  const lastMsg = prev[prev.length - 1];
-                  // If the last message is from assistant, append to it (streaming text)
-                  if (lastMsg && lastMsg.role === 'assistant') {
-                    return [
-                      ...prev.slice(0, -1),
-                      { ...lastMsg, content: lastMsg.content + textContent }
-                    ];
-                  }
-                  // Otherwise new message
-                  return [...prev, { role: 'assistant', content: textContent }];
-                });
-              }
-            }
-
-            // To capture User's turn, we might need to rely on 'speech' events or 'turnComplete' if provided.
-            // But typically for Live API we might not get user text back unless we do STT ourselves or the API echoes it.
-            // For now, we focus on Assistant response.
+            // Text/Transcript handling removed as per user request
 
             const interrupted = message.serverContent?.interrupted;
             if (interrupted) {
               audioSourcesRef.current.forEach(s => s.stop());
               audioSourcesRef.current.clear();
               nextStartTimeRef.current = 0;
-              // Optional: Mark the last message as interrupted or trim it?
             }
           },
           onclose: (e) => {
@@ -160,7 +141,8 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     }
   }, [apiKey, model, voiceName, ensureAudioContexts]);
 
-  const recognitionRef = useRef<any>(null);
+  // SpeechRecognition removal
+  // user transcript logic removed
 
   const startRecording = useCallback(async () => {
     if (!inputContextRef.current || !sessionRef.current) return;
@@ -183,34 +165,6 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
       sourceNodeRef.current.connect(processorRef.current);
       processorRef.current.connect(inputContextRef.current.destination);
 
-      // Start Web Speech API for user transcription fallback
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = 'en-US';
-
-        recognitionRef.current.onresult = (event: any) => {
-          let finalTranscript = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            }
-          }
-
-          if (finalTranscript) {
-            setMessages(prev => {
-              // Determine if we should append to last user message or create new one
-              // Since this is real-time, simple append new message is safer for now
-              return [...prev, { role: 'user', content: finalTranscript }];
-            });
-          }
-        };
-        recognitionRef.current.start();
-      }
-
       setIsRecording(true);
     } catch (err: any) {
       console.error("Mic error", err);
@@ -230,11 +184,6 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     sourceNodeRef.current = null;
     processorRef.current = null;
 
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-
     setIsRecording(false);
   }, []);
 
@@ -250,6 +199,12 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     setStatus('disconnected');
   }, [stopRecording]);
 
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
+
   return {
     connect,
     disconnect,
@@ -258,6 +213,5 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     status,
     error,
     isRecording,
-    messages // Currently empty as we don't parse transcript
   };
 }

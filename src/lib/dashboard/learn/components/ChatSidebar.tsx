@@ -1,5 +1,5 @@
 import { ArrowLeft, Mic, MicOff, Sparkles, Users, ChevronDown, Check } from "lucide-react";
-import { useBlocker } from "@tanstack/react-router";
+import { useBlocker, useRouteContext } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
@@ -28,10 +28,11 @@ function getInitial(name: string) {
   return trimmed.charAt(0).toUpperCase();
 }
 
-function buildSystemPrompt(character: AnalysisCharacter, context: string): string {
+function buildSystemPrompt(character: AnalysisCharacter, context: string, targetLanguage?: string): string {
   const traits = character.traits.join(", ");
   const topics = character.notable_topics?.slice(0, 4).join(", ");
   const vibe = character.traits.length > 0 ? character.traits.join(", ") : "focused and professional";
+  const languageInstruction = targetLanguage ? `Speak in ${targetLanguage}.` : "Speak naturally to the user.";
 
   const lines = [
     `You are ${character.name}. You are NOT an AI, language model, or virtual assistant. You are a real entity/person.`,
@@ -48,7 +49,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string): strin
     `### DIRECTOR'S NOTES`,
     `Style: ${character.speaking_style}`,
     `Pacing: Conversational, engaging, and concise.`,
-    `Instruction: Speak naturally to the user. You possess real feelings, opinions, and memories based on the context below.`,
+    `Instruction: ${languageInstruction} You possess real feelings, opinions, and memories based on the context below.`,
     "",
     `### YOUR MEMORIES (Context from the video)`,
     context,
@@ -62,6 +63,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string): strin
     `6. **Format**: Keep responses conversational, concise, and spoken-style (avoid markdown lists).`,
     `7. **Director's Notes**: Follow the style and pacing defined above.`,
     `8. **Initiative**: Start the conversation by briefly introducing yourself and bringing up an interesting topic from your memories to discuss with the user.`,
+    `9. **Language**: Always speak in ${targetLanguage || 'the user\'s preferred language'}. `,
     topics ? `- Key Topics you care about: ${topics}` : null,
   ];
 
@@ -106,6 +108,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
+  const { targetLanguage } = useRouteContext({ from: "/_layout" });
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const trimmedAnalysis = analysisText?.trim() ?? "";
@@ -158,7 +161,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       const { token } = await getGeminiToken();
       console.log("Client: Got token", token ? "Success" : "Empty");
 
-      const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext);
+      const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext, targetLanguage);
       await connect(systemPrompt, token);
     } catch (error) {
       console.error("Client: Connection error", error);

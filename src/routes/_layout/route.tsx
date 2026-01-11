@@ -20,6 +20,18 @@ export const Route = createFileRoute("/_layout")({
     if (!context.user) {
       throw redirect({ to: "/signin" });
     }
+
+    // Fetch user's target language
+    const { default: supabase } = await import("~/lib/auth-client");
+    const { data } = await supabase
+      .from("learning_profiles")
+      .select("target_language")
+      .eq("user_id", context.user.id)
+      .single();
+
+    return {
+      targetLanguage: data?.target_language || "en-US",
+    };
   },
   pendingComponent: FullPageLoader,
   component: DashboardLayout,

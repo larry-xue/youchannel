@@ -159,5 +159,11 @@
   "video_card_action_open": "開く",
   "playlist_video_placeholder": "VID",
   "playlist_page_info": "ページ {current} / {total}",
-  "playlist_page_current": "ページ {current}"
+  "playlist_page_current": "ページ {current}",
+  "learning_settings_title": "学習したい言語...",
+  "learning_settings_select_language": "言語を選択",
+  "learning_settings_save": "保存",
+  "learning_settings_success": "学習設定を更新しました",
+  "learning_settings_error": "設定の更新に失敗しました",
+  "learning_settings_modal_instruction": "学習を開始するには言語を選択してください。"
 }

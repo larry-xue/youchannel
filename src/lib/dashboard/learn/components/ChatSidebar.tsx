@@ -123,6 +123,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [debugInput, setDebugInput] = useState("");
   const { targetLanguage } = useRouteContext({ from: "/_layout" });
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const hasSentHelloRef = useRef(false);
 
   const trimmedAnalysis = analysisText?.trim() ?? "";
   const parsedAnalysis = useMemo(() => parseAnalysisText(trimmedAnalysis), [trimmedAnalysis]);
@@ -168,10 +169,19 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
   // When connected, start recording automatically (simulating seamless voice chat)
   useEffect(() => {
-    if (status === 'connected' && !isRecording) {
-      startRecording();
+    if (status === 'connected') {
+      if (!isRecording) {
+        startRecording();
+      }
+      // Automaticaly send "Hello" to trigger the character's introduction
+      if (!hasSentHelloRef.current) {
+        sendText("Hello");
+        hasSentHelloRef.current = true;
+      }
+    } else {
+      hasSentHelloRef.current = false;
     }
-  }, [status, isRecording, startRecording]);
+  }, [status, isRecording, startRecording, sendText]);
 
   const updateCharacterSelection = useCallback(
     (updates: Partial<CharacterSelection>) => {
@@ -260,11 +270,24 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isActiveSession]);
 
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!isActiveSession) return false;
+      // eslint-disable-next-line no-alert
+      const shouldLeave = window.confirm("You have an active call. Do you want to end it?");
+      if (shouldLeave) {
+        disconnect();
+        return false;
+      }
+      return true;
+    },
+  });
+
 
 
   return (
     <aside className={cn("flex h-full flex-col", className)}>
-      <div className="flex h-full flex-col overflow-hidden bg-background/50 overflow-auto">
+      <div className="flex h-full flex-col bg-background/50 overflow-auto">
         {!activeCharacter ? (
           /* ========== Character Directory View ========== */
           <div className="flex h-full flex-col">

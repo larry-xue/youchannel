@@ -8,11 +8,6 @@ export type AnalysisWikiItem = {
   details?: string;
 };
 
-export type CharacterEvidence = {
-  timestamp?: string;
-  quote?: string;
-};
-
 export type AnalysisCharacter = {
   name: string;
   kind: CharacterKind;
@@ -20,7 +15,6 @@ export type AnalysisCharacter = {
   traits: string[];
   speaking_style: string;
   notable_topics?: string[];
-  evidence?: CharacterEvidence[];
 };
 
 export type AnalysisTranscriptSegment = {
@@ -63,20 +57,6 @@ function sanitizeStringArray(value: unknown, limit = 8) {
   return result;
 }
 
-function sanitizeEvidence(value: unknown) {
-  if (!Array.isArray(value)) return [] as CharacterEvidence[];
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") return null;
-      const evidence = entry as Record<string, unknown>;
-      const timestamp = asString(evidence.timestamp);
-      const quote = asString(evidence.quote);
-      if (!timestamp && !quote) return null;
-      return { timestamp, quote };
-    })
-    .filter(Boolean) as CharacterEvidence[];
-}
-
 export function sanitizeCharacter(value: unknown): AnalysisCharacter | null {
   if (!value || typeof value !== "object") return null;
   const character = value as Record<string, unknown>;
@@ -91,7 +71,6 @@ export function sanitizeCharacter(value: unknown): AnalysisCharacter | null {
     : "unknown";
 
   const notableTopics = sanitizeStringArray(character.notable_topics, 8);
-  const evidence = sanitizeEvidence(character.evidence);
 
   return {
     name,
@@ -100,7 +79,6 @@ export function sanitizeCharacter(value: unknown): AnalysisCharacter | null {
     speaking_style: speakingStyle,
     traits,
     notable_topics: notableTopics.length ? notableTopics : undefined,
-    evidence: evidence.length ? evidence : undefined,
   };
 }
 
@@ -116,16 +94,16 @@ export function parseAnalysisText(text?: string | null): ParsedAnalysis | null {
 
     const wiki = Array.isArray(record.wiki)
       ? record.wiki
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-            const entry = item as Record<string, unknown>;
-            const timestamp = asString(entry.timestamp);
-            const title = asString(entry.title);
-            const details = asString(entry.details);
-            if (!timestamp && !title && !details) return null;
-            return { timestamp, title, details };
-          })
-          .filter(Boolean) as AnalysisWikiItem[]
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const entry = item as Record<string, unknown>;
+          const timestamp = asString(entry.timestamp);
+          const title = asString(entry.title);
+          const details = asString(entry.details);
+          if (!timestamp && !title && !details) return null;
+          return { timestamp, title, details };
+        })
+        .filter(Boolean) as AnalysisWikiItem[]
       : undefined;
 
     const characters = Array.isArray(record.characters)
@@ -137,17 +115,17 @@ export function parseAnalysisText(text?: string | null): ParsedAnalysis | null {
       const transcriptRecord = record.transcript as Record<string, unknown>;
       const segments = Array.isArray(transcriptRecord.segments)
         ? (transcriptRecord.segments
-            .map((segment) => {
-              if (!segment || typeof segment !== "object") return null;
-              const item = segment as Record<string, unknown>;
-              const start = asString(item.start);
-              const end = asString(item.end);
-              const speaker = asString(item.speaker);
-              const textValue = asString(item.text);
-              if (!start && !end && !speaker && !textValue) return null;
-              return { start, end, speaker, text: textValue };
-            })
-            .filter(Boolean) as AnalysisTranscriptSegment[])
+          .map((segment) => {
+            if (!segment || typeof segment !== "object") return null;
+            const item = segment as Record<string, unknown>;
+            const start = asString(item.start);
+            const end = asString(item.end);
+            const speaker = asString(item.speaker);
+            const textValue = asString(item.text);
+            if (!start && !end && !speaker && !textValue) return null;
+            return { start, end, speaker, text: textValue };
+          })
+          .filter(Boolean) as AnalysisTranscriptSegment[])
         : undefined;
 
       transcript = {

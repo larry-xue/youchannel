@@ -27,13 +27,6 @@ type CharacterChatRequest = {
 function formatCharacterProfile(character: AnalysisCharacter) {
   const traits = character.traits.join(", ");
   const topics = character.notable_topics?.join(", ");
-  const evidence = character.evidence
-    ?.map((item) => {
-      const timestamp = item.timestamp ? `[${item.timestamp}] ` : "";
-      return `${timestamp}${item.quote || ""}`.trim();
-    })
-    .filter(Boolean)
-    .join("\n");
 
   return [
     `Name: ${character.name}`,
@@ -42,7 +35,6 @@ function formatCharacterProfile(character: AnalysisCharacter) {
     `Traits: ${traits}`,
     `Speaking style: ${character.speaking_style}`,
     topics ? `Topics: ${topics}` : null,
-    evidence ? `Evidence:\n${evidence}` : null,
   ]
     .filter(Boolean)
     .join("\n");

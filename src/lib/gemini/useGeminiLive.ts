@@ -15,6 +15,8 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [inputTranscript, setInputTranscript] = useState<string>('');
+  const [outputTranscript, setOutputTranscript] = useState<string>('');
 
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -70,6 +72,11 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
           voiceConfig: { prebuiltVoiceConfig: { voiceName } }
         },
         enableAffectiveDialog: true,
+        outputAudioTranscription: {},
+        inputAudioTranscription: {},
+        tools: {
+          googleSearch: {}
+        }
       };
 
       if (systemInstruction) {
@@ -83,6 +90,8 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
           onopen: () => {
             setStatus('connected');
             setMessages([]); // Clear previous messages on new session
+            setInputTranscript('');
+            setOutputTranscript('');
           },
           onmessage: async (message: LiveServerMessage) => {
             // Audio handling
@@ -114,7 +123,15 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
               }
             }
 
-            // Text/Transcript handling removed as per user request
+            // Handle output transcription (model's audio -> text)
+            if (message.serverContent?.outputTranscription?.text) {
+              setOutputTranscript(prev => prev + message.serverContent!.outputTranscription!.text);
+            }
+
+            // Handle input transcription (user's audio -> text)
+            if (message.serverContent?.inputTranscription?.text) {
+              setInputTranscript(prev => prev + message.serverContent!.inputTranscription!.text);
+            }
 
             const interrupted = message.serverContent?.interrupted;
             if (interrupted) {
@@ -213,5 +230,7 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     status,
     error,
     isRecording,
+    inputTranscript,
+    outputTranscript,
   };
 }

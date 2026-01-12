@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
   Menu,
-  Settings,
   LogOut,
   MoonIcon,
   SunIcon,
@@ -26,13 +25,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "~/lib/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "~/lib/components/ui/dialog";
-import { LearningSettings } from "~/lib/components/LearningSettings";
+
 import { useAuthUser } from "~/lib/store/auth";
 import { getLocale, locales, setLocale } from "~/paraglide/runtime";
 
@@ -57,7 +50,7 @@ const localeNames: Record<string, string> = {
 export function Header({ onSignOut }: HeaderProps) {
   const navItems = getDashboardNavItems();
   const authUser = useAuthUser();
-  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
   const currentLocale = getLocale();
 
   const userAvatar = authUser?.user_metadata?.avatar_url as string | undefined;
@@ -83,15 +76,6 @@ export function Header({ onSignOut }: HeaderProps) {
 
   return (
     <>
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-[625px]">
-          <DialogHeader>
-            <DialogTitle>{m.user_settings()}</DialogTitle>
-          </DialogHeader>
-          <LearningSettings />
-        </DialogContent>
-      </Dialog>
-
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="mx-auto flex w-full items-center gap-6 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-6">
@@ -176,16 +160,7 @@ export function Header({ onSignOut }: HeaderProps) {
                           </Link>
                         </DropdownMenuItem>
                       ))}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={(event) => {
-                          event.preventDefault();
-                          setIsSettingsOpen(true);
-                        }}
-                      >
-                        <Settings className="mr-2 h-4 w-4" />
-                        {m.user_settings()}
-                      </DropdownMenuItem>
+
                     </>
                   ) : (
                     <DropdownMenuItem asChild>

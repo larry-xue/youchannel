@@ -7,7 +7,6 @@ import {
 import { FullPageLoader } from "~/lib/components/FullPageLoader";
 import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser } from "~/lib/store/auth";
-import { LanguageAppCheck } from "~/lib/components/LanguageAppCheck";
 import { Header } from "~/lib/components/Header";
 
 export const Route = createFileRoute("/_layout")({
@@ -49,9 +48,7 @@ function DashboardLayout() {
 
       <main className="mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
         <div className="min-w-0">
-          <LanguageAppCheck>
-            <Outlet />
-          </LanguageAppCheck>
+          <Outlet />
         </div>
       </main>
     </div>

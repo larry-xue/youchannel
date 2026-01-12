@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Library, Play, Settings } from "lucide-react";
+import { LogOut, Library, Play } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -10,15 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
+
 import { useAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
-import { LearningSettings } from "./LearningSettings";
+
 
 interface UserPanelProps {
   onSignOut: () => Promise<void>;
@@ -27,7 +22,7 @@ interface UserPanelProps {
 
 export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
   const authUser = useAuthUser();
-  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
 
   if (!authUser) {
     return (
@@ -48,14 +43,6 @@ export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
 
   return (
     <>
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-[625px]">
-          <DialogHeader>
-            <DialogTitle>{m.user_settings()}</DialogTitle>
-          </DialogHeader>
-          <LearningSettings />
-        </DialogContent>
-      </Dialog>
       <DropdownMenu>
         <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {userAvatar ? (
@@ -104,16 +91,7 @@ export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
               </DropdownMenuItem>
             </>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              setIsSettingsOpen(true);
-            }}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            {m.user_settings()}
-          </DropdownMenuItem>
+
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onSignOut} variant="destructive">
             <LogOut className="mr-2 h-4 w-4" />

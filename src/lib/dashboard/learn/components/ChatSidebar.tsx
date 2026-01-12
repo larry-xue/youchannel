@@ -153,7 +153,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const promptLanguage = activeSelection?.language ?? activeCharacter?.language ?? targetLanguage ?? DEFAULT_LANGUAGE;
 
   // Removed hardcoded API key dependency
-  const { connect, disconnect, startRecording, sendText, status, error, isRecording } = useGeminiLive({
+  const { connect, disconnect, startRecording, sendText, status, error, isRecording, messages } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
     voiceName: activeVoice,
   });
@@ -164,8 +164,8 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   }, [error]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-  }, [status, activeCharacter?.name]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [status, activeCharacter?.name, messages.length, messages[messages.length - 1]?.content]);
 
   // When connected, start recording automatically (simulating seamless voice chat)
   useEffect(() => {
@@ -175,7 +175,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       }
       // Automaticaly send "Hello" to trigger the character's introduction
       if (!hasSentHelloRef.current) {
-        sendText("Hello");
+        sendText("Hello", true);
         hasSentHelloRef.current = true;
       }
     } else {
@@ -398,40 +398,69 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   </p>
                 </div>
               ) : (
-                <div className="flex h-full flex-col gap-4 items-center justify-center text-center py-12 pt-20">
-                  {/* Gemini Live Visual Indicator */}
-                  {isActiveSession ? (
-                    <div className="flex flex-col items-center justify-center gap-6 shrink-0">
-                      <div className="relative flex items-center justify-center h-48 w-48">
-                        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
-                        <div className="absolute inset-8 rounded-full bg-primary/30 animate-pulse"></div>
-                        <div className="relative rounded-full bg-background border-4 border-primary flex items-center justify-center shadow-xl h-32 w-32">
-                          <Mic className="text-primary h-12 w-12" />
+                <div className="flex h-full flex-col justify-end min-h-full">
+                  {/* Messages List */}
+                  <div className="flex flex-col gap-4 py-4">
+                    {messages.map((message, i) => {
+                      const isModel = message.role === 'model';
+                      // rudimentary grouping: if same role and within 1 min, hide header? 
+                      // Simplified for now: always show header or just distinct blocks.
+                      // Discord style: Avatar left.
+                      return (
+                        <div key={message.id} className={cn("group flex gap-3 px-2", isModel ? "" : "flex-row-reverse")}>
+                          {/* Avatar */}
+                          <div className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full select-none",
+                            isModel ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                          )}>
+                            {isModel ? getInitial(activeCharacter.name) : <Users className="h-4 w-4" />}
+                          </div>
+
+                          {/* Content */}
+                          <div className={cn("flex flex-col min-w-0 max-w-[85%]", isModel ? "items-start" : "items-end")}>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-sm font-semibold text-foreground">
+                                {isModel ? activeCharacter.name : "You"}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className={cn(
+                              "rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
+                              isModel
+                                ? "bg-muted/50 text-foreground rounded-tl-sm"
+                                : "bg-primary text-primary-foreground rounded-tr-sm"
+                            )}>
+                              {message.content}
+                            </div>
+                          </div>
                         </div>
+                      )
+                    })}
+
+                    {/* Typing indicator or Mic status when empty */}
+                    {messages.length === 0 && isActiveSession && (
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground gap-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
+                          <Mic className="h-4 w-4 text-primary" />
+                        </div>
+                        <p className="text-sm">{m.chat_sidebar_listening_active()}</p>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-lg font-medium animate-pulse text-foreground">
-                          {m.chat_sidebar_speaking_with({ name: activeCharacter.name })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {m.chat_sidebar_listening_active()}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Fallback empty state */
-                    <>
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                        <Mic className="h-9 w-9 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-base font-medium text-foreground">{m.chat_sidebar_ready()}</p>
-                        <p className="text-sm text-muted-foreground max-w-[240px] mx-auto">
+                    )}
+
+                    {!isActiveSession && messages.length === 0 && (
+                      <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                          <Mic className="h-9 w-9 text-primary" />
+                        </div>
+                        <p className="text-sm text-muted-foreground max-w-[200px]">
                           {m.chat_sidebar_start_session_hint()}
                         </p>
                       </div>
-                    </>
-                  )}
+                    )}
+
+                  </div>
                   <div ref={bottomRef} />
                 </div>
               )}

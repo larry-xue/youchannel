@@ -15,9 +15,7 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
   const [status, setStatus] = useState<GeminiLiveStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [inputTranscript, setInputTranscript] = useState<string>('');
-  const [outputTranscript, setOutputTranscript] = useState<string>('');
+  const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; timestamp: Date }>>([]);
 
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -94,8 +92,6 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
           onopen: () => {
             setStatus('connected');
             setMessages([]); // Clear previous messages on new session
-            setInputTranscript('');
-            setOutputTranscript('');
           },
           onmessage: async (message: LiveServerMessage) => {
             // Audio handling
@@ -128,13 +124,31 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
             }
 
             // Handle output transcription (model's audio -> text)
-            if (message.serverContent?.outputTranscription?.text) {
-              setOutputTranscript(prev => prev + message.serverContent!.outputTranscription!.text);
+            const outputText = message.serverContent?.outputTranscription?.text;
+            if (outputText) {
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last && last.role === 'model') {
+                  const updated = { ...last, content: last.content + outputText };
+                  return [...prev.slice(0, -1), updated];
+                } else {
+                  return [...prev, { id: crypto.randomUUID(), role: 'model', content: outputText, timestamp: new Date() }];
+                }
+              });
             }
 
             // Handle input transcription (user's audio -> text)
-            if (message.serverContent?.inputTranscription?.text) {
-              setInputTranscript(prev => prev + message.serverContent!.inputTranscription!.text);
+            const inputText = message.serverContent?.inputTranscription?.text;
+            if (inputText) {
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last && last.role === 'user') {
+                  const updated = { ...last, content: last.content + inputText };
+                  return [...prev.slice(0, -1), updated];
+                } else {
+                  return [...prev, { id: crypto.randomUUID(), role: 'user', content: inputText, timestamp: new Date() }];
+                }
+              });
             }
 
             const interrupted = message.serverContent?.interrupted;
@@ -242,25 +256,32 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
   }, [stopRecording]);
 
   useEffect(() => {
-    if (inputTranscript) {
-      console.log('Input Transcript:', inputTranscript);
-    }
-  }, [inputTranscript]);
-
-  useEffect(() => {
-    if (outputTranscript) {
-      console.log('Output Transcript:', outputTranscript);
-    }
-  }, [outputTranscript]);
-
-  useEffect(() => {
     return () => {
       disconnect();
     };
   }, [disconnect]);
 
-  const sendText = useCallback((text: string) => {
+  const sendText = useCallback((text: string, hideFromUI: boolean = false) => {
     if (sessionRef.current) {
+      // Append user text to messages immediately
+      if (!hideFromUI) {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === 'user') {
+            // If last was user, we probably want a NEW message for a distinct text action,
+            // OR append if it feels like continuation. Use new message for sendText to be safe/clear.
+            // Actually, discord merges if same user.
+            // But for manual text send, let's just properly append or new.
+            // Let's force new message for sendText to distinguish from audio stream chunks?
+            // No, consistency is key.
+            const updated = { ...last, content: last.content + " " + text };
+            return [...prev.slice(0, -1), updated];
+          } else {
+            return [...prev, { id: crypto.randomUUID(), role: 'user', content: text, timestamp: new Date() }];
+          }
+        });
+      }
+
       if (typeof (sessionRef.current as any).sendClientContent === 'function') {
         (sessionRef.current as any).sendClientContent({
           turns: [{ role: 'user', parts: [{ text }] }],
@@ -268,8 +289,6 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
         });
       } else {
         console.error("sendClientContent not found on session");
-        console.log("Session object keys:", Object.keys(sessionRef.current as any));
-        console.log("Session prototype keys:", Object.keys(Object.getPrototypeOf(sessionRef.current)));
       }
     } else {
       console.warn("sendText called but session is null/undefined");
@@ -285,7 +304,6 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     status,
     error,
     isRecording,
-    inputTranscript,
-    outputTranscript,
+    messages, // Export messages
   };
 }

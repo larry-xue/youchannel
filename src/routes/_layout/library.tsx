@@ -82,7 +82,7 @@ function DashboardPlaylists() {
           <div className={videosQuery.isPlaceholderData ? "opacity-50 transition-opacity duration-200" : "transition-opacity duration-200"}>
             <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
               {videos.map((video) => (
-                <VideoCard
+                < VideoCard
                   key={video.id}
                   video={video}
                   isSelected={false}

@@ -170,7 +170,7 @@
   "chat_sidebar_available_count": "{count}可用",
   "chat_sidebar_awaiting_analysis": "待分析",
   "chat_sidebar_no_characters": "本次分析未傳回任何角色檔案。",
-  "chat_sidebar_analysis_unavailable": "視訊分析功能尚未上線。請產生分析報告以啟用角色聊天功能。",
+  "chat_sidebar_analysis_unavailable": "影片分析尚未生成，請稍後再試 ⏳",
   "chat_sidebar_analysis_unavailable_short": "視訊分析功能暫不可用。",
   "chat_sidebar_speaking_with": "與{name}對話...",
   "chat_sidebar_listening_active": "正向聆聽與口語",

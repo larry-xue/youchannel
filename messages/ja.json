@@ -170,7 +170,7 @@
   "chat_sidebar_available_count": "{count}利用可能です",
   "chat_sidebar_awaiting_analysis": "分析待ち",
   "chat_sidebar_no_characters": "この分析ではキャラクター プロファイルは返されませんでした。",
-  "chat_sidebar_analysis_unavailable": "ビデオ分析はまだ利用できません。キャラクターチャットを有効にするには分析を生成してください。",
+  "chat_sidebar_analysis_unavailable": "動画分析はまだ生成されていません。後でもう一度お試しください ⏳",
   "chat_sidebar_analysis_unavailable_short": "ビデオ分析はまだ利用できません。",
   "chat_sidebar_speaking_with": "{name}で話しています...",
   "chat_sidebar_listening_active": "リスニング＆スピーキング アクティブ",

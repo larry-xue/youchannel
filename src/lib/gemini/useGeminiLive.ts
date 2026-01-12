@@ -1,6 +1,7 @@
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from '@google/genai';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createBlob, decode, decodeAudioData } from './utils';
+import { AUDIO_WORKLET_PROCESSOR_CODE } from './audio-processor';
 
 export type GeminiLiveStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -29,7 +30,10 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
 
   const streamRef = useRef<MediaStream | null>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const audioContextInitializedRef = useRef<boolean>(false);
+
+
+  const processorRef = useRef<AudioWorkletNode | null>(null);
 
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
@@ -158,9 +162,6 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
     }
   }, [apiKey, model, voiceName, ensureAudioContexts]);
 
-  // SpeechRecognition removal
-  // user transcript logic removed
-
   const startRecording = useCallback(async () => {
     if (!inputContextRef.current || !sessionRef.current) return;
 
@@ -170,17 +171,41 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
 
       sourceNodeRef.current = inputContextRef.current.createMediaStreamSource(streamRef.current);
 
-      const bufferSize = 256; // Smaller buffer = lower latency
-      processorRef.current = inputContextRef.current.createScriptProcessor(bufferSize, 1, 1);
+      // Add AudioWorklet module
+      if (!inputContextRef.current.audioWorklet) {
+        throw new Error("AudioWorklet not supported");
+      }
 
-      processorRef.current.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
+      if (!audioContextInitializedRef.current) {
+        // Create a Blob URL for the processor code
+        const blob = new Blob([AUDIO_WORKLET_PROCESSOR_CODE], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+
+        try {
+          await inputContextRef.current.audioWorklet.addModule(url);
+          audioContextInitializedRef.current = true;
+        } catch (err: any) {
+          // Ignore if already added (though we try to prevent this with the ref)
+          console.warn("AudioWorklet addModule error", err);
+          if (!err.message.includes("already registered")) {
+            throw err;
+          }
+        }
+      }
+
+      const workletNode = new AudioWorkletNode(inputContextRef.current, 'gemini-audio-processor');
+      processorRef.current = workletNode;
+
+      workletNode.port.onmessage = (event) => {
+        const inputData = event.data;
         // Send off to session
-        sessionRef.current?.sendRealtimeInput({ media: createBlob(inputData) });
+        if (sessionRef.current) {
+          sessionRef.current.sendRealtimeInput({ media: createBlob(inputData) });
+        }
       };
 
-      sourceNodeRef.current.connect(processorRef.current);
-      processorRef.current.connect(inputContextRef.current.destination);
+      sourceNodeRef.current.connect(workletNode);
+      workletNode.connect(inputContextRef.current.destination); // Keep alive
 
       setIsRecording(true);
     } catch (err: any) {
@@ -217,16 +242,46 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
   }, [stopRecording]);
 
   useEffect(() => {
+    if (inputTranscript) {
+      console.log('Input Transcript:', inputTranscript);
+    }
+  }, [inputTranscript]);
+
+  useEffect(() => {
+    if (outputTranscript) {
+      console.log('Output Transcript:', outputTranscript);
+    }
+  }, [outputTranscript]);
+
+  useEffect(() => {
     return () => {
       disconnect();
     };
   }, [disconnect]);
+
+  const sendText = useCallback((text: string) => {
+    if (sessionRef.current) {
+      if (typeof (sessionRef.current as any).sendClientContent === 'function') {
+        (sessionRef.current as any).sendClientContent({
+          turns: [{ role: 'user', parts: [{ text }] }],
+          turnComplete: true
+        });
+      } else {
+        console.error("sendClientContent not found on session");
+        console.log("Session object keys:", Object.keys(sessionRef.current as any));
+        console.log("Session prototype keys:", Object.keys(Object.getPrototypeOf(sessionRef.current)));
+      }
+    } else {
+      console.warn("sendText called but session is null/undefined");
+    }
+  }, []);
 
   return {
     connect,
     disconnect,
     startRecording,
     stopRecording,
+    sendText,
     status,
     error,
     isRecording,

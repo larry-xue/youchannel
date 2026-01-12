@@ -170,7 +170,7 @@
   "chat_sidebar_available_count": "{count} disponibles",
   "chat_sidebar_awaiting_analysis": "En espera de análisis",
   "chat_sidebar_no_characters": "No se devolvieron perfiles de personajes en este análisis.",
-  "chat_sidebar_analysis_unavailable": "El análisis de video aún no está disponible. Generar análisis para habilitar el chat de personajes.",
+  "chat_sidebar_analysis_unavailable": "El análisis de video aún no está listo, inténtelo de nuevo más tarde ⏳",
   "chat_sidebar_analysis_unavailable_short": "El análisis de vídeo aún no está disponible.",
   "chat_sidebar_speaking_with": "Hablando con {name} ...",
   "chat_sidebar_listening_active": "Escuchar y hablar activamente",

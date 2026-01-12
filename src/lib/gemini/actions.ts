@@ -6,7 +6,15 @@ import { getSupabaseAndUser } from "~/lib/dashboard/utils.server";
 export const getGeminiToken = createServerFn({ method: "POST" })
   .handler(async () => {
     // Ensure properly authenticated user 
-    await getSupabaseAndUser();
+    try {
+      await getSupabaseAndUser();
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Server: bypassing Supabase auth check in development", error);
+      } else {
+        throw error;
+      }
+    }
 
     const apiKey = process.env.GOOGLE_LIVE_API_KEY;
     if (!apiKey) {

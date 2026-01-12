@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/lib/components/ui/dropdown-menu";
+import { Input } from "~/lib/components/ui/input";
 import {
   getAnalysisContextWithoutCharacters,
   parseAnalysisText,
@@ -109,6 +110,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
+  const [debugInput, setDebugInput] = useState("");
   const { targetLanguage } = useRouteContext({ from: "/_layout" });
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -127,7 +129,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   );
 
   // Removed hardcoded API key dependency
-  const { connect, disconnect, startRecording, status, error, isRecording } = useGeminiLive({
+  const { connect, disconnect, startRecording, sendText, status, error, isRecording } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
     voiceName: selectedVoice,
   });
@@ -374,6 +376,32 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
             {/* Voice control footer */}
             <div className="px-6 py-5">
+              {import.meta.env.DEV && (
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    value={debugInput}
+                    onChange={(e) => setDebugInput(e.target.value)}
+                    placeholder="Debug text..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && debugInput.trim()) {
+                        sendText(debugInput);
+                        setDebugInput("");
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (debugInput.trim()) {
+                        sendText(debugInput);
+                        setDebugInput("");
+                      }
+                    }}
+                  >
+                    Send
+                  </Button>
+                </div>
+              )}
               {/* Error message */}
               {sessionError && (
                 <p className="mb-3 rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">

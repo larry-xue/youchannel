@@ -34,6 +34,7 @@ export interface VideoCardProps {
     actionLabel?: string;
     selectionHint?: string;
     selectionLabel?: string;
+    hideFooter?: boolean;
 }
 
 export function VideoCard({
@@ -46,6 +47,7 @@ export function VideoCard({
     actionLabel = "Learn", // This comes from parent, usually handled there
     selectionHint,
     selectionLabel,
+    hideFooter = false,
 }: VideoCardProps) {
     const isProcessing = video.status === "pending";
     const hasTooManyFailures = (video.failed_count ?? 0) > 3;
@@ -154,25 +156,24 @@ export function VideoCard({
                 >
                     {truncate(video.title || m.default_video_title(), 48)}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                    {formatDate(getVideoPublishedAt(video))}
-                </p>
-                <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
-                    <AnalysisStatusBadge
-                        status={video.status}
-                    />
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onOpen(video);
-                        }}
-                    >
-                        {actionLabel}
-                    </Button>
-                </div>
+                {!hideFooter && (
+                    <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
+                        <AnalysisStatusBadge
+                            status={video.status}
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onOpen(video);
+                            }}
+                        >
+                            {actionLabel}
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );

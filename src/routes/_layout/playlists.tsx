@@ -940,6 +940,7 @@ function DashboardPlaylists() {
                         onSelect={handleToggleVideo}
                         onOpen={handleOpenVideo}
                         actionLabel={m.video_card_action_open()}
+                        hideFooter={true}
                       />
                     ))}
                   </div>

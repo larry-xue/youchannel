@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAndUser } from "./utils.server";
-export const FLUENTBY_PLAYLIST_TITLE = "Fluentby AI";
-export const FLUENTBY_PLAYLIST_DESCRIPTION = "Add videos here for AI analysis";
+export const Fluentlyby_PLAYLIST_TITLE = "Fluentlyby AI";
+export const Fluentlyby_PLAYLIST_DESCRIPTION = "Add videos here for AI analysis";
 
 export const getYouTubeAccountStatusFn = createServerFn({ method: "GET" }).handler(async () => {
     const { supabase, user } = await getSupabaseAndUser();

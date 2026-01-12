@@ -82,10 +82,10 @@ export const PLAYER_ASPECT_RATIO = 16 / 9;
 export const PLAYER_MIN_HEIGHT = 240;
 
 export const STORAGE_KEYS = {
-  sidebarCollapsed: "fluentby.learn.sidebarCollapsed",
-  sidebarWidth: "fluentby.learn.sidebarWidth",
-  bottomPanelCollapsed: "fluentby.learn.bottomPanelCollapsed",
-  bottomPanelHeight: "fluentby.learn.bottomPanelHeight",
+  sidebarCollapsed: "Fluentlyby.learn.sidebarCollapsed",
+  sidebarWidth: "Fluentlyby.learn.sidebarWidth",
+  bottomPanelCollapsed: "Fluentlyby.learn.bottomPanelCollapsed",
+  bottomPanelHeight: "Fluentlyby.learn.bottomPanelHeight",
 } as const;
 
 export type TabKey = (typeof TAB_OPTIONS)[number]["key"];

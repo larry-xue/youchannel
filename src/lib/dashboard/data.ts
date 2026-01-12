@@ -12,8 +12,8 @@
 
 // YouTube Account
 export {
-  FLUENTBY_PLAYLIST_TITLE,
-  FLUENTBY_PLAYLIST_DESCRIPTION,
+  Fluentlyby_PLAYLIST_TITLE,
+  Fluentlyby_PLAYLIST_DESCRIPTION,
   getYouTubeAccountStatusFn,
   startYouTubeOAuthFn,
   completeYouTubeOauthFn,

@@ -39,7 +39,7 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Fluentby.ai - Talk to YouTube Videos in Any Language",
+        title: "Fluentlyby.ai - Talk to YouTube Videos in Any Language",
       },
     ],
     links: [

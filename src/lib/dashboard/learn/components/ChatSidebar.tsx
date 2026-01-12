@@ -264,7 +264,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
   return (
     <aside className={cn("flex h-full flex-col", className)}>
-      <div className="flex h-full flex-col overflow-hidden bg-background/50">
+      <div className="flex h-full flex-col overflow-hidden bg-background/50 overflow-auto">
         {!activeCharacter ? (
           /* ========== Character Directory View ========== */
           <div className="flex h-full flex-col">

@@ -180,7 +180,7 @@
   "chat_sidebar_voice_select": "音声を選択",
   "chat_sidebar_language_select": "言語を選択",
   "chat_sidebar_connecting": "接続中...",
-  "chat_sidebar_end_session": "セッション終了",
+  "chat_sidebar_end_session": "通話終了",
   "chat_sidebar_status_tap": "タップして音声会話を開始",
   "chat_sidebar_status_analysis_required": "チャットを有効にするには分析が必要です",
   "chat_sidebar_loading": "ボイスチャットを読み込んでいます...",

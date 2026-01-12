@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as m from "~/paraglide/messages";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getVideoAnalysesFn, getVideoByIdFn } from "~/lib/dashboard/data";
 import type { VideoAnalysis } from "~/schema";
 import { BottomPanel } from "~/lib/dashboard/learn/components/BottomPanel";
@@ -18,6 +18,7 @@ import {
   ResizablePanelGroup,
   usePanelRef,
 } from "~/lib/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 
 // Panel size constants (percentage based)
 const SIDEBAR_DEFAULT_SIZE = 25;
@@ -30,12 +31,26 @@ export const Route = createFileRoute("/_layout/learn/$videoId")({
   component: DashboardLearnVideo,
 });
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768); // md breakpoint
+    checkMobile(); // Check immediately
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
 function DashboardLearnVideo() {
   const { videoId } = Route.useParams();
   const playerRef = useRef<YouTubePlayerHandle | null>(null);
   const pendingSeekRef = useRef<number | null>(null);
   const bottomPanelRef = usePanelRef();
   const [isBottomPanelCollapsed, setIsBottomPanelCollapsed] = useState(false);
+  const isMobile = useIsMobile();
 
   const videoQuery = useQuery({
     queryKey: ["video", videoId],
@@ -88,14 +103,65 @@ function DashboardLearnVideo() {
     }
   };
 
+  if (hasError) {
+    return (
+      <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        {m.learn_error_load()}
+      </div>
+    );
+  }
+
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-(--spacing(20)))] space-y-4">
+        {/* Fixed Video Section */}
+        <div className="w-full shrink-0">
+          <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black/5 shadow-sm">
+            <VideoPlayerCard
+              title={title}
+              youtubeId={youtubeId}
+              publishedAt={publishedAt}
+              isLoading={isLoading}
+              onPlayerReady={handlePlayerReady}
+              className="h-full w-full"
+            />
+          </div>
+        </div>
+
+        {/* Tabs for Content */}
+        <div className="min-h-0 flex-1">
+          <Tabs defaultValue="learn" className="flex h-full flex-col">
+            <TabsList className="grid w-full grid-cols-2 mb-2">
+              <TabsTrigger value="learn">Learn</TabsTrigger>
+              <TabsTrigger value="chat">Chat</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="learn" className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
+              <LearningTabs
+                title={title}
+                description={video?.description}
+                publishedAt={publishedAt}
+                analysisText={latestAnalysis?.analysis_text}
+                onSeekToTimestamp={handleSeekToTimestamp}
+              />
+            </TabsContent>
+
+            <TabsContent value="chat" className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
+              <ChatSidebar
+                className="h-full"
+                analysisText={chatAnalysisText}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="space-y-6 h-[84vh] min-h-[600px]">
-      {hasError && (
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {m.learn_error_load()}
-        </div>
-      )}
-
       <ResizablePanelGroup
         direction="horizontal"
         className="rounded-lg border"

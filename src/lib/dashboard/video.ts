@@ -3,6 +3,10 @@ import { z } from "zod";
 import type { Video } from "~/schema";
 import { getSupabaseAndUser } from "./utils.server";
 
+export type VideoWithStatus = Video & {
+    status: "pending" | "completed" | "failed";
+};
+
 export const getVideosFn = createServerFn({ method: "POST" })
     .inputValidator((data: unknown) => {
         return z
@@ -48,7 +52,7 @@ export const getVideosFn = createServerFn({ method: "POST" })
 export const getVideoByIdFn = createServerFn({ method: "POST" })
     .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
     .handler(async ({ data }) => {
-        const { supabase, user } = await getSupabaseAndUser();
+        const { supabase } = await getSupabaseAndUser();
         if (!data?.videoId) throw new Error("Missing videoId");
 
         const { data: video, error } = await supabase

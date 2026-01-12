@@ -147,10 +147,7 @@ export function sanitizeCharacter(value: unknown): AnalysisCharacter | null {
     ? (character.kind as CharacterKind)
     : "unknown";
 
-  const language = CHARACTER_LANGUAGES.includes(languageValue as CharacterLanguage)
-    ? (languageValue as CharacterLanguage)
-    : null;
-  if (!language) return null;
+  const language = languageValue as CharacterLanguage;
 
   const notableTopicsSource = character.notable_topics;
   if (!Array.isArray(notableTopicsSource)) return null;

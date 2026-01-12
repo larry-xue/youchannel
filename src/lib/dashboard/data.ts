@@ -26,6 +26,7 @@ export { getYouTubePlaylistsFn, getYouTubePlaylistItemsFn } from "./youtube-play
 export {
   getVideosFn,
   getVideoByIdFn,
+  type VideoWithStatus,
 } from "./video";
 
 // Analysis

@@ -74,9 +74,9 @@ export function useGeminiLive({ apiKey, model = 'gemini-2.5-flash-native-audio-p
         enableAffectiveDialog: true,
         outputAudioTranscription: {},
         inputAudioTranscription: {},
-        // tools: {
-        //   googleSearch: {}
-        // }
+        tools: [{
+          googleSearch: {}
+        }]
       };
 
       if (systemInstruction) {

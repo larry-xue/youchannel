@@ -7,7 +7,6 @@ import {
   Languages,
   User as UserIcon
 } from "lucide-react";
-import * as React from "react";
 import * as m from "~/paraglide/messages";
 import { cn } from "~/lib/utils";
 import ThemeToggle from "~/lib/components/ThemeToggle";

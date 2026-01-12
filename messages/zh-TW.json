@@ -177,6 +177,8 @@
   "chat_sidebar_ready": "準備好聊天了",
   "chat_sidebar_start_session_hint": "開始語音會話，與該角色討論視訊內容。",
   "chat_sidebar_chat_button": "聊天（ {voice} ）",
+  "chat_sidebar_voice_select": "選擇聲音",
+  "chat_sidebar_language_select": "選擇語言",
   "chat_sidebar_connecting": "正在連接...",
   "chat_sidebar_end_session": "會議結束",
   "chat_sidebar_status_tap": "點擊即可開始語音對話",

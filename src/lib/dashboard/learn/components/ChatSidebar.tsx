@@ -1,4 +1,4 @@
-import { ArrowLeft, Mic, MicOff, Sparkles, Users, ChevronDown, Check } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, Sparkles, Users, ChevronDown, Check, Globe } from "lucide-react";
 import { useBlocker, useRouteContext } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "~/lib/components/ui/button";
@@ -13,6 +13,9 @@ import { Input } from "~/lib/components/ui/input";
 import {
   getAnalysisContextWithoutCharacters,
   parseAnalysisText,
+  CHARACTER_LANGUAGE_OPTIONS,
+  CHARACTER_LANGUAGE_LABELS,
+  type CharacterLanguage,
   type AnalysisCharacter,
 } from "~/lib/dashboard/learn/analysis";
 import * as m from "~/paraglide/messages";
@@ -30,11 +33,11 @@ function getInitial(name: string) {
   return trimmed.charAt(0).toUpperCase();
 }
 
-function buildSystemPrompt(character: AnalysisCharacter, context: string, targetLanguage?: string): string {
+function buildSystemPrompt(character: AnalysisCharacter, context: string, language?: string): string {
   const traits = character.traits.join(", ");
-  const topics = character.notable_topics?.slice(0, 4).join(", ");
+  const topics = character.notable_topics.slice(0, 4).join(", ");
   const vibe = character.traits.length > 0 ? character.traits.join(", ") : "focused and professional";
-  const languageInstruction = targetLanguage ? m.chat_sidebar_prompt_language({ targetLanguage }) : m.chat_sidebar_prompt_natural();
+  const languageInstruction = language ? m.chat_sidebar_prompt_language({ targetLanguage: language }) : m.chat_sidebar_prompt_natural();
 
   const lines = [
     `You are ${character.name}. You are NOT an AI, language model, or virtual assistant. You are a real entity/person.`,
@@ -65,7 +68,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string, target
     `6. **Format**: Keep responses conversational, concise, and spoken-style (avoid markdown lists).`,
     `7. **Director's Notes**: Follow the style and pacing defined above.`,
     `8. **Initiative**: Start the conversation by briefly introducing yourself and bringing up an interesting topic from your memories to discuss with the user.`,
-    `9. **Language**: Always speak in ${targetLanguage || m.chat_sidebar_prompt_preferred_language()}. `,
+    `9. **Language**: Always speak in ${language || m.chat_sidebar_prompt_preferred_language()}. `,
     topics ? `- Key Topics you care about: ${topics}` : null,
   ];
 
@@ -105,11 +108,18 @@ const VOICES = [
   { name: "Sulafat", style: "Warm" },
 ] as const;
 
+const DEFAULT_LANGUAGE: CharacterLanguage = "en-US";
+
+type CharacterSelection = {
+  voice: string;
+  language: CharacterLanguage;
+};
+
 function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState<string>("Zephyr");
+  const [characterSelections, setCharacterSelections] = useState<Record<string, CharacterSelection>>({});
   const [debugInput, setDebugInput] = useState("");
   const { targetLanguage } = useRouteContext({ from: "/_layout" });
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -128,10 +138,23 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     [characters, selectedCharacterName],
   );
 
+  const activeSelection = useMemo(() => {
+    if (!activeCharacter) return null;
+    const saved = characterSelections[activeCharacter.name];
+    return {
+      voice: saved?.voice ?? activeCharacter.voice,
+      language: saved?.language ?? activeCharacter.language,
+    };
+  }, [activeCharacter, characterSelections]);
+
+  const activeVoice = activeSelection?.voice ?? VOICES[0].name;
+  const activeLanguage = activeSelection?.language ?? activeCharacter?.language ?? DEFAULT_LANGUAGE;
+  const promptLanguage = activeSelection?.language ?? activeCharacter?.language ?? targetLanguage ?? DEFAULT_LANGUAGE;
+
   // Removed hardcoded API key dependency
   const { connect, disconnect, startRecording, sendText, status, error, isRecording } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
-    voiceName: selectedVoice,
+    voiceName: activeVoice,
   });
 
   // Sync internal error state
@@ -150,6 +173,23 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     }
   }, [status, isRecording, startRecording]);
 
+  const updateCharacterSelection = useCallback(
+    (updates: Partial<CharacterSelection>) => {
+      if (!activeCharacter) return;
+      setCharacterSelections((prev) => {
+        const current = prev[activeCharacter.name] ?? {
+          voice: activeCharacter.voice,
+          language: activeCharacter.language,
+        };
+        return {
+          ...prev,
+          [activeCharacter.name]: { ...current, ...updates },
+        };
+      });
+    },
+    [activeCharacter],
+  );
+
   const connectVoiceSession = useCallback(async () => {
     if (!hasContext || !activeCharacter || !analysisContext) {
       setSessionError("Select a character and ensure analysis is available.");
@@ -164,7 +204,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       const { token } = await getGeminiToken();
       console.log("Client: Got token", token ? "Success" : "Empty");
 
-      const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext, targetLanguage);
+      const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext, promptLanguage);
       await connect(systemPrompt, token);
     } catch (error) {
       console.error("Client: Connection error", error);
@@ -173,7 +213,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     } finally {
       setIsFetchingToken(false);
     }
-  }, [activeCharacter, analysisContext, connect, hasContext]);
+  }, [activeCharacter, analysisContext, connect, hasContext, promptLanguage]);
 
   const handleSelectCharacter = (name: string) => {
     if (status === 'connected' || status === 'connecting') {
@@ -410,39 +450,73 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
               )}
 
               {/* Voice button group */}
-              <div className="flex gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-14 w-14 shrink-0 rounded-2xl"
-                      disabled={isActiveSession || isConnecting}
-                    >
-                      <ChevronDown className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
-                    {VOICES.map((voice) => (
-                      <DropdownMenuItem
-                        key={voice.name}
-                        onClick={() => setSelectedVoice(voice.name)}
-                        className="flex items-center justify-between gap-4"
+              <div className="flex flex-col gap-3">
+                {/* Toolbar */}
+                <div className="flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-xl px-3 text-sm"
+                        disabled={isActiveSession || isConnecting}
+                        aria-label={m.chat_sidebar_voice_select()}
+                        title={activeVoice}
                       >
-                        <div className="flex flex-col">
-                          <span className="font-medium">{voice.name}</span>
-                          <span className="text-xs text-muted-foreground">{voice.style}</span>
-                        </div>
-                        {selectedVoice === voice.name && <Check className="h-4 w-4" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        <span className="font-medium truncate">{activeVoice}</span>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[200px] max-h-[300px] overflow-y-auto">
+                      {VOICES.map((voice) => (
+                        <DropdownMenuItem
+                          key={voice.name}
+                          onClick={() => updateCharacterSelection({ voice: voice.name })}
+                          className="flex items-center justify-between gap-4"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{voice.name}</span>
+                            <span className="text-xs text-muted-foreground">{voice.style}</span>
+                          </div>
+                          {activeVoice === voice.name && <Check className="h-4 w-4" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-xl px-3 text-sm"
+                        disabled={isActiveSession || isConnecting}
+                        aria-label={m.chat_sidebar_language_select()}
+                        title={CHARACTER_LANGUAGE_LABELS[activeLanguage]}
+                      >
+                        <span className="font-medium truncate">
+                          {CHARACTER_LANGUAGE_LABELS[activeLanguage]}
+                        </span>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[200px] max-h-[300px] overflow-y-auto">
+                      {CHARACTER_LANGUAGE_OPTIONS.map((language) => (
+                        <DropdownMenuItem
+                          key={language}
+                          onClick={() => updateCharacterSelection({ language })}
+                          className="flex items-center justify-between gap-4"
+                        >
+                          <span className="font-medium">{CHARACTER_LANGUAGE_LABELS[language]}</span>
+                          {activeLanguage === language && <Check className="h-4 w-4" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
                 <Button
                   size="lg"
                   className={cn(
-                    "h-14 flex-1 rounded-2xl text-base font-medium transition-all",
+                    "h-14 w-full rounded-2xl text-base font-medium transition-all shadow-sm",
                     isActiveSession
                       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -460,7 +534,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   ) : (
                     <>
                       <Mic className="mr-3 h-5 w-5" aria-hidden />
-                      {isConnecting ? m.chat_sidebar_connecting() : m.chat_sidebar_chat_button({ voice: selectedVoice })}
+                      {isConnecting ? m.chat_sidebar_connecting() : m.chat_sidebar_chat_button({ voice: activeVoice })}
                     </>
                   )}
                 </Button>

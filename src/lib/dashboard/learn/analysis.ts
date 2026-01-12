@@ -1,6 +1,68 @@
 const CHARACTER_KINDS = ["host", "guest", "narrator", "character", "unknown"] as const;
+const CHARACTER_LANGUAGES = [
+  "ar-EG",
+  "de-DE",
+  "en-US",
+  "es-US",
+  "fr-FR",
+  "hi-IN",
+  "id-ID",
+  "it-IT",
+  "zh-CN",
+  "zh-TW",
+  "zh-HK",
+  "ja-JP",
+  "ko-KR",
+  "pt-BR",
+  "ru-RU",
+  "nl-NL",
+  "pl-PL",
+  "th-TH",
+  "tr-TR",
+  "vi-VN",
+  "ro-RO",
+  "uk-UA",
+  "bn-BD",
+  "en-IN",
+  "mr-IN",
+  "ta-IN",
+  "te-IN",
+] as const;
 
 export type CharacterKind = (typeof CHARACTER_KINDS)[number];
+export type CharacterLanguage = (typeof CHARACTER_LANGUAGES)[number];
+export const CHARACTER_LANGUAGE_OPTIONS = CHARACTER_LANGUAGES;
+
+export const CHARACTER_LANGUAGE_LABELS: Record<CharacterLanguage, string> = {
+  "ar-EG": "العربية",
+  "de-DE": "Deutsch",
+  "en-US": "English (US)",
+  "es-US": "Español (US)",
+  "fr-FR": "Français",
+  "hi-IN": "हिन्दी",
+  "id-ID": "Bahasa Indonesia",
+  "it-IT": "Italiano",
+  "zh-CN": "简体中文",
+  "zh-TW": "繁體中文",
+  "zh-HK": "繁體中文 (香港)",
+  "ja-JP": "日本語",
+  "ko-KR": "한국어",
+  "pt-BR": "Português (Brasil)",
+  "ru-RU": "Русский",
+  "nl-NL": "Nederlands",
+  "pl-PL": "Polski",
+  "th-TH": "ไทย",
+  "tr-TR": "Türkçe",
+  "vi-VN": "Tiếng Việt",
+  "ro-RO": "Română",
+  "uk-UA": "Українська",
+  "bn-BD": "বাংলা",
+  "en-IN": "English (India)",
+  "mr-IN": "मराठी",
+  "ta-IN": "தமிழ்",
+  "te-IN": "తెలుగు",
+};
+
 
 export type AnalysisWikiItem = {
   timestamp?: string;
@@ -14,7 +76,9 @@ export type AnalysisCharacter = {
   description: string;
   traits: string[];
   speaking_style: string;
-  notable_topics?: string[];
+  notable_topics: string[];
+  voice: string;
+  language: CharacterLanguage;
 };
 
 export type AnalysisTranscriptSegment = {
@@ -32,6 +96,7 @@ export type AnalysisTranscript = {
 };
 
 export type ParsedAnalysis = {
+  scene?: string;
   summarize?: string;
   wiki?: AnalysisWikiItem[];
   characters?: AnalysisCharacter[];
@@ -63,14 +128,33 @@ export function sanitizeCharacter(value: unknown): AnalysisCharacter | null {
   const name = asString(character.name);
   const description = asString(character.description);
   const speakingStyle = asString(character.speaking_style);
-  const traits = sanitizeStringArray(character.traits, 6);
-  if (!name || !description || !speakingStyle || traits.length === 0) return null;
+  const voice = asString(character.voice);
+  const languageValue = asString(character.language);
+  const traitsSource = character.traits;
+  const traits = sanitizeStringArray(traitsSource);
+  if (
+    !name ||
+    !description ||
+    !speakingStyle ||
+    !voice ||
+    !Array.isArray(traitsSource) ||
+    traits.length < 2
+  ) {
+    return null;
+  }
 
   const kind = CHARACTER_KINDS.includes(character.kind as CharacterKind)
     ? (character.kind as CharacterKind)
     : "unknown";
 
-  const notableTopics = sanitizeStringArray(character.notable_topics, 8);
+  const language = CHARACTER_LANGUAGES.includes(languageValue as CharacterLanguage)
+    ? (languageValue as CharacterLanguage)
+    : null;
+  if (!language) return null;
+
+  const notableTopicsSource = character.notable_topics;
+  if (!Array.isArray(notableTopicsSource)) return null;
+  const notableTopics = sanitizeStringArray(notableTopicsSource, 8);
 
   return {
     name,
@@ -78,7 +162,9 @@ export function sanitizeCharacter(value: unknown): AnalysisCharacter | null {
     description,
     speaking_style: speakingStyle,
     traits,
-    notable_topics: notableTopics.length ? notableTopics : undefined,
+    notable_topics: notableTopics,
+    voice,
+    language,
   };
 }
 
@@ -141,15 +227,20 @@ export function parseAnalysisText(text?: string | null): ParsedAnalysis | null {
 
     const contextWithoutCharacters = (() => {
       try {
-        const copy: Record<string, unknown> = { ...record };
-        delete copy.characters;
-        return JSON.stringify(copy);
+        const contextPayload: Record<string, unknown> = {
+          scene: asString(record.scene),
+          summarize: asString(record.summarize),
+          wiki,
+          transcript,
+        };
+        return JSON.stringify(contextPayload);
       } catch {
         return undefined;
       }
     })();
 
     return {
+      scene: asString(record.scene),
       summarize: asString(record.summarize),
       wiki,
       characters,

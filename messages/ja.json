@@ -177,6 +177,8 @@
   "chat_sidebar_ready": "チャットの準備完了",
   "chat_sidebar_start_session_hint": "音声セッションを開始して、このキャラクターとビデオについて話します。",
   "chat_sidebar_chat_button": "チャット ( {voice} )",
+  "chat_sidebar_voice_select": "音声を選択",
+  "chat_sidebar_language_select": "言語を選択",
   "chat_sidebar_connecting": "接続中...",
   "chat_sidebar_end_session": "セッション終了",
   "chat_sidebar_status_tap": "タップして音声会話を開始",

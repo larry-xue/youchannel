@@ -177,6 +177,8 @@
   "chat_sidebar_ready": "Bereit zum Chatten?",
   "chat_sidebar_start_session_hint": "Starte eine Sprachsitzung, um mit dieser Figur über das Video zu sprechen.",
   "chat_sidebar_chat_button": "Chat ( {voice} )",
+  "chat_sidebar_voice_select": "Stimme auswählen",
+  "chat_sidebar_language_select": "Sprache auswählen",
   "chat_sidebar_connecting": "Verbindung wird hergestellt...",
   "chat_sidebar_end_session": "Sitzung beenden",
   "chat_sidebar_status_tap": "Tippen Sie hier, um ein Sprachgespräch zu starten.",

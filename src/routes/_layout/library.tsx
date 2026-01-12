@@ -3,6 +3,9 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { EmptyVideoState } from "~/lib/components/empty-video-state";
 import { Loading } from "~/lib/components/ui/loading";
 import { VideoCard } from "~/lib/components/video-card";
+import { Button } from "~/lib/components/ui/button";
+import { RefreshCcw } from "lucide-react";
+import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
 import {
   getYouTubeAccountStatusFn,
@@ -47,7 +50,6 @@ function DashboardPlaylists() {
     queryFn: () => getVideosFn({ data: { page, pageSize } }),
     enabled: hasAccount,
     placeholderData: keepPreviousData,
-    staleTime: 5 * 60 * 1000,
   });
 
   const videos = videosQuery.data?.videos ?? [];
@@ -64,13 +66,31 @@ function DashboardPlaylists() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-foreground">
-          {m.library_title()}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {m.library_description()}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-foreground">
+            {m.library_title()}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {m.library_description()}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            videosQuery.refetch();
+          }}
+          disabled={videosQuery.isRefetching}
+        >
+          <RefreshCcw
+            className={cn(
+              "mr-2 h-4 w-4",
+              videosQuery.isRefetching && "animate-spin",
+            )}
+          />
+          {m.playlists_refresh()}
+        </Button>
       </div>
 
       <div className="space-y-4">

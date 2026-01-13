@@ -1,4 +1,8 @@
-import { chat, type ConstrainedModelMessage, toServerSentEventsStream } from "@tanstack/ai";
+import {
+  chat,
+  toServerSentEventsStream,
+  type ConstrainedModelMessage,
+} from "@tanstack/ai";
 import { geminiText, type GeminiTextModel } from "@tanstack/ai-gemini";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -45,12 +49,16 @@ export const Route = createFileRoute("/api/character-chat")({
     handlers: {
       GET: () => new Response("Method Not Allowed", { status: 405 }),
       POST: async ({ request }) => {
-        const payload = (await request.json().catch(() => null)) as CharacterChatRequest | null;
+        const payload = (await request
+          .json()
+          .catch(() => null)) as CharacterChatRequest | null;
         if (!payload?.messages?.length) {
           return new Response("Missing messages", { status: 400 });
         }
 
-        const analysisContext = getAnalysisContextWithoutCharacters(payload.data?.analysisText);
+        const analysisContext = getAnalysisContextWithoutCharacters(
+          payload.data?.analysisText,
+        );
         if (!analysisContext) {
           return new Response("Missing analysis context", { status: 400 });
         }

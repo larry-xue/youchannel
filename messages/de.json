@@ -188,5 +188,17 @@
   "chat_sidebar_prompt_natural": "Sprechen Sie natürlich mit dem Nutzer.",
   "chat_sidebar_prompt_preferred_language": "die bevorzugte Sprache des Benutzers",
   "language": "Sprache",
-  "chat_sidebar_initial_greeting": "Hallo"
+  "chat_sidebar_initial_greeting": "Hallo",
+  "quota_title": "Kontingent",
+  "quota_video_label": "Video",
+  "quota_chat_label": "Chat",
+  "quota_remaining": "übrig",
+  "quota_used_total": "Verbraucht {used} / {total}",
+  "quota_unlimited": "Unbegrenzt",
+  "quota_per_video": "Pro Video: {limit}",
+  "quota_period": "Zeitraum",
+  "quota_period_long": "Lange gültig",
+  "quota_loading": "Kontingent wird geladen…",
+  "quota_error": "Kontingent konnte nicht geladen werden",
+  "quota_none": "Kein Kontingent verfügbar"
 }

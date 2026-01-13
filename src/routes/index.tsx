@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { Features } from "~/lib/components/Features";
 import { FAQ } from "~/lib/components/FAQ";
+import { Features } from "~/lib/components/Features";
 import { Footer } from "~/lib/components/Footer";
 import { Header } from "~/lib/components/Header";
 import { Hero } from "~/lib/components/Hero";

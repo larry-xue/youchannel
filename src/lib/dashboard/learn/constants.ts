@@ -5,4 +5,3 @@ export const TAB_OPTIONS = [
 
 export const PLAYER_ASPECT_RATIO = 16 / 9;
 export const PLAYER_MIN_HEIGHT = 240;
-

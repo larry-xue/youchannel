@@ -1,18 +1,18 @@
 import * as React from "react";
+import { LearningSettings } from "~/lib/components/LearningSettings";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "~/lib/components/ui/dialog";
-import { LearningSettings } from "~/lib/components/LearningSettings";
 import { useLearningProfile } from "~/lib/hooks/useLearningProfile";
 import * as m from "~/paraglide/messages";
 
 export function LanguageAppCheck({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useLearningProfile();
   // If loading, we can decide to show nothing, or show the app (and pop up later).
-  // Showing nothing avoids flickering, but might feel slow. 
+  // Showing nothing avoids flickering, but might feel slow.
   // Given this is a blocking "onboarding" step, showing a loader is safer.
 
   // However, purely optional: if we want to avoid blocking the whole app while checking,
@@ -35,7 +35,7 @@ export function LanguageAppCheck({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Dialog open={true} onOpenChange={() => { }}>
+      <Dialog open={true} onOpenChange={() => {}}>
         {/* Prevent closing by passing empty onOpenChange and removing close button via CSS or custom content */}
         <DialogContent
           className="sm:max-w-[625px] [&>button]:hidden"

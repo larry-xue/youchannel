@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
 import { ConnectYouTubeAlert } from "~/lib/components/connect-youtube-alert";
 import { Button } from "~/lib/components/ui/button";
-import * as m from "~/paraglide/messages";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +24,7 @@ import {
 } from "~/lib/dashboard/data";
 import { formatDate, truncate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 
 interface PlaylistsSearch {
   code?: string;
@@ -108,7 +108,13 @@ type PlaylistVideo = VideoWithStatus & {
 
 type SelectedVideo = Pick<
   VideoWithStatus,
-  "id" | "title" | "description" | "thumbnail_url" | "duration" | "playlist_id" | "published_at"
+  | "id"
+  | "title"
+  | "description"
+  | "thumbnail_url"
+  | "duration"
+  | "playlist_id"
+  | "published_at"
 > & {
   source_playlist_title?: string | null;
 };
@@ -291,7 +297,8 @@ function DashboardPlaylists() {
   }, [selectedVideos]);
   const selectionPreview = selectedVideos.slice(0, 4);
   const selectionLabel = selectedCount === 1 ? m.label_video() : m.label_videos();
-  const playlistLabel = selectedPlaylistCount === 1 ? m.label_playlist() : m.label_playlists();
+  const playlistLabel =
+    selectedPlaylistCount === 1 ? m.label_playlist() : m.label_playlists();
   const activeSelectedVideo = selectedVideos[carouselIndex] ?? null;
   const activeDurationLabel = formatVideoDuration(activeSelectedVideo?.duration ?? null);
   const selectionQuota = useMemo(() => {
@@ -314,7 +321,10 @@ function DashboardPlaylists() {
     selectedCount === 0
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
-        ? m.quota_with_unknown({ time: formatSeconds(selectionQuota.totalSeconds), count: selectionQuota.unknownCount })
+        ? m.quota_with_unknown({
+            time: formatSeconds(selectionQuota.totalSeconds),
+            count: selectionQuota.unknownCount,
+          })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -330,7 +340,9 @@ function DashboardPlaylists() {
     );
     const averageKnown =
       knownSeconds.length > 0
-        ? Math.round(knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length)
+        ? Math.round(
+            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+          )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -346,7 +358,10 @@ function DashboardPlaylists() {
         id: video.id,
         percent,
         seconds,
-        title: m.review_stack_title({ title: truncate(video.title || m.default_video_title(), 36), time: formatSeconds(seconds) }),
+        title: m.review_stack_title({
+          title: truncate(video.title || m.default_video_title(), 36),
+          time: formatSeconds(seconds),
+        }),
         color,
       };
     });
@@ -366,25 +381,37 @@ function DashboardPlaylists() {
     onSuccess: (result) => {
       const skippedReasons: string[] = [];
       if ((result.skipReasons.analysis_exists ?? 0) > 0) {
-        skippedReasons.push(m.skip_reason_progress_count({ count: result.skipReasons.analysis_exists ?? 0 }));
+        skippedReasons.push(
+          m.skip_reason_progress_count({
+            count: result.skipReasons.analysis_exists ?? 0,
+          }),
+        );
       }
       if ((result.skipReasons.duration_exceeded ?? 0) > 0) {
-        skippedReasons.push(m.skip_reason_too_long_count({ count: result.skipReasons.duration_exceeded ?? 0 }));
+        skippedReasons.push(
+          m.skip_reason_too_long_count({
+            count: result.skipReasons.duration_exceeded ?? 0,
+          }),
+        );
       }
       if ((result.skipReasons.quota_exceeded ?? 0) > 0) {
-        skippedReasons.push(m.skip_reason_quota_count({ count: result.skipReasons.quota_exceeded ?? 0 }));
+        skippedReasons.push(
+          m.skip_reason_quota_count({ count: result.skipReasons.quota_exceeded ?? 0 }),
+        );
       }
       const skippedText =
         result.skipped > 0
-          ? `, and ${result.skipped} couldn't be started${skippedReasons.length > 0
-            ? ` (${skippedReasons.join(", ")})`
-            : ""
-          }`
+          ? `, and ${result.skipped} couldn't be started${
+              skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : ""
+            }`
           : "";
 
       if (result.enqueued > 0) {
         toast.success(m.toast_success_title(), {
-          description: m.toast_success_desc({ count: result.enqueued, label: result.enqueued === 1 ? "video" : "videos" }),
+          description: m.toast_success_desc({
+            count: result.enqueued,
+            label: result.enqueued === 1 ? "video" : "videos",
+          }),
         });
       } else {
         toast.info(m.toast_info_title(), {
@@ -541,9 +568,7 @@ function DashboardPlaylists() {
           <h1 className="font-display text-2xl font-semibold text-foreground">
             {m.playlists_title()}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {m.playlists_description()}
-          </p>
+          <p className="text-sm text-muted-foreground">{m.playlists_description()}</p>
         </div>
         {hasAccount && (
           <Button
@@ -574,7 +599,12 @@ function DashboardPlaylists() {
               ) : (
                 <>
                   <span className="block">
-                    {m.review_selection_count({ count: selectedCount, label: selectionLabel, playlistCount: selectedPlaylistCount, playlistLabel: playlistLabel })}
+                    {m.review_selection_count({
+                      count: selectedCount,
+                      label: selectionLabel,
+                      playlistCount: selectedPlaylistCount,
+                      playlistLabel: playlistLabel,
+                    })}
                   </span>
                   <span className="block text-xs text-muted-foreground">
                     {m.review_selection_quota({ quota: totalQuotaLabel })}
@@ -660,17 +690,23 @@ function DashboardPlaylists() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {activeSelectedVideo?.source_playlist_title
-                      ? m.review_source_from({ source: activeSelectedVideo.source_playlist_title })
+                      ? m.review_source_from({
+                          source: activeSelectedVideo.source_playlist_title,
+                        })
                       : m.review_source_selected()}
                     {activeSelectedVideo?.published_at
                       ? ` - ${formatDate(activeSelectedVideo.published_at)}`
                       : ""}
                     {activeDurationLabel ? ` - ${activeDurationLabel}` : ""}
-                    {activeSelectedVideo ? m.review_quota_label({ quota: activeQuotaLabel }) : ""}
+                    {activeSelectedVideo
+                      ? m.review_quota_label({ quota: activeQuotaLabel })
+                      : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{carouselIndex + 1} / {selectedCount}</span>
+                  <span>
+                    {carouselIndex + 1} / {selectedCount}
+                  </span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -685,15 +721,23 @@ function DashboardPlaylists() {
               <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
                 <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                   <span>{m.review_quota_split()}</span>
-                  <span>{m.review_total_quota()}<span className="font-semibold text-primary">{totalQuotaLabel}</span></span>
+                  <span>
+                    {m.review_total_quota()}
+                    <span className="font-semibold text-primary">{totalQuotaLabel}</span>
+                  </span>
                 </div>
                 <div className="mt-2 w-full overflow-x-auto">
-                  <div className="flex h-3 items-stretch" style={{ minWidth: `${progressMinWidth}px` }}>
+                  <div
+                    className="flex h-3 items-stretch"
+                    style={{ minWidth: `${progressMinWidth}px` }}
+                  >
                     {quotaSegments.map((segment, index) => {
                       const isActive = segment.id === activeSelectedVideo?.id;
                       const isFirst = index === 0;
                       const isLast = index === quotaSegments.length - 1;
-                      const segmentFill = isActive ? segment.color.fillActive : segment.color.fill;
+                      const segmentFill = isActive
+                        ? segment.color.fillActive
+                        : segment.color.fill;
                       return (
                         <button
                           key={segment.id}
@@ -707,7 +751,10 @@ function DashboardPlaylists() {
                             isFirst ? "rounded-l-full" : "",
                             isLast ? "rounded-r-full" : "",
                           )}
-                          style={{ width: `${segment.percent}%`, backgroundColor: segmentFill }}
+                          style={{
+                            width: `${segment.percent}%`,
+                            backgroundColor: segmentFill,
+                          }}
                         />
                       );
                     })}
@@ -732,7 +779,9 @@ function DashboardPlaylists() {
               onClick={handleSubmitSelection}
               disabled={selectedCount === 0 || submitSelectionMutation.isPending}
             >
-              {submitSelectionMutation.isPending ? m.review_selection_submitting() : m.review_selection_submit()}
+              {submitSelectionMutation.isPending
+                ? m.review_selection_submitting()
+                : m.review_selection_submit()}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -740,7 +789,7 @@ function DashboardPlaylists() {
 
       {accountQuery.isLoading ? (
         <Loading text={m.loading_checking_account()} size="md" />
-      ) : (!hasAccount || search.code) ? (
+      ) : !hasAccount || search.code ? (
         <ConnectYouTubeAlert
           code={search.code}
           state={search.state}
@@ -751,7 +800,9 @@ function DashboardPlaylists() {
           <aside className="lg:w-72 lg:shrink-0">
             <div className="flex max-h-[70vh] flex-col rounded-2xl border border-border/60 bg-background/70 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)]">
               <div className="flex items-center justify-between px-4 py-3">
-                <h2 className="text-sm font-semibold text-foreground">{m.playlists_your_playlists()}</h2>
+                <h2 className="text-sm font-semibold text-foreground">
+                  {m.playlists_your_playlists()}
+                </h2>
                 <span className="text-xs text-muted-foreground">{playlists.length}</span>
               </div>
               <ScrollArea className="flex-1 px-3 pb-4 overflow-y-auto">
@@ -949,8 +1000,7 @@ function DashboardPlaylists() {
             )}
           </div>
         </div>
-      )
-      }
-    </div >
+      )}
+    </div>
   );
 }

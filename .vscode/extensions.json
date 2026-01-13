@@ -1,6 +1,3 @@
 {
-  "recommendations": [
-    "denoland.vscode-deno",
-    "inlang.vs-code-extension"
-  ]
+  "recommendations": ["denoland.vscode-deno", "inlang.vs-code-extension"]
 }

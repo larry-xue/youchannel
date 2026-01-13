@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import * as m from "~/paraglide/messages";
 import { useEffect, useRef, useState } from "react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+  usePanelRef,
+} from "~/lib/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import { getVideoAnalysesFn, getVideoByIdFn } from "~/lib/dashboard/data";
-import type { VideoAnalysis } from "~/schema";
 import { BottomPanel } from "~/lib/dashboard/learn/components/BottomPanel";
 import { ChatSidebar } from "~/lib/dashboard/learn/components/ChatSidebar";
 import { LearningTabs } from "~/lib/dashboard/learn/components/LearningTabs";
@@ -12,13 +17,8 @@ import {
   type YouTubePlayerHandle,
 } from "~/lib/dashboard/learn/components/VideoPlayerCard";
 import { getVideoPublishedAt } from "~/lib/dashboard/utils";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-  usePanelRef,
-} from "~/lib/components/ui/resizable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
+import * as m from "~/paraglide/messages";
+import type { VideoAnalysis } from "~/schema";
 
 // Panel size constants (percentage based)
 const SIDEBAR_DEFAULT_SIZE = 25;
@@ -137,7 +137,10 @@ function DashboardLearnVideo() {
               <TabsTrigger value="chat">Chat</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="learn" className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
+            <TabsContent
+              value="learn"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card"
+            >
               <LearningTabs
                 title={title}
                 description={video?.description}
@@ -147,11 +150,11 @@ function DashboardLearnVideo() {
               />
             </TabsContent>
 
-            <TabsContent value="chat" className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
-              <ChatSidebar
-                className="h-full"
-                analysisText={chatAnalysisText}
-              />
+            <TabsContent
+              value="chat"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card"
+            >
+              <ChatSidebar className="h-full" analysisText={chatAnalysisText} />
             </TabsContent>
           </Tabs>
         </div>
@@ -162,18 +165,12 @@ function DashboardLearnVideo() {
   // Desktop Layout
   return (
     <div className="space-y-6 h-[84vh] min-h-[600px]">
-      <ResizablePanelGroup
-        direction="horizontal"
-        className="rounded-lg border"
-      >
+      <ResizablePanelGroup direction="horizontal" className="rounded-lg border">
         {/* Main content area */}
         <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>
           <ResizablePanelGroup direction="vertical">
             {/* Video player */}
-            <ResizablePanel
-              defaultSize={100 - BOTTOM_PANEL_DEFAULT_SIZE}
-              minSize={30}
-            >
+            <ResizablePanel defaultSize={100 - BOTTOM_PANEL_DEFAULT_SIZE} minSize={30}>
               <VideoPlayerCard
                 title={title}
                 youtubeId={youtubeId}
@@ -223,10 +220,7 @@ function DashboardLearnVideo() {
           collapsible
           collapsedSize={SIDEBAR_COLLAPSED_SIZE}
         >
-          <ChatSidebar
-            className="h-full"
-            analysisText={chatAnalysisText}
-          />
+          <ChatSidebar className="h-full" analysisText={chatAnalysisText} />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

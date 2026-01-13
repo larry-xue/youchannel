@@ -1,6 +1,6 @@
-import { useEffect } from "react";
 import { useRouteContext, useRouter } from "@tanstack/react-router";
 import { Store, useStore } from "@tanstack/react-store";
+import { useEffect } from "react";
 
 export interface AuthUser {
   id: string;
@@ -32,9 +32,7 @@ export const setAuthUser = (store: AuthStore, user: AuthUser | null) => {
   }));
 };
 
-export const useAuthStore = <TSelected>(
-  selector: (state: AuthState) => TSelected,
-) => {
+export const useAuthStore = <TSelected>(selector: (state: AuthState) => TSelected) => {
   const router = useRouter();
   return useStore(router.options.context.authStore, selector);
 };

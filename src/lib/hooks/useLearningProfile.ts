@@ -58,7 +58,7 @@ export function useLearningProfile() {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             setProfile(payload.new as LearningProfile);
           }
-        }
+        },
       )
       .subscribe();
 

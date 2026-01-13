@@ -1,7 +1,4 @@
-export type VideoAnalysisStatus =
-  | "pending"
-  | "completed"
-  | "failed";
+export type VideoAnalysisStatus = "pending" | "completed" | "failed";
 
 export type Video = {
   id: string;

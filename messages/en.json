@@ -188,5 +188,17 @@
   "chat_sidebar_prompt_natural": "Speak naturally to the user.",
   "chat_sidebar_prompt_preferred_language": "the user's preferred language",
   "language": "Language",
-  "chat_sidebar_initial_greeting": "Hello"
+  "chat_sidebar_initial_greeting": "Hello",
+  "quota_title": "Quota",
+  "quota_video_label": "Video",
+  "quota_chat_label": "Chat",
+  "quota_remaining": "left",
+  "quota_used_total": "Used {used} / {total}",
+  "quota_unlimited": "Unlimited",
+  "quota_per_video": "Per video: {limit}",
+  "quota_period": "Period",
+  "quota_period_long": "Long valid",
+  "quota_loading": "Loading quota…",
+  "quota_error": "Couldn't load quota",
+  "quota_none": "No quota provisioned"
 }

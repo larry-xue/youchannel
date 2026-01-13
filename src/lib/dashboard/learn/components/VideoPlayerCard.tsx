@@ -109,10 +109,8 @@ export function VideoPlayerCard({
       const maxHeight = Math.max(PLAYER_MIN_HEIGHT, containerHeight);
       const heightFromWidth = maxWidth / PLAYER_ASPECT_RATIO;
       const widthFromHeight = maxHeight * PLAYER_ASPECT_RATIO;
-      const nextHeight =
-        heightFromWidth <= maxHeight ? heightFromWidth : maxHeight;
-      const nextWidth =
-        heightFromWidth <= maxHeight ? maxWidth : widthFromHeight;
+      const nextHeight = heightFromWidth <= maxHeight ? heightFromWidth : maxHeight;
+      const nextWidth = heightFromWidth <= maxHeight ? maxWidth : widthFromHeight;
       setPlayerSize({
         width: clamp(nextWidth, PLAYER_MIN_HEIGHT * PLAYER_ASPECT_RATIO, maxWidth),
         height: clamp(nextHeight, PLAYER_MIN_HEIGHT, maxHeight),
@@ -202,17 +200,15 @@ export function VideoPlayerCard({
       : { width: "100%", aspectRatio: "16 / 9" };
 
   return (
-    <div
-      className={cn(
-        "flex h-full min-h-0 min-w-0 flex-col",
-        className,
-      )}
-    >
+    <div className={cn("flex h-full min-h-0 min-w-0 flex-col", className)}>
       <div
         ref={stageRef}
         className="flex min-h-0 min-w-0 flex-1 items-center justify-center px-4 pt-4"
       >
-        <div className="relative overflow-hidden rounded-2xl bg-muted/30 mb-5" style={playerStyle}>
+        <div
+          className="relative overflow-hidden rounded-2xl bg-muted/30 mb-5"
+          style={playerStyle}
+        >
           {youtubeId ? (
             <div ref={playerMountRef} className="h-full w-full" />
           ) : (

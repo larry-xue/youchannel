@@ -1,29 +1,29 @@
 import { Link } from "@tanstack/react-router";
 import {
-  Menu,
+  Languages,
   LogOut,
+  Menu,
   MoonIcon,
   SunIcon,
-  Languages,
-  User as UserIcon
+  User as UserIcon,
 } from "lucide-react";
-import * as m from "~/paraglide/messages";
-import { cn } from "~/lib/utils";
-import ThemeToggle from "~/lib/components/ThemeToggle";
-import { UserPanel } from "~/lib/components/UserPanel";
 import { LanguageSwitcher } from "~/lib/components/LanguageSwitcher";
+import ThemeToggle from "~/lib/components/ThemeToggle";
 import { Button } from "~/lib/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuSub,
-  DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
 } from "~/lib/components/ui/dropdown-menu";
+import { UserPanel } from "~/lib/components/UserPanel";
+import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 
 import { useAuthUser } from "~/lib/store/auth";
 import { getLocale, locales, setLocale } from "~/paraglide/runtime";
@@ -143,7 +143,9 @@ export function Header({ onSignOut }: HeaderProps) {
                           )}
                           <div className="flex flex-col space-y-1 overflow-hidden">
                             <p className="truncate text-sm font-medium">{userName}</p>
-                            <p className="truncate text-xs text-muted-foreground">{authUser?.email}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {authUser?.email}
+                            </p>
                           </div>
                         </div>
                       </DropdownMenuLabel>
@@ -159,7 +161,6 @@ export function Header({ onSignOut }: HeaderProps) {
                           </Link>
                         </DropdownMenuItem>
                       ))}
-
                     </>
                   ) : (
                     <DropdownMenuItem asChild>
@@ -190,10 +191,12 @@ export function Header({ onSignOut }: HeaderProps) {
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
 
-                  <DropdownMenuItem onSelect={(e) => {
-                    e.preventDefault();
-                    toggleTheme();
-                  }}>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      toggleTheme();
+                    }}
+                  >
                     <SunIcon className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                     <MoonIcon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                     <span className="ml-2">Theme</span>

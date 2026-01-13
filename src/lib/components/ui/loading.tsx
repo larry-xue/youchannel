@@ -22,7 +22,9 @@ export function Loading({ className, size = "md", text }: LoadingProps) {
   const center = isLarge ? 32 : size === "md" ? 24 : 20;
 
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-4 py-8", className)}>
+    <div
+      className={cn("flex flex-col items-center justify-center gap-4 py-8", className)}
+    >
       <div className={cn("relative", sizes.container)}>
         <svg
           className="animate-spin"

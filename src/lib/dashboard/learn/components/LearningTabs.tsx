@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import { formatDate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
 import { parseAnalysisText } from "../analysis";
@@ -63,23 +63,15 @@ export function LearningTabs({
   analysisText,
   onSeekToTimestamp,
 }: LearningTabsProps) {
-  const parsedAnalysis = useMemo(
-    () => parseAnalysisText(analysisText),
-    [analysisText],
-  );
+  const parsedAnalysis = useMemo(() => parseAnalysisText(analysisText), [analysisText]);
   const hasAnalysisText = Boolean(analysisText);
   const summaryText =
     parsedAnalysis?.summarize || (analysisText && !parsedAnalysis ? analysisText : null);
   const wikiItems =
-    parsedAnalysis?.wiki && parsedAnalysis.wiki.length > 0
-      ? parsedAnalysis.wiki
-      : null;
+    parsedAnalysis?.wiki && parsedAnalysis.wiki.length > 0 ? parsedAnalysis.wiki : null;
 
   return (
-    <Tabs
-      defaultValue="info"
-      className="flex h-full min-h-0 flex-col"
-    >
+    <Tabs defaultValue="info" className="flex h-full min-h-0 flex-col">
       <TabsList className="flex h-auto w-full shrink-0 flex-wrap items-center gap-3 rounded-none border-0 bg-transparent p-0 px-4 pt-3 pb-1 text-muted-foreground">
         {TAB_OPTIONS.map((tab) => (
           <TabsTrigger
@@ -113,15 +105,15 @@ export function LearningTabs({
                 Summary
               </p>
               <div className="prose prose-base max-w-prose text-foreground/90 leading-relaxed tracking-[0.01em] prose-p:my-1 prose-li:my-1">
-              {summaryText ? (
-                <p className="whitespace-pre-wrap">{summaryText}</p>
-              ) : (
-                <p className="text-muted-foreground">
-                  {hasAnalysisText
-                    ? "No summary available yet."
-                    : "Video analysis is not available yet. Please wait for the analysis to complete or trigger it from the playlists page."}
-                </p>
-              )}
+                {summaryText ? (
+                  <p className="whitespace-pre-wrap">{summaryText}</p>
+                ) : (
+                  <p className="text-muted-foreground">
+                    {hasAnalysisText
+                      ? "No summary available yet."
+                      : "Video analysis is not available yet. Please wait for the analysis to complete or trigger it from the playlists page."}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -148,10 +140,7 @@ export function LearningTabs({
                         {item.title || "Key moment"}
                       </span>
                       {item.details && (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          - {item.details}
-                        </span>
+                        <span className="text-muted-foreground"> - {item.details}</span>
                       )}
                     </p>
                   </div>

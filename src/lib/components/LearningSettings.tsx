@@ -1,16 +1,16 @@
-import * as React from "react";
 import { Check, Loader2 } from "lucide-react";
+import * as React from "react";
+import { toast } from "sonner";
+import supabase from "~/lib/auth-client";
 import { Button } from "~/lib/components/ui/button";
-import { Label } from "~/lib/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/lib/components/ui/dropdown-menu";
-import supabase from "~/lib/auth-client";
+import { Label } from "~/lib/components/ui/label";
 import { useAuthUser } from "~/lib/store/auth";
-import { toast } from "sonner";
 import * as m from "~/paraglide/messages";
 
 const LANGUAGES = [
@@ -114,7 +114,10 @@ export function LearningSettings({ onSuccess }: { onSuccess?: () => void }) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-full justify-between px-3 text-left font-normal h-12">
+            <Button
+              variant="outline"
+              className="w-full justify-between px-3 text-left font-normal h-12"
+            >
               <span className="flex items-center gap-2">
                 <span className="text-xl">{selectedLanguage.flag}</span>
                 <span className="text-base">{selectedLanguage.label}</span>
@@ -137,7 +140,11 @@ export function LearningSettings({ onSuccess }: { onSuccess?: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button onClick={handleSave} disabled={updating} className="w-full h-11 text-base">
+        <Button
+          onClick={handleSave}
+          disabled={updating}
+          className="w-full h-11 text-base"
+        >
           {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {m.learning_settings_save()}
         </Button>

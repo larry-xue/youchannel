@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Button } from "./ui/button";
 import { useAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
+import { Button } from "./ui/button";
 
 export function Hero() {
   const user = useAuthUser();
@@ -18,15 +18,15 @@ export function Hero() {
               {m.hero_title_highlight()}
             </span>
           </h1>
-          <p className="max-w-md text-lg text-muted-foreground">
-            {m.hero_description()}
-          </p>
+          <p className="max-w-md text-lg text-muted-foreground">{m.hero_description()}</p>
         </div>
 
         <div className="flex flex-wrap gap-4">
           {user ? (
             <Button asChild size="lg" className="h-12 rounded-full px-8 text-base">
-              <Link to="/library" search={{ page: 1 }}>{m.hero_start_learning()}</Link>
+              <Link to="/library" search={{ page: 1 }}>
+                {m.hero_start_learning()}
+              </Link>
             </Button>
           ) : (
             <Button
@@ -34,9 +34,7 @@ export function Hero() {
               size="lg"
               className="h-12 rounded-full px-8 text-base shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30"
             >
-              <Link to="/signin">
-                {m.hero_get_started()}
-              </Link>
+              <Link to="/signin">{m.hero_get_started()}</Link>
             </Button>
           )}
         </div>
@@ -66,9 +64,7 @@ export function Hero() {
               <div className="p-8">
                 <div className="mb-4 text-4xl">📺 💬</div>
                 <p className="font-semibold">{m.screenshot_interactive()}</p>
-                <p className="text-xs">
-                  {m.screenshot_caption()}
-                </p>
+                <p className="text-xs">{m.screenshot_caption()}</p>
               </div>
             </div>
           </div>

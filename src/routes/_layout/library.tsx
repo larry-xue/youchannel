@@ -1,17 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { EmptyVideoState } from "~/lib/components/empty-video-state";
-import { Loading } from "~/lib/components/ui/loading";
-import { VideoCard } from "~/lib/components/video-card";
-import { Button } from "~/lib/components/ui/button";
 import { RefreshCcw } from "lucide-react";
-import { cn } from "~/lib/utils";
-import * as m from "~/paraglide/messages";
-import {
-  getYouTubeAccountStatusFn,
-  getVideosFn,
-} from "~/lib/dashboard/data";
 import { z } from "zod";
+import { EmptyVideoState } from "~/lib/components/empty-video-state";
+import { Button } from "~/lib/components/ui/button";
+import { Loading } from "~/lib/components/ui/loading";
 import {
   Pagination,
   PaginationContent,
@@ -21,6 +14,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "~/lib/components/ui/pagination";
+import { VideoCard } from "~/lib/components/video-card";
+import { getVideosFn, getYouTubeAccountStatusFn } from "~/lib/dashboard/data";
+import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 import { Video } from "~/schema";
 
 const videosSearchSchema = z.object({
@@ -71,9 +68,7 @@ function DashboardPlaylists() {
           <h1 className="font-display text-2xl font-semibold text-foreground">
             {m.library_title()}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {m.library_description()}
-          </p>
+          <p className="text-sm text-muted-foreground">{m.library_description()}</p>
         </div>
         <Button
           variant="outline"
@@ -84,10 +79,7 @@ function DashboardPlaylists() {
           disabled={videosQuery.isRefetching}
         >
           <RefreshCcw
-            className={cn(
-              "mr-2 h-4 w-4",
-              videosQuery.isRefetching && "animate-spin",
-            )}
+            className={cn("mr-2 h-4 w-4", videosQuery.isRefetching && "animate-spin")}
           />
           {m.playlists_refresh()}
         </Button>
@@ -99,23 +91,28 @@ function DashboardPlaylists() {
         ) : videos.length === 0 ? (
           <EmptyVideoState />
         ) : (
-          <div className={videosQuery.isPlaceholderData ? "opacity-50 transition-opacity duration-200" : "transition-opacity duration-200"}>
+          <div
+            className={
+              videosQuery.isPlaceholderData
+                ? "opacity-50 transition-opacity duration-200"
+                : "transition-opacity duration-200"
+            }
+          >
             <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
               {videos.map((video) => (
-                < VideoCard
+                <VideoCard
                   key={video.id}
                   video={video}
                   isSelected={false}
                   hideCheckbox={true}
-                  onSelect={() => { }}
+                  onSelect={() => {}}
                   isSelectable={false}
                   onOpen={handleOpenVideo}
                 />
               ))}
             </div>
           </div>
-        )
-        }
+        )}
 
         {totalPages > 1 && (
           <Pagination className="mt-8">
@@ -124,10 +121,15 @@ function DashboardPlaylists() {
                 <PaginationPrevious
                   href={
                     page > 1
-                      ? router.buildLocation({ to: "/library", search: { page: page - 1 } }).href
+                      ? router.buildLocation({
+                          to: "/library",
+                          search: { page: page - 1 },
+                        }).href
                       : undefined
                   }
-                  className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  className={
+                    page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"
+                  }
                   onClick={(e) => {
                     if (page <= 1) e.preventDefault();
                     else {
@@ -160,7 +162,10 @@ function DashboardPlaylists() {
                   <PaginationItem key="page-1">
                     <PaginationLink
                       isActive={page === 1}
-                      onClick={(e) => { e.preventDefault(); navigate({ search: { page: 1 } }); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate({ search: { page: 1 } });
+                      }}
                       className="cursor-pointer"
                     >
                       1
@@ -175,10 +180,7 @@ function DashboardPlaylists() {
 
                   {page > 2 && page < totalPages - 1 && (
                     <PaginationItem key={`page-${page}`}>
-                      <PaginationLink
-                        isActive={true}
-                        className="cursor-pointer"
-                      >
+                      <PaginationLink isActive={true} className="cursor-pointer">
                         {page}
                       </PaginationLink>
                     </PaginationItem>
@@ -193,7 +195,10 @@ function DashboardPlaylists() {
                   <PaginationItem key={`page-${totalPages}`}>
                     <PaginationLink
                       isActive={page === totalPages}
-                      onClick={(e) => { e.preventDefault(); navigate({ search: { page: totalPages } }); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate({ search: { page: totalPages } });
+                      }}
                       className="cursor-pointer"
                     >
                       {totalPages}
@@ -206,10 +211,17 @@ function DashboardPlaylists() {
                 <PaginationNext
                   href={
                     page < totalPages
-                      ? router.buildLocation({ to: "/library", search: { page: page + 1 } }).href
+                      ? router.buildLocation({
+                          to: "/library",
+                          search: { page: page + 1 },
+                        }).href
                       : undefined
                   }
-                  className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  className={
+                    page >= totalPages
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
                   onClick={(e) => {
                     if (page >= totalPages) e.preventDefault();
                     else {

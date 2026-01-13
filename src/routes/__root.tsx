@@ -10,11 +10,10 @@ import {
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-
-import appCss from "~/lib/styles/app.css?url";
 import { Toaster } from "~/lib/components/ui/sonner";
 import { getUserFn } from "~/lib/server/user";
 import { setAuthUser, type AuthStore } from "~/lib/store/auth";
+import appCss from "~/lib/styles/app.css?url";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -44,7 +43,10 @@ export const Route = createRootRouteWithContext<{
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" },
+      {
+        rel: "icon",
+        href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>",
+      },
     ],
   }),
   component: RootComponent,

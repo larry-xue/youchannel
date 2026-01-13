@@ -67,11 +67,13 @@ npm run trigger-sync -- --playlistId <playlist-id>
 ```
 
 The script will:
+
 - Find all playlists that need syncing (where `next_sync_at` is null or <= now)
 - Run the sync process directly
 - Update `next_sync_at` for each playlist
 
 Make sure you have the required environment variables set:
+
 - `SUPABASE_URL` or `VITE_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 

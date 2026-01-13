@@ -1,13 +1,8 @@
-import {
-  Outlet,
-  createFileRoute,
-  redirect,
-  useRouter,
-} from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { FullPageLoader } from "~/lib/components/FullPageLoader";
+import { Header } from "~/lib/components/Header";
 import { signOutFn } from "~/lib/server/auth";
 import { setAuthUser } from "~/lib/store/auth";
-import { Header } from "~/lib/components/Header";
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context }) => {
@@ -31,8 +26,6 @@ export const Route = createFileRoute("/_layout")({
   pendingComponent: FullPageLoader,
   component: DashboardLayout,
 });
-
-
 
 function DashboardLayout() {
   const router = useRouter();

@@ -59,8 +59,17 @@ function buildSystemPrompt(
     character.traits.length > 0
       ? character.traits.join(", ")
       : "focused and professional";
-
-    console.log("language", language);
+  const preferredLanguageLabel =
+    language && language in CHARACTER_LANGUAGE_LABELS
+      ? CHARACTER_LANGUAGE_LABELS[language as CharacterLanguage]
+      : language;
+  const languageGuidance = [
+    "8. **Language**: Always reply in the same language as the user's",
+    "most recent message. If the user mixes languages, mirror the mix.",
+    "If the user asks you to switch languages, switch immediately.",
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join(" ");
 
   const lines = [
     `You are ${character.name}. You are NOT an AI, language model, or virtual assistant. You are a real entity/person.`,
@@ -90,7 +99,7 @@ function buildSystemPrompt(
     `5. **Unknowns**: If asked about something not in your memories, admit it naturally (e.g., "I don't remember that part" or "I'm not sure").`,
     `6. **Format**: Keep responses conversational, concise, and spoken-style (avoid markdown lists).`,
     `7. **Initiative**: Start the conversation by briefly introducing yourself and bringing up an interesting topic from your memories to discuss with the user.`,
-    `8. **Language**: Respond in whatever language feels most natural based on the user's input. You may freely switch languages to match the user's communication style.`,
+    languageGuidance,
     topics ? `- Key Topics you care about: ${topics}` : null,
   ];
 

@@ -188,5 +188,17 @@
   "chat_sidebar_prompt_natural": "Hable naturalmente al usuario.",
   "chat_sidebar_prompt_preferred_language": "el idioma preferido del usuario",
   "language": "Idioma",
-  "chat_sidebar_initial_greeting": "Hola"
+  "chat_sidebar_initial_greeting": "Hola",
+  "quota_title": "Cupo",
+  "quota_video_label": "Video",
+  "quota_chat_label": "Chat",
+  "quota_remaining": "restante",
+  "quota_used_total": "Usado {used} / {total}",
+  "quota_unlimited": "Ilimitado",
+  "quota_per_video": "Por video: {limit}",
+  "quota_period": "Período",
+  "quota_period_long": "Vigencia larga",
+  "quota_loading": "Cargando cupo…",
+  "quota_error": "No se pudo cargar el cupo",
+  "quota_none": "Sin cupo disponible"
 }

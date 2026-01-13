@@ -4,29 +4,29 @@ import {
   Loader2Icon,
   OctagonXIcon,
   TriangleAlertIcon,
-} from "lucide-react"
-import { useEffect, useState } from "react"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const getInitialTheme = () => {
-  if (typeof document === "undefined") return "system"
-  return document.documentElement.classList.contains("dark") ? "dark" : "light"
-}
+  if (typeof document === "undefined") return "system";
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+};
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const [theme, setTheme] = useState<ToasterProps["theme"]>(getInitialTheme())
+  const [theme, setTheme] = useState<ToasterProps["theme"]>(getInitialTheme());
 
   useEffect(() => {
-    if (typeof document === "undefined") return
-    const root = document.documentElement
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
     const updateTheme = () => {
-      setTheme(root.classList.contains("dark") ? "dark" : "light")
-    }
-    updateTheme()
-    const observer = new MutationObserver(updateTheme)
-    observer.observe(root, { attributes: true, attributeFilter: ["class"] })
-    return () => observer.disconnect()
-  }, [])
+      setTheme(root.classList.contains("dark") ? "dark" : "light");
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <Sonner
@@ -50,7 +50,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };

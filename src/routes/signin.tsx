@@ -1,6 +1,8 @@
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { Footer } from "~/lib/components/Footer";
+import { Header } from "~/lib/components/Header";
 import {
   Card,
   CardContent,
@@ -8,8 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
-import { Footer } from "~/lib/components/Footer";
-import { Header } from "~/lib/components/Header";
 import { setAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
 
@@ -29,7 +29,7 @@ function AuthPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const handleSignOut = async () => { };
+  const handleSignOut = async () => {};
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) {
@@ -102,9 +102,7 @@ function AuthPage() {
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle className="text-2xl">{m.signin_welcome()}</CardTitle>
-              <CardDescription>
-                {m.signin_description()}
-              </CardDescription>
+              <CardDescription>{m.signin_description()}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {error && (
@@ -119,7 +117,10 @@ function AuthPage() {
                 </div>
               )}
 
-              <div ref={containerRef} className="flex flex-col items-center justify-center">
+              <div
+                ref={containerRef}
+                className="flex flex-col items-center justify-center"
+              >
                 {!isLoading && containerWidth && (
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}

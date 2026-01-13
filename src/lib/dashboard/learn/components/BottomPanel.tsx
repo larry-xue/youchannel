@@ -8,17 +8,9 @@ type BottomPanelProps = {
   children: ReactNode;
 };
 
-export function BottomPanel({
-  className,
-  children,
-}: BottomPanelProps) {
+export function BottomPanel({ className, children }: BottomPanelProps) {
   return (
-    <div
-      className={cn(
-        "flex h-full flex-col overflow-hidden",
-        className,
-      )}
-    >
+    <div className={cn("flex h-full flex-col overflow-hidden", className)}>
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );

@@ -188,5 +188,17 @@
   "chat_sidebar_prompt_natural": "用自然的語氣與使用者溝通。",
   "chat_sidebar_prompt_preferred_language": "使用者首選語言",
   "language": "語言",
-  "chat_sidebar_initial_greeting": "你好"
+  "chat_sidebar_initial_greeting": "你好",
+  "quota_title": "配額",
+  "quota_video_label": "影片",
+  "quota_chat_label": "聊天",
+  "quota_remaining": "剩餘",
+  "quota_used_total": "已用 {used} / {total}",
+  "quota_unlimited": "無限",
+  "quota_per_video": "單影片: {limit}",
+  "quota_period": "週期",
+  "quota_period_long": "長期有效",
+  "quota_loading": "正在載入配額…",
+  "quota_error": "無法載入配額",
+  "quota_none": "尚無配額"
 }

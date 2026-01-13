@@ -1,4 +1,3 @@
-
 export function base64ToUint8Array(base64: string): Uint8Array {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -18,7 +17,7 @@ export function float32ToInt16(float32: Float32Array): Int16Array {
 }
 
 export function arrayBufferToBase64(buffer: ArrayBufferLike): string {
-  let binary = '';
+  let binary = "";
   const bytes = new Uint8Array(buffer);
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
@@ -32,7 +31,7 @@ export function createBlob(pcmData: Float32Array): { mimeType: string; data: str
   const base64 = arrayBufferToBase64(pcm16.buffer);
   return {
     mimeType: "audio/pcm;rate=16000",
-    data: base64
+    data: base64,
   };
 }
 
@@ -42,7 +41,7 @@ export async function decodeAudioData(
   uint8Array: Uint8Array,
   audioContext: AudioContext,
   sampleRate: number = 24000,
-  channels: number = 1
+  channels: number = 1,
 ): Promise<AudioBuffer> {
   const frameCount = uint8Array.length / 2;
   const audioBuffer = audioContext.createBuffer(channels, frameCount, sampleRate);
@@ -52,7 +51,7 @@ export async function decodeAudioData(
   for (let i = 0; i < frameCount; i++) {
     // Little endian 16-bit
     const int16 = dataView.getInt16(i * 2, true);
-    channelData[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7FFF;
+    channelData[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7fff;
   }
   return audioBuffer;
 }

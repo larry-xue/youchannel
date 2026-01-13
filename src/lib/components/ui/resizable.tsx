@@ -1,25 +1,25 @@
-import * as React from "react"
-import { GripVerticalIcon } from "lucide-react"
+import { GripVerticalIcon } from "lucide-react";
+import * as React from "react";
 import {
   Group,
   Panel,
   Separator,
   usePanelRef,
-  type PanelImperativeHandle,
   type GroupProps,
+  type PanelImperativeHandle,
   type PanelProps,
   type SeparatorProps,
-} from "react-resizable-panels"
+} from "react-resizable-panels";
 
-import { cn } from "~/lib/utils"
+import { cn } from "~/lib/utils";
 
-type Direction = "horizontal" | "vertical"
+type Direction = "horizontal" | "vertical";
 
-const ResizableContext = React.createContext<Direction>("horizontal")
+const ResizableContext = React.createContext<Direction>("horizontal");
 
 type ResizablePanelGroupProps = Omit<GroupProps, "orientation"> & {
-  direction?: Direction
-}
+  direction?: Direction;
+};
 
 function ResizablePanelGroup({
   className,
@@ -34,29 +34,25 @@ function ResizablePanelGroup({
         orientation={direction}
         className={cn(
           "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
-          className
+          className,
         )}
         {...props}
       />
     </ResizableContext>
-  )
+  );
 }
 
 function ResizablePanel({ ...props }: PanelProps) {
-  return <Panel data-slot="resizable-panel" {...props} />
+  return <Panel data-slot="resizable-panel" {...props} />;
 }
 
 type ResizableHandleProps = Omit<SeparatorProps, "children"> & {
-  withHandle?: boolean
-}
+  withHandle?: boolean;
+};
 
-function ResizableHandle({
-  withHandle,
-  className,
-  ...props
-}: ResizableHandleProps) {
-  const direction = React.use(ResizableContext)
-  const isVertical = direction === "vertical"
+function ResizableHandle({ withHandle, className, ...props }: ResizableHandleProps) {
+  const direction = React.use(ResizableContext);
+  const isVertical = direction === "vertical";
 
   return (
     <Separator
@@ -64,10 +60,8 @@ function ResizableHandle({
       data-panel-group-direction={direction}
       className={cn(
         "bg-border relative flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1",
-        isVertical
-          ? "h-px w-full cursor-row-resize"
-          : "h-full w-px cursor-col-resize",
-        className
+        isVertical ? "h-px w-full cursor-row-resize" : "h-full w-px cursor-col-resize",
+        className,
       )}
       {...props}
     >
@@ -75,17 +69,15 @@ function ResizableHandle({
         <div
           className={cn(
             "z-10 flex items-center justify-center rounded-sm border bg-border",
-            isVertical ? "h-3 w-4" : "h-4 w-3"
+            isVertical ? "h-3 w-4" : "h-4 w-3",
           )}
         >
-          <GripVerticalIcon
-            className={cn("h-2.5 w-2.5", isVertical && "rotate-90")}
-          />
+          <GripVerticalIcon className={cn("h-2.5 w-2.5", isVertical && "rotate-90")} />
         </div>
       )}
     </Separator>
-  )
+  );
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle, usePanelRef }
-export type { PanelImperativeHandle }
+export { ResizableHandle, ResizablePanel, ResizablePanelGroup, usePanelRef };
+export type { PanelImperativeHandle };

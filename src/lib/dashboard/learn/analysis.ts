@@ -63,7 +63,6 @@ export const CHARACTER_LANGUAGE_LABELS: Record<CharacterLanguage, string> = {
   "te-IN": "తెలుగు",
 };
 
-
 export type AnalysisWikiItem = {
   timestamp?: string;
   title?: string;
@@ -176,39 +175,45 @@ export function parseAnalysisText(text?: string | null): ParsedAnalysis | null {
     const record = parsed as Record<string, unknown>;
 
     const wiki = Array.isArray(record.wiki)
-      ? record.wiki
-        .map((item) => {
-          if (!item || typeof item !== "object") return null;
-          const entry = item as Record<string, unknown>;
-          const timestamp = asString(entry.timestamp);
-          const title = asString(entry.title);
-          const details = asString(entry.details);
-          if (!timestamp && !title && !details) return null;
-          return { timestamp, title, details };
-        })
-        .filter(Boolean) as AnalysisWikiItem[]
+      ? (record.wiki
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const entry = item as Record<string, unknown>;
+            const timestamp = asString(entry.timestamp);
+            const title = asString(entry.title);
+            const details = asString(entry.details);
+            if (!timestamp && !title && !details) return null;
+            return { timestamp, title, details };
+          })
+          .filter(Boolean) as AnalysisWikiItem[])
       : undefined;
 
     const characters = Array.isArray(record.characters)
-      ? (record.characters.map((entry) => sanitizeCharacter(entry)).filter(Boolean) as AnalysisCharacter[])
+      ? (record.characters
+          .map((entry) => sanitizeCharacter(entry))
+          .filter(Boolean) as AnalysisCharacter[])
       : undefined;
 
     let transcript: AnalysisTranscript | undefined;
-    if (record.transcript && typeof record.transcript === "object" && !Array.isArray(record.transcript)) {
+    if (
+      record.transcript &&
+      typeof record.transcript === "object" &&
+      !Array.isArray(record.transcript)
+    ) {
       const transcriptRecord = record.transcript as Record<string, unknown>;
       const segments = Array.isArray(transcriptRecord.segments)
         ? (transcriptRecord.segments
-          .map((segment) => {
-            if (!segment || typeof segment !== "object") return null;
-            const item = segment as Record<string, unknown>;
-            const start = asString(item.start);
-            const end = asString(item.end);
-            const speaker = asString(item.speaker);
-            const textValue = asString(item.text);
-            if (!start && !end && !speaker && !textValue) return null;
-            return { start, end, speaker, text: textValue };
-          })
-          .filter(Boolean) as AnalysisTranscriptSegment[])
+            .map((segment) => {
+              if (!segment || typeof segment !== "object") return null;
+              const item = segment as Record<string, unknown>;
+              const start = asString(item.start);
+              const end = asString(item.end);
+              const speaker = asString(item.speaker);
+              const textValue = asString(item.text);
+              if (!start && !end && !speaker && !textValue) return null;
+              return { start, end, speaker, text: textValue };
+            })
+            .filter(Boolean) as AnalysisTranscriptSegment[])
         : undefined;
 
       transcript = {

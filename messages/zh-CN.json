@@ -188,5 +188,17 @@
   "chat_sidebar_prompt_natural": "自然地与用户交流。",
   "chat_sidebar_prompt_preferred_language": "用户首选语言",
   "language": "语言",
-  "chat_sidebar_initial_greeting": "你好"
+  "chat_sidebar_initial_greeting": "你好",
+  "quota_title": "配额",
+  "quota_video_label": "视频",
+  "quota_chat_label": "聊天",
+  "quota_remaining": "剩余",
+  "quota_used_total": "已用 {used} / {total}",
+  "quota_unlimited": "无限",
+  "quota_per_video": "单视频: {limit}",
+  "quota_period": "周期",
+  "quota_period_long": "长期有效",
+  "quota_loading": "正在加载配额…",
+  "quota_error": "无法加载配额",
+  "quota_none": "暂无配额"
 }

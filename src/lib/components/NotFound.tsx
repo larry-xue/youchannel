@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Home, Search } from "lucide-react";
-import { Button } from "./ui/button";
+import { ArrowLeft, Home } from "lucide-react";
 import * as m from "~/paraglide/messages";
+import { Button } from "./ui/button";
 
 export function NotFound() {
   return (
@@ -20,7 +20,10 @@ export function NotFound() {
           <h1 className="font-display text-[10rem] sm:text-[12rem] font-bold leading-none tracking-tighter bg-gradient-to-br from-primary via-primary/80 to-accent-foreground bg-clip-text text-transparent select-none">
             {m.not_found_404()}
           </h1>
-          <div className="absolute inset-0 font-display text-[10rem] sm:text-[12rem] font-bold leading-none tracking-tighter text-primary/10 blur-xl select-none" aria-hidden="true">
+          <div
+            className="absolute inset-0 font-display text-[10rem] sm:text-[12rem] font-bold leading-none tracking-tighter text-primary/10 blur-xl select-none"
+            aria-hidden="true"
+          >
             {m.not_found_404()}
           </div>
         </div>
@@ -46,7 +49,12 @@ export function NotFound() {
             <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" />
             {m.not_found_go_back()}
           </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto group">
+          <Button
+            asChild
+            variant="secondary"
+            size="lg"
+            className="w-full sm:w-auto group"
+          >
             <Link to="/">
               <Home className="size-4" />
               {m.not_found_back_home()}

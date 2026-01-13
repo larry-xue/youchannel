@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/_layout/playlists")({
   component: DashboardPlaylists,
 });
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 30;
 const PLAYLISTS_QUERY_KEY = ["youtube-playlists"] as const;
 const PLAYLIST_ITEMS_QUERY_KEY = ["youtube-playlist-items"] as const;
 const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
@@ -209,22 +209,18 @@ function DashboardPlaylists() {
     }
   }, [activePlaylistId, playlists]);
 
-  useEffect(() => {
-    setPageTokens([null]);
-    setPageIndex(0);
-  }, [activePlaylistId]);
-
-  const currentPageToken = pageTokens[pageIndex] ?? null;
-  const itemsQuery = useQuery({
-    queryKey: [...PLAYLIST_ITEMS_QUERY_KEY, activePlaylistId, currentPageToken],
-    queryFn: () =>
+  const itemsQuery = useInfiniteQuery({
+    queryKey: [...PLAYLIST_ITEMS_QUERY_KEY, activePlaylistId],
+    queryFn: ({ pageParam }) =>
       getYouTubePlaylistItemsFn({
         data: {
           playlistId: activePlaylistId || "",
-          pageToken: currentPageToken || undefined,
+          pageToken: pageParam as string | undefined,
           pageSize: PAGE_SIZE,
         },
       }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextPageToken ?? undefined,
     enabled: Boolean(activePlaylistId),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
@@ -232,11 +228,11 @@ function DashboardPlaylists() {
     refetchOnReconnect: false,
   });
 
-  const playlistItems = itemsQuery.data?.items ?? [];
+  const playlistItems = itemsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const videos = useMemo(() => {
     if (!activePlaylistId) return EMPTY_VIDEOS;
     const fallbackTimestamp = new Date().toISOString();
-    return playlistItems.map((item) => {
+    const mappedVideos = playlistItems.map((item) => {
       const durationSeconds = parseDurationSeconds(item.duration);
       const rawStatus = (item.raw as { status?: { privacyStatus?: string } } | undefined)
         ?.status;
@@ -274,6 +270,12 @@ function DashboardPlaylists() {
         selectionHint,
         selectionLabel,
       };
+    });
+    // Sort by publishedAt descending (newest first)
+    return mappedVideos.sort((a, b) => {
+      const dateA = new Date(a.published_at || 0).getTime();
+      const dateB = new Date(b.published_at || 0).getTime();
+      return dateB - dateA;
     });
   }, [activePlaylistId, playlistItems]);
 

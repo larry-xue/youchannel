@@ -42,7 +42,6 @@ export const getVideosFn = createServerFn({ method: "POST" })
     return {
       videos: videos.map((itm) => {
         const status = itm.video_analyses?.[0]?.status;
-        console.log("s1tatus = ", status);
         delete itm.video_analyses;
         return {
           ...itm,

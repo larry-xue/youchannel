@@ -187,5 +187,6 @@
   "chat_sidebar_prompt_language": "Sprechen Sie in {targetLanguage} .",
   "chat_sidebar_prompt_natural": "Sprechen Sie natürlich mit dem Nutzer.",
   "chat_sidebar_prompt_preferred_language": "die bevorzugte Sprache des Benutzers",
-  "language": "Sprache"
+  "language": "Sprache",
+  "chat_sidebar_initial_greeting": "Hallo"
 }

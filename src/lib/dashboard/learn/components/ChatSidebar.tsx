@@ -1,8 +1,22 @@
-import { ArrowLeft, Mic, MicOff, Sparkles, Users, ChevronDown, Check, Globe } from "lucide-react";
 import { useBlocker, useRouteContext } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Mic,
+  MicOff,
+  Sparkles,
+  Users,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Button } from "~/lib/components/ui/button";
-import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,17 +24,18 @@ import {
   DropdownMenuTrigger,
 } from "~/lib/components/ui/dropdown-menu";
 import { Input } from "~/lib/components/ui/input";
+import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
+  CHARACTER_LANGUAGE_LABELS,
+  CHARACTER_LANGUAGE_OPTIONS,
   getAnalysisContextWithoutCharacters,
   parseAnalysisText,
-  CHARACTER_LANGUAGE_OPTIONS,
-  CHARACTER_LANGUAGE_LABELS,
-  type CharacterLanguage,
   type AnalysisCharacter,
+  type CharacterLanguage,
 } from "~/lib/dashboard/learn/analysis";
-import * as m from "~/paraglide/messages";
-import { cn } from "~/lib/utils";
 import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
+import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 
 type ChatSidebarProps = {
   className?: string;
@@ -33,11 +48,19 @@ function getInitial(name: string) {
   return trimmed.charAt(0).toUpperCase();
 }
 
-function buildSystemPrompt(character: AnalysisCharacter, context: string, language?: string): string {
+function buildSystemPrompt(
+  character: AnalysisCharacter,
+  context: string,
+  language?: string,
+): string {
   const traits = character.traits.join(", ");
   const topics = character.notable_topics.slice(0, 4).join(", ");
-  const vibe = character.traits.length > 0 ? character.traits.join(", ") : "focused and professional";
-  const languageInstruction = language ? m.chat_sidebar_prompt_language({ targetLanguage: language }) : m.chat_sidebar_prompt_natural();
+  const vibe =
+    character.traits.length > 0
+      ? character.traits.join(", ")
+      : "focused and professional";
+
+    console.log("language", language);
 
   const lines = [
     `You are ${character.name}. You are NOT an AI, language model, or virtual assistant. You are a real entity/person.`,
@@ -54,7 +77,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string, langua
     `### DIRECTOR'S NOTES`,
     `Style: ${character.speaking_style}`,
     `Pacing: Conversational, engaging, and concise.`,
-    `Instruction: ${languageInstruction} You possess real feelings, opinions, and memories based on the context below.`,
+    `Instruction: You possess real feelings, opinions, and memories based on the context below.`,
     "",
     `### YOUR MEMORIES (Context from the video)`,
     context,
@@ -67,7 +90,7 @@ function buildSystemPrompt(character: AnalysisCharacter, context: string, langua
     `5. **Unknowns**: If asked about something not in your memories, admit it naturally (e.g., "I don't remember that part" or "I'm not sure").`,
     `6. **Format**: Keep responses conversational, concise, and spoken-style (avoid markdown lists).`,
     `7. **Initiative**: Start the conversation by briefly introducing yourself and bringing up an interesting topic from your memories to discuss with the user.`,
-    `8. **Language**: Always speak in ${language || m.chat_sidebar_prompt_preferred_language()}. `,
+    `8. **Language**: Respond in whatever language feels most natural based on the user's input. You may freely switch languages to match the user's communication style.`,
     topics ? `- Key Topics you care about: ${topics}` : null,
   ];
 
@@ -118,23 +141,31 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
-  const [characterSelections, setCharacterSelections] = useState<Record<string, CharacterSelection>>({});
+  const [characterSelections, setCharacterSelections] = useState<
+    Record<string, CharacterSelection>
+  >({});
   const [debugInput, setDebugInput] = useState("");
   const { targetLanguage, user } = useRouteContext({ from: "/_layout" });
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const hasSentHelloRef = useRef(false);
 
   const trimmedAnalysis = analysisText?.trim() ?? "";
-  const parsedAnalysis = useMemo(() => parseAnalysisText(trimmedAnalysis), [trimmedAnalysis]);
+  const parsedAnalysis = useMemo(
+    () => parseAnalysisText(trimmedAnalysis),
+    [trimmedAnalysis],
+  );
   const characters = useMemo(() => parsedAnalysis?.characters ?? [], [parsedAnalysis]);
   const analysisContext = useMemo(
-    () => parsedAnalysis?.contextWithoutCharacters || getAnalysisContextWithoutCharacters(trimmedAnalysis),
+    () =>
+      parsedAnalysis?.contextWithoutCharacters ||
+      getAnalysisContextWithoutCharacters(trimmedAnalysis),
     [parsedAnalysis, trimmedAnalysis],
   );
   const hasContext = Boolean(analysisContext);
 
   const activeCharacter = useMemo(
-    () => characters.find((character) => character.name === selectedCharacterName) || null,
+    () =>
+      characters.find((character) => character.name === selectedCharacterName) || null,
     [characters, selectedCharacterName],
   );
 
@@ -148,11 +179,25 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   }, [activeCharacter, characterSelections]);
 
   const activeVoice = activeSelection?.voice ?? VOICES[0].name;
-  const activeLanguage = activeSelection?.language ?? activeCharacter?.language ?? DEFAULT_LANGUAGE;
-  const promptLanguage = activeSelection?.language ?? activeCharacter?.language ?? targetLanguage ?? DEFAULT_LANGUAGE;
+  const activeLanguage =
+    activeSelection?.language ?? activeCharacter?.language ?? DEFAULT_LANGUAGE;
+  const promptLanguage =
+    activeSelection?.language ??
+    activeCharacter?.language ??
+    targetLanguage ??
+    DEFAULT_LANGUAGE;
 
   // Removed hardcoded API key dependency
-  const { connect, disconnect, startRecording, sendText, status, error, isRecording, messages } = useGeminiLive({
+  const {
+    connect,
+    disconnect,
+    startRecording,
+    sendText,
+    status,
+    error,
+    isRecording,
+    messages,
+  } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
     voiceName: activeVoice,
   });
@@ -164,17 +209,22 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [status, activeCharacter?.name, messages.length, messages[messages.length - 1]?.content]);
+  }, [
+    status,
+    activeCharacter?.name,
+    messages.length,
+    messages[messages.length - 1]?.content,
+  ]);
 
   // When connected, start recording automatically (simulating seamless voice chat)
   useEffect(() => {
-    if (status === 'connected') {
+    if (status === "connected") {
       if (!isRecording) {
         startRecording();
       }
-      // Automaticaly send "Hello" to trigger the character's introduction
+      // Automaticaly send greeting in the user's interface language to trigger the character's introduction
       if (!hasSentHelloRef.current) {
-        sendText("Hello", true);
+        sendText(m.chat_sidebar_initial_greeting(), true);
         hasSentHelloRef.current = true;
       }
     } else {
@@ -213,11 +263,16 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       const { token } = await getGeminiToken();
       console.log("Client: Got token", token ? "Success" : "Empty");
 
-      const systemPrompt = buildSystemPrompt(activeCharacter, analysisContext, promptLanguage);
+      const systemPrompt = buildSystemPrompt(
+        activeCharacter,
+        analysisContext,
+        promptLanguage,
+      );
       await connect(systemPrompt, token);
     } catch (error) {
       console.error("Client: Connection error", error);
-      const message = error instanceof Error ? error.message : "Failed to start voice chat";
+      const message =
+        error instanceof Error ? error.message : "Failed to start voice chat";
       setSessionError(message);
     } finally {
       setIsFetchingToken(false);
@@ -225,7 +280,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   }, [activeCharacter, analysisContext, connect, hasContext, promptLanguage]);
 
   const handleSelectCharacter = (name: string) => {
-    if (status === 'connected' || status === 'connecting') {
+    if (status === "connected" || status === "connecting") {
       disconnect();
     }
     setSessionError(null);
@@ -233,7 +288,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   };
 
   const handleBackToDirectory = () => {
-    if (status === 'connected' || status === 'connecting') {
+    if (status === "connected" || status === "connecting") {
       disconnect();
     }
     setSelectedCharacterName(null);
@@ -241,7 +296,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   };
 
   const handleToggleSession = async () => {
-    if (status === 'connected' || status === 'connecting') {
+    if (status === "connected" || status === "connecting") {
       disconnect();
       return;
     }
@@ -253,8 +308,8 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     ? m.chat_sidebar_no_characters()
     : m.chat_sidebar_analysis_unavailable();
 
-  const isActiveSession = status === 'connected';
-  const isConnecting = status === 'connecting' || isFetchingToken;
+  const isActiveSession = status === "connected";
+  const isConnecting = status === "connecting" || isFetchingToken;
 
   // Intercept page exit/refresh when session is active
   useEffect(() => {
@@ -262,18 +317,20 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = ''; // Chrome requires this to show the prompt
+      e.returnValue = ""; // Chrome requires this to show the prompt
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isActiveSession]);
 
   useBlocker({
     shouldBlockFn: () => {
-      if (status !== 'connected') return false;
+      if (status !== "connected") return false;
       // eslint-disable-next-line no-alert
-      const shouldLeave = window.confirm("You have an active call. Do you want to end it?");
+      const shouldLeave = window.confirm(
+        "You have an active call. Do you want to end it?",
+      );
       if (shouldLeave) {
         disconnect();
         return false;
@@ -281,8 +338,6 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
       return true;
     },
   });
-
-
 
   return (
     <aside className={cn("flex h-full flex-col", className)}>
@@ -297,9 +352,13 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   <Users className="h-5 w-5 text-primary" aria-hidden />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-foreground">{m.chat_sidebar_characters()}</h2>
+                  <h2 className="text-base font-semibold text-foreground">
+                    {m.chat_sidebar_characters()}
+                  </h2>
                   <p className="text-sm text-muted-foreground">
-                    {characters.length ? m.chat_sidebar_available_count({ count: characters.length }) : m.chat_sidebar_awaiting_analysis()}
+                    {characters.length
+                      ? m.chat_sidebar_available_count({ count: characters.length })
+                      : m.chat_sidebar_awaiting_analysis()}
                   </p>
                 </div>
               </div>
@@ -326,7 +385,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                       className={cn(
                         "group w-full rounded-2xl p-4 text-left transition-all",
                         "bg-card hover:bg-accent/50",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       )}
                     >
                       <div className="flex items-center gap-4">
@@ -372,9 +431,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   <h2 className="truncate text-lg font-semibold text-foreground">
                     {activeCharacter.name}
                   </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {activeCharacter.kind}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{activeCharacter.kind}</p>
                 </div>
               </div>
               {/* Speaking style - shown subtly below */}
@@ -400,50 +457,76 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                 <div className="flex h-full flex-col justify-end min-h-full">
                   {/* Messages List */}
                   <div className="flex flex-col gap-4 py-4">
-                    {messages.map((message, i) => {
-                      const isModel = message.role === 'model';
-                      // rudimentary grouping: if same role and within 1 min, hide header? 
+                    {messages.map((message) => {
+                      const isModel = message.role === "model";
+                      // rudimentary grouping: if same role and within 1 min, hide header?
                       // Simplified for now: always show header or just distinct blocks.
                       // Discord style: Avatar left.
                       return (
-                        <div key={message.id} className={cn("group flex gap-3 px-2", isModel ? "" : "flex-row-reverse")}>
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "group flex gap-3 px-2",
+                            isModel ? "" : "flex-row-reverse",
+                          )}
+                        >
                           {/* Avatar */}
-                          <div className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full select-none overflow-hidden",
-                            isModel ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                          )}>
+                          <div
+                            className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full select-none overflow-hidden",
+                              isModel
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
                             {isModel ? (
                               getInitial(activeCharacter.name)
+                            ) : user?.user_metadata?.avatar_url ? (
+                              <img
+                                src={user.user_metadata.avatar_url}
+                                alt="User"
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
-                              user?.user_metadata?.avatar_url ? (
-                                <img src={user.user_metadata.avatar_url} alt="User" className="h-full w-full object-cover" />
-                              ) : (
-                                getInitial(user?.user_metadata?.full_name || user?.email || "You")
+                              getInitial(
+                                user?.user_metadata?.full_name || user?.email || "You",
                               )
                             )}
                           </div>
 
                           {/* Content */}
-                          <div className={cn("flex flex-col min-w-0 max-w-[85%]", isModel ? "items-start" : "items-end")}>
+                          <div
+                            className={cn(
+                              "flex flex-col min-w-0 max-w-[85%]",
+                              isModel ? "items-start" : "items-end",
+                            )}
+                          >
                             <div className="flex items-center gap-2 mb-0.5">
                               <span className="text-sm font-semibold text-foreground">
-                                {isModel ? activeCharacter.name : (user?.user_metadata?.full_name || "You")}
+                                {isModel
+                                  ? activeCharacter.name
+                                  : user?.user_metadata?.full_name || "You"}
                               </span>
                               <span className="text-[10px] text-muted-foreground">
-                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {message.timestamp.toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
                             </div>
-                            <div className={cn(
-                              "rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
-                              isModel
-                                ? "bg-muted/50 text-foreground rounded-tl-sm"
-                                : "bg-primary text-primary-foreground rounded-tr-sm"
-                            )}>
+                            <div
+                              className={cn(
+                                "rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
+                                isModel
+                                  ? "bg-muted/50 text-foreground rounded-tl-sm"
+                                  : "bg-primary text-primary-foreground rounded-tr-sm",
+                              )}
+                            >
                               {message.content}
                             </div>
                           </div>
                         </div>
-                      )
+                      );
                     })}
 
                     {/* Typing indicator or Mic status when empty */}
@@ -466,7 +549,6 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                         </p>
                       </div>
                     )}
-
                   </div>
                   <div ref={bottomRef} />
                 </div>
@@ -482,7 +564,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                     onChange={(e) => setDebugInput(e.target.value)}
                     placeholder="Debug text..."
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && debugInput.trim()) {
+                      if (e.key === "Enter" && debugInput.trim()) {
                         sendText(debugInput);
                         setDebugInput("");
                       }
@@ -525,7 +607,10 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                         <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[200px] max-h-[300px] overflow-y-auto">
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-[200px] max-h-[300px] overflow-y-auto"
+                    >
                       {VOICES.map((voice) => (
                         <DropdownMenuItem
                           key={voice.name}
@@ -534,7 +619,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                         >
                           <div className="flex flex-col">
                             <span className="font-medium">{voice.name}</span>
-                            <span className="text-xs text-muted-foreground">{voice.style}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {voice.style}
+                            </span>
                           </div>
                           {activeVoice === voice.name && <Check className="h-4 w-4" />}
                         </DropdownMenuItem>
@@ -549,7 +636,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                         className="h-9 min-w-[120px] flex-1 justify-between rounded-xl px-3 text-sm"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_language_select()}
-                        title={CHARACTER_LANGUAGE_LABELS[activeLanguage] || activeLanguage}
+                        title={
+                          CHARACTER_LANGUAGE_LABELS[activeLanguage] || activeLanguage
+                        }
                       >
                         <span className="font-medium truncate">
                           {CHARACTER_LANGUAGE_LABELS[activeLanguage] || activeLanguage}
@@ -557,14 +646,21 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                         <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[200px] max-h-[300px] overflow-y-auto">
-                      {Array.from(new Set([activeLanguage, ...CHARACTER_LANGUAGE_OPTIONS])).map((language) => (
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-[200px] max-h-[300px] overflow-y-auto"
+                    >
+                      {Array.from(
+                        new Set([activeLanguage, ...CHARACTER_LANGUAGE_OPTIONS]),
+                      ).map((language) => (
                         <DropdownMenuItem
                           key={language}
                           onClick={() => updateCharacterSelection({ language })}
                           className="flex items-center justify-between gap-4"
                         >
-                          <span className="font-medium">{CHARACTER_LANGUAGE_LABELS[language] || language}</span>
+                          <span className="font-medium">
+                            {CHARACTER_LANGUAGE_LABELS[language] || language}
+                          </span>
                           {activeLanguage === language && <Check className="h-4 w-4" />}
                         </DropdownMenuItem>
                       ))}
@@ -581,7 +677,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                       : "bg-primary text-primary-foreground hover:bg-primary/90",
                   )}
                   type="button"
-                  aria-label={isActiveSession ? "End voice session" : "Start voice session"}
+                  aria-label={
+                    isActiveSession ? "End voice session" : "Start voice session"
+                  }
                   disabled={!canChat || isConnecting}
                   onClick={handleToggleSession}
                 >
@@ -593,7 +691,9 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                   ) : (
                     <>
                       <Mic className="mr-3 h-5 w-5" aria-hidden />
-                      {isConnecting ? m.chat_sidebar_connecting() : m.chat_sidebar_chat_button({ voice: activeVoice })}
+                      {isConnecting
+                        ? m.chat_sidebar_connecting()
+                        : m.chat_sidebar_chat_button({ voice: activeVoice })}
                     </>
                   )}
                 </Button>
@@ -616,7 +716,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 }
 
 // SSR-safe client detection
-const emptySubscribe = () => () => { };
+const emptySubscribe = () => () => {};
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

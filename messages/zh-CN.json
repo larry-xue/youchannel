@@ -187,5 +187,6 @@
   "chat_sidebar_prompt_language": "使用{targetLanguage}进行说话。",
   "chat_sidebar_prompt_natural": "自然地与用户交流。",
   "chat_sidebar_prompt_preferred_language": "用户首选语言",
-  "language": "语言"
+  "language": "语言",
+  "chat_sidebar_initial_greeting": "你好"
 }

@@ -187,5 +187,6 @@
   "chat_sidebar_prompt_language": "{targetLanguage}で話します。",
   "chat_sidebar_prompt_natural": "ユーザーに自然に話しかけます。",
   "chat_sidebar_prompt_preferred_language": "ユーザーの好みの言語",
-  "language": "言語"
+  "language": "言語",
+  "chat_sidebar_initial_greeting": "こんにちは"
 }

@@ -1,9 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Library, Loader2, LogOut, MessageSquare, Play, Video } from "lucide-react";
+import {
+  ChevronRight,
+  Library,
+  Loader2,
+  LogOut,
+  MessageSquare,
+  Play,
+  Video,
+} from "lucide-react";
+import { useState } from "react";
 import { getUserQuotaSummaryFn } from "~/lib/server/quotas";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +49,149 @@ function formatSeconds(seconds: number): string {
   return `${s}s`;
 }
 
+// Detailed quota content for the modal
+function QuotaDetailContent({
+  quota,
+}: {
+  quota: import("~/lib/server/quotas").UserQuotaSummary;
+}) {
+  const periodLabel = quota.periodEndAt
+    ? quota.daysRemaining !== null
+      ? `${quota.daysRemaining}d ${m.quota_remaining()}`
+      : m.quota_period_long()
+    : m.quota_period_long();
+
+  return (
+    <div className="space-y-6">
+      {/* Period Info */}
+      <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground/90">{m.quota_title()}</p>
+          <p className="text-xs text-muted-foreground">{periodLabel}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-semibold text-foreground">
+            {Math.max(quota.videoPercent, quota.chatPercent)}%
+          </p>
+          <p className="text-xs text-muted-foreground">Used</p>
+        </div>
+      </div>
+
+      {/* Video Quota */}
+      {quota.videoSecondsTotal > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10">
+              <Video className="h-5 w-5 text-indigo-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {m.quota_video_label()}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {formatSeconds(quota.videoSecondsRemaining)} {m.quota_remaining()}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-base font-bold text-foreground">
+                {Math.round(quota.videoPercent)}%
+              </p>
+            </div>
+          </div>
+
+          <Progress value={quota.videoPercent} className="h-2 bg-indigo-500/10">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-500"
+              style={{ width: `${quota.videoPercent}%` }}
+            />
+          </Progress>
+
+          <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Used</p>
+              <p className="text-sm font-semibold text-foreground">
+                {formatSeconds(quota.videoSecondsUsed)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-sm font-semibold text-foreground">
+                {formatSeconds(quota.videoSecondsTotal)}
+              </p>
+            </div>
+          </div>
+
+          {quota.perVideoLimitSeconds !== null && (
+            <div className="flex justify-center">
+              <Badge variant="outline" className="text-xs px-3 py-1 font-normal">
+                {m.quota_per_video({
+                  limit: formatSeconds(quota.perVideoLimitSeconds),
+                })}
+              </Badge>
+            </div>
+          )}
+          {quota.perVideoLimitSeconds === null && (
+            <div className="flex justify-center">
+              <Badge variant="outline" className="text-xs px-3 py-1 font-normal">
+                {m.quota_per_video({ limit: m.quota_unlimited() })}
+              </Badge>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Chat Quota */}
+      {quota.chatSecondsTotal > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+              <MessageSquare className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {m.quota_chat_label()}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {formatSeconds(quota.chatSecondsRemaining)} {m.quota_remaining()}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-base font-bold text-foreground">
+                {Math.round(quota.chatPercent)}%
+              </p>
+            </div>
+          </div>
+
+          <Progress value={quota.chatPercent} className="h-2 bg-emerald-500/10">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
+              style={{ width: `${quota.chatPercent}%` }}
+            />
+          </Progress>
+
+          <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Used</p>
+              <p className="text-sm font-semibold text-foreground">
+                {formatSeconds(quota.chatSecondsUsed)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-sm font-semibold text-foreground">
+                {formatSeconds(quota.chatSecondsTotal)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserQuotas() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const {
     data: quota,
     isLoading,
@@ -90,84 +248,84 @@ function UserQuotas() {
   return (
     <>
       <DropdownMenuSeparator />
-      <div className="mx-2 mb-2 rounded-xl bg-muted/40 p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-            {m.quota_title()}
-          </span>
-          <span className="text-[10px] font-medium text-muted-foreground">
-            {periodLabel}
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {/* Video Quota */}
-          {quota.videoSecondsTotal > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 text-foreground/90">
-                  <Video className="h-3.5 w-3.5 text-indigo-500" />
-                  <span className="font-medium">{m.quota_video_label()}</span>
-                </div>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {formatSeconds(quota.videoSecondsUsed)}/
-                  {formatSeconds(quota.videoSecondsTotal)}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <div className="mx-2 mb-2 cursor-pointer rounded-xl bg-muted/40 p-3 transition-colors hover:bg-muted/60 active:bg-muted/80">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                {m.quota_title()}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {periodLabel}
                 </span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-              <Progress value={quota.videoPercent} className="h-1.5 bg-indigo-500/10">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-500"
-                  style={{ width: `${quota.videoPercent}%` }}
-                />
-              </Progress>
-              {quota.perVideoLimitSeconds !== null && (
-                <div className="flex justify-end">
-                  <Badge
-                    variant="outline"
-                    className="text-[9px] px-1.5 py-0.5 font-normal"
-                  >
-                    {m.quota_per_video({
-                      limit: formatSeconds(quota.perVideoLimitSeconds),
-                    })}
-                  </Badge>
+            </div>
+
+            <div className="space-y-3">
+              {/* Video Quota Summary */}
+              {quota.videoSecondsTotal > 0 && (
+                <div className="flex items-center gap-2">
+                  <Video className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground/90">
+                        {m.quota_video_label()}
+                      </span>
+                      <span className="text-xs font-semibold text-foreground">
+                        {Math.round(quota.videoPercent)}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={quota.videoPercent}
+                      className="h-1.5 bg-indigo-500/10"
+                    >
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-500"
+                        style={{ width: `${quota.videoPercent}%` }}
+                      />
+                    </Progress>
+                  </div>
                 </div>
               )}
-              {quota.perVideoLimitSeconds === null && (
-                <div className="flex justify-end">
-                  <Badge
-                    variant="outline"
-                    className="text-[9px] px-1.5 py-0.5 font-normal"
-                  >
-                    {m.quota_per_video({ limit: m.quota_unlimited() })}
-                  </Badge>
+
+              {/* Chat Quota Summary */}
+              {quota.chatSecondsTotal > 0 && (
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground/90">
+                        {m.quota_chat_label()}
+                      </span>
+                      <span className="text-xs font-semibold text-foreground">
+                        {Math.round(quota.chatPercent)}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={quota.chatPercent}
+                      className="h-1.5 bg-emerald-500/10"
+                    >
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
+                        style={{ width: `${quota.chatPercent}%` }}
+                      />
+                    </Progress>
+                  </div>
                 </div>
               )}
             </div>
-          )}
+          </div>
+        </DialogTrigger>
 
-          {/* Chat Quota */}
-          {quota.chatSecondsTotal > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 text-foreground/90">
-                  <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="font-medium">{m.quota_chat_label()}</span>
-                </div>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {formatSeconds(quota.chatSecondsUsed)}/
-                  {formatSeconds(quota.chatSecondsTotal)}
-                </span>
-              </div>
-              <Progress value={quota.chatPercent} className="h-1.5 bg-emerald-500/10">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
-                  style={{ width: `${quota.chatPercent}%` }}
-                />
-              </Progress>
-            </div>
-          )}
-        </div>
-      </div>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{m.quota_title()}</DialogTitle>
+          </DialogHeader>
+          <QuotaDetailContent quota={quota} />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

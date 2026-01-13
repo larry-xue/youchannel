@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
@@ -324,9 +324,9 @@ function DashboardPlaylists() {
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
         ? m.quota_with_unknown({
-            time: formatSeconds(selectionQuota.totalSeconds),
-            count: selectionQuota.unknownCount,
-          })
+          time: formatSeconds(selectionQuota.totalSeconds),
+          count: selectionQuota.unknownCount,
+        })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -343,8 +343,8 @@ function DashboardPlaylists() {
     const averageKnown =
       knownSeconds.length > 0
         ? Math.round(
-            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
-          )
+          knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+        )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -403,9 +403,8 @@ function DashboardPlaylists() {
       }
       const skippedText =
         result.skipped > 0
-          ? `, and ${result.skipped} couldn't be started${
-              skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : ""
-            }`
+          ? `, and ${result.skipped} couldn't be started${skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : ""
+          }`
           : "";
 
       if (result.enqueued > 0) {
@@ -693,8 +692,8 @@ function DashboardPlaylists() {
                   <p className="text-xs text-muted-foreground">
                     {activeSelectedVideo?.source_playlist_title
                       ? m.review_source_from({
-                          source: activeSelectedVideo.source_playlist_title,
-                        })
+                        source: activeSelectedVideo.source_playlist_title,
+                      })
                       : m.review_source_selected()}
                     {activeSelectedVideo?.published_at
                       ? ` - ${formatDate(activeSelectedVideo.published_at)}`

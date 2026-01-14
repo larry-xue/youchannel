@@ -211,5 +211,9 @@
   "quota_video_not_supported": "Sin cuota de video",
   "quota_source_subscription": "Suscripción",
   "quota_source_package": "Paquete",
-  "quota_source_manual": "Manual"
+  "quota_source_manual": "Manual",
+  "error_video_no_support": "Su cuenta no admite el procesamiento de videos. Por favor, actualice su plan.",
+  "error_video_too_long": "El video \"{title}\" ({duration}s) excede la duración máxima de video de su cuenta de {limit}s. Por favor, actualice su plan para procesar videos más largos.",
+  "error_quota_insufficient": "Cuota de video insuficiente. Requerido: {required}s, Restante: {remaining}s. Faltante: {missing}s.",
+  "error_video_duration_invalid": "Formato de duración de video inválido: {duration}"
 }

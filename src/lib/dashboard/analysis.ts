@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { getUserActiveQuotaFn } from "~/lib/server/quotas";
+import * as m from "~/paraglide/messages";
 import type { VideoAnalysis } from "~/schema";
+import { parseDurationSeconds } from "../utils";
 import { getSupabaseAndUser } from "./utils.server";
 
 export type OpenApiAnalysisResponse = {
@@ -64,6 +67,51 @@ export const triggerOpenApiAnalysisFn = createServerFn({ method: "POST" })
     if (!baseUrl || !sharedKey) throw new Error("OpenAPI service unavailable");
 
     if (data.videos.length === 0) throw new Error("Missing videos");
+
+    // Fetch user quota limits
+    const quotaData = await getUserActiveQuotaFn();
+    const { summary } = quotaData;
+
+    // 1. Validate video length against user account limits
+    for (const video of data.videos) {
+      const videoDurationSeconds = parseDurationSeconds(video.duration);
+      if (videoDurationSeconds === null) {
+        throw new Error(m.error_video_duration_invalid({ duration: video.duration }));
+      }
+
+      // Check if video exceeds user's per-video limit
+      if (summary.perVideoLimitSeconds === 0) {
+        throw new Error(m.error_video_no_support());
+      }
+      if (
+        summary.perVideoLimitSeconds !== null &&
+        videoDurationSeconds > summary.perVideoLimitSeconds
+      ) {
+        throw new Error(
+          m.error_video_too_long({
+            title: video.title,
+            duration: String(videoDurationSeconds),
+            limit: String(summary.perVideoLimitSeconds),
+          }),
+        );
+      }
+    }
+
+    // 2. Validate total quota consumption
+    const totalCostSeconds = data.videos.reduce((sum, video) => {
+      const videoDurationSeconds = parseDurationSeconds(video.duration);
+      return sum + (videoDurationSeconds ?? 0);
+    }, 0);
+
+    if (totalCostSeconds > summary.videoSecondsRemaining) {
+      throw new Error(
+        m.error_quota_insufficient({
+          required: String(totalCostSeconds),
+          remaining: String(summary.videoSecondsRemaining),
+          missing: String(totalCostSeconds - summary.videoSecondsRemaining),
+        }),
+      );
+    }
 
     const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
     const url = new URL("openapi/analysis", normalizedBase);

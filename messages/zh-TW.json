@@ -211,5 +211,9 @@
   "quota_video_not_supported": "不支援影片",
   "quota_source_subscription": "訂閱",
   "quota_source_package": "加油包",
-  "quota_source_manual": "手動贈送"
+  "quota_source_manual": "手動贈送",
+  "error_video_no_support": "您的帳戶不支援影片處理。請升級您的方案。",
+  "error_video_too_long": "影片 \"{title}\" ({duration}秒) 超過了您帳戶的最大影片長度 {limit}秒。請升級您的方案以處理更長的影片。",
+  "error_quota_insufficient": "影片配額不足。需要：{required}秒，剩餘：{remaining}秒。缺少：{missing}秒。",
+  "error_video_duration_invalid": "影片時長格式無效：{duration}"
 }

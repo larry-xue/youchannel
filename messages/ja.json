@@ -211,5 +211,9 @@
   "quota_video_not_supported": "ビデオ枠なし",
   "quota_source_subscription": "サブスクリプション",
   "quota_source_package": "パッケージ",
-  "quota_source_manual": "手動"
+  "quota_source_manual": "手動",
+  "error_video_no_support": "お客様のアカウントは動画処理に対応していません。プランをアップグレードしてください。",
+  "error_video_too_long": "動画 \"{title}\" ({duration}秒) がアカウントの最大動画長 {limit}秒を超えています。より長い動画を処理するにはプランをアップグレードしてください。",
+  "error_quota_insufficient": "動画枠が不足しています。必要：{required}秒、残り：{remaining}秒。不足：{missing}秒。",
+  "error_video_duration_invalid": "動画の長さの形式が無効です：{duration}"
 }

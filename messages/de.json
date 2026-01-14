@@ -211,5 +211,9 @@
   "quota_video_not_supported": "Kein Video-Kontingent",
   "quota_source_subscription": "Abonnement",
   "quota_source_package": "Paket",
-  "quota_source_manual": "Manuell"
+  "quota_source_manual": "Manuell",
+  "error_video_no_support": "Ihr Konto unterstützt keine Videoverarbeitung. Bitte upgraden Sie Ihren Plan.",
+  "error_video_too_long": "Video \"{title}\" ({duration}s) überschreitet die maximale Videolänge Ihres Kontos von {limit}s. Bitte upgraden Sie Ihren Plan, um längere Videos zu verarbeiten.",
+  "error_quota_insufficient": "Unzureichendes Video-Kontingent. Erforderlich: {required}s, Verbleibend: {remaining}s. Fehlend: {missing}s.",
+  "error_video_duration_invalid": "Ungültiges Videodauerformat: {duration}"
 }

@@ -267,10 +267,8 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
     setIsFetchingToken(true);
     try {
       // Fetch ephemeral token from server
-      console.log("Client: Fetching ephemeral token...");
       const { getGeminiToken } = await import("~/lib/gemini/actions");
       const { token } = await getGeminiToken();
-      console.log("Client: Got token", token ? "Success" : "Empty");
 
       const systemPrompt = buildSystemPrompt(
         activeCharacter,
@@ -725,7 +723,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 }
 
 // SSR-safe client detection
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

@@ -197,10 +197,8 @@ export function useGeminiLive({
             },
             onclose: (e) => {
               setStatus("disconnected");
-              console.log("Session closed", e);
             },
             onerror: (e) => {
-              console.error("Session error", e);
               setError(e.message || "Session error");
               setStatus("error");
             },

@@ -212,5 +212,9 @@
   "quota_source_promo": "Promo",
   "quota_page_description": "Manage your subscription and usage quotas",
   "quota_overview_title": "Overview",
-  "quota_overview_desc": "Your total available quota across all active grants"
+  "quota_overview_desc": "Your total available quota across all active grants",
+  "error_video_no_support": "Your account does not support video processing. Please upgrade your plan.",
+  "error_video_too_long": "Video \"{title}\" ({duration}s) exceeds your account's maximum video length of {limit}s. Please upgrade your plan to process longer videos.",
+  "error_quota_insufficient": "Insufficient video quota. Required: {required}s, Remaining: {remaining}s. Missing: {missing}s.",
+  "error_video_duration_invalid": "Invalid video duration format: {duration}"
 }

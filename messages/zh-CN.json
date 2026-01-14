@@ -212,5 +212,9 @@
   "quota_source_promo": "活动赠送",
   "quota_page_description": "管理您的订阅和使用配额",
   "quota_overview_title": "概览",
-  "quota_overview_desc": "您在所有有效授权中的总可用配额"
+  "quota_overview_desc": "您在所有有效授权中的总可用配额",
+  "error_video_no_support": "您的账户不支持视频处理。请升级您的套餐。",
+  "error_video_too_long": "视频 \"{title}\" ({duration}秒) 超过了您账户的最大视频长度 {limit}秒。请升级您的套餐以处理更长的视频。",
+  "error_quota_insufficient": "视频配额不足。需要：{required}秒，剩余：{remaining}秒。缺少：{missing}秒。",
+  "error_video_duration_invalid": "视频时长格式无效：{duration}"
 }

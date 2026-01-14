@@ -8,6 +8,7 @@ import {
   MessageSquare,
   PieChart,
   Play,
+  RefreshCw,
   Video,
 } from "lucide-react";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
@@ -30,33 +31,35 @@ interface UserPanelProps {
   showMenuItems?: boolean;
 }
 
+// ... (other imports remain similar)
+
 function UserQuotas() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ["userQuota"],
     queryFn: () => getUserActiveQuotaFn(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    refetch();
+  };
+
   if (isLoading) {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <div className="flex justify-center p-4">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        </div>
-      </>
+      <div className="flex justify-center p-4">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <div className="mx-2 mb-2 rounded-xl bg-destructive/10 p-3 text-center text-xs text-destructive">
-          {m.quota_error()}
-        </div>
-      </>
+      <div className="mx-2 mb-2 rounded-xl bg-destructive/10 p-3 text-center text-xs text-destructive">
+        {m.quota_error()}
+      </div>
     );
   }
 
@@ -64,84 +67,57 @@ function UserQuotas() {
 
   const { summary: quota } = data;
 
-  // Show "no quota" state for zero totals
+  // Show "no quota" state slightly differently but consistent style
   if (quota.videoSecondsTotal === 0 && quota.chatSecondsTotal === 0) {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <Link to="/quotas" className="block outline-none">
-          <div className="mx-2 mb-2 cursor-pointer rounded-xl bg-muted/40 p-3 text-center text-xs text-muted-foreground hover:bg-muted/60">
-            {m.quota_none()}
-          </div>
+      <div className="px-2 py-1.5">
+        <Link to="/quotas" className="group flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
+          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
+            {m.quota_title()}
+          </span>
+          <span className="text-xs text-muted-foreground">{m.quota_none()}</span>
         </Link>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <DropdownMenuSeparator />
-      <Link to="/quotas" className="block outline-none">
-        <div className="mx-2 mb-2 cursor-pointer rounded-xl bg-muted/40 p-3 transition-colors hover:bg-muted/60 active:bg-muted/80">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-              {m.quota_title()}
-            </span>
-            <div className="flex items-center gap-2">
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-          </div>
+    <div className="px-2 py-2">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <Link to="/quotas" className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline">
+          {m.quota_title()}
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 hover:bg-transparent"
+          onClick={handleRefresh}
+          disabled={isRefetching}
+        >
+          <RefreshCw className={`h-3 w-3 text-muted-foreground transition-all hover:text-foreground ${isRefetching ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
 
-          <div className="space-y-3">
-            {/* Video Quota Summary */}
-            {quota.videoSecondsTotal > 0 && (
-              <div className="flex items-center gap-2">
-                <Video className="h-4 w-4 text-indigo-500 flex-shrink-0" />
-                <div className="flex-1">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground/90">
-                      {m.quota_video_label()}
-                    </span>
-                    <span className="text-xs font-semibold text-foreground">
-                      {Math.round(quota.videoPercent)}%
-                    </span>
-                  </div>
-                  <Progress value={quota.videoPercent} className="h-1.5 bg-indigo-500/10">
-                    <div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-500"
-                      style={{ width: `${quota.videoPercent}%` }}
-                    />
-                  </Progress>
-                </div>
-              </div>
-            )}
-
-            {/* Chat Quota Summary */}
-            {quota.chatSecondsTotal > 0 && (
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground/90">
-                      {m.quota_chat_label()}
-                    </span>
-                    <span className="text-xs font-semibold text-foreground">
-                      {Math.round(quota.chatPercent)}%
-                    </span>
-                  </div>
-                  <Progress value={quota.chatPercent} className="h-1.5 bg-emerald-500/10">
-                    <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
-                      style={{ width: `${quota.chatPercent}%` }}
-                    />
-                  </Progress>
-                </div>
-              </div>
-            )}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Video Quota */}
+        <Link to="/quotas" className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20">
+          <div className="mb-1 text-lg">🎬</div>
+          <div className="text-xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {quota.videoPercent.toFixed(0)}<span className="text-xs font-normal text-muted-foreground">%</span>
           </div>
-        </div>
-      </Link>
-    </>
+          <Progress value={quota.videoPercent} className="mt-2 h-1 bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500" />
+        </Link>
+
+        {/* Chat Quota */}
+        <Link to="/quotas" className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20">
+          <div className="mb-1 text-lg">💬</div>
+          <div className="text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
+            {quota.chatPercent.toFixed(0)}<span className="text-xs font-normal text-muted-foreground">%</span>
+          </div>
+          <Progress value={quota.chatPercent} className="mt-2 h-1 bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500" />
+        </Link>
+      </div>
+    </div>
   );
 }
 

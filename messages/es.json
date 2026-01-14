@@ -200,5 +200,16 @@
   "quota_period_long": "Vigencia larga",
   "quota_loading": "Cargando cupo…",
   "quota_error": "No se pudo cargar el cupo",
-  "quota_none": "Sin cupo disponible"
+  "quota_source_promo": "Promo",
+  "quota_page_description": "Administra tu suscripción y cuotas de uso",
+  "quota_overview_title": "Resumen",
+  "quota_overview_desc": "Tu cuota total disponible en todas las asignaciones activas",
+  "quota_active_grants": "Asignaciones activas",
+  "quota_grant_expires": "Vence el {date}",
+  "quota_grant_expires_soon": "Vence en {days} días",
+  "quota_grant_no_expiry": "Sin vencimiento",
+  "quota_video_not_supported": "Sin cuota de video",
+  "quota_source_subscription": "Suscripción",
+  "quota_source_package": "Paquete",
+  "quota_source_manual": "Manual"
 }

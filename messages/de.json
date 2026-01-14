@@ -200,5 +200,16 @@
   "quota_period_long": "Lange gültig",
   "quota_loading": "Kontingent wird geladen…",
   "quota_error": "Kontingent konnte nicht geladen werden",
-  "quota_none": "Kein Kontingent verfügbar"
+  "quota_source_promo": "Promo",
+  "quota_page_description": "Verwalten Sie Ihr Abonnement und Ihre Nutzungskontingente",
+  "quota_overview_title": "Übersicht",
+  "quota_overview_desc": "Ihr gesamtes verfügbares Kontingent über alle aktiven Zuweisungen hinweg",
+  "quota_active_grants": "Aktive Zuweisungen",
+  "quota_grant_expires": "Läuft ab am {date}",
+  "quota_grant_expires_soon": "Läuft in {days} Tagen ab",
+  "quota_grant_no_expiry": "Kein Ablaufdatum",
+  "quota_video_not_supported": "Kein Video-Kontingent",
+  "quota_source_subscription": "Abonnement",
+  "quota_source_package": "Paket",
+  "quota_source_manual": "Manuell"
 }

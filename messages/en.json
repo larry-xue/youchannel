@@ -200,5 +200,17 @@
   "quota_period_long": "Long valid",
   "quota_loading": "Loading quota…",
   "quota_error": "Couldn't load quota",
-  "quota_none": "No quota provisioned"
+  "quota_none": "No quota provisioned",
+  "quota_active_grants": "Active Grants",
+  "quota_grant_expires": "Expires {date}",
+  "quota_grant_expires_soon": "Expires in {days}d",
+  "quota_grant_no_expiry": "No expiry",
+  "quota_video_not_supported": "No video quota",
+  "quota_source_subscription": "Subscription",
+  "quota_source_package": "Package",
+  "quota_source_manual": "Promo",
+  "quota_source_promo": "Promo",
+  "quota_page_description": "Manage your subscription and usage quotas",
+  "quota_overview_title": "Overview",
+  "quota_overview_desc": "Your total available quota across all active grants"
 }

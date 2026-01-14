@@ -200,5 +200,16 @@
   "quota_period_long": "長期有効",
   "quota_loading": "クォータを読み込み中…",
   "quota_error": "クォータを読み込めませんでした",
-  "quota_none": "利用可能なクォータがありません"
+  "quota_source_promo": "プロモーション",
+  "quota_page_description": "サブスクリプションと利用枠を管理します",
+  "quota_overview_title": "概要",
+  "quota_overview_desc": "すべてのアクティブな付与における利用可能な合計枠",
+  "quota_active_grants": "アクティブな付与",
+  "quota_grant_expires": "有効期限: {date}",
+  "quota_grant_expires_soon": "あと {days} 日で期限切れ",
+  "quota_grant_no_expiry": "有効期限なし",
+  "quota_video_not_supported": "ビデオ枠なし",
+  "quota_source_subscription": "サブスクリプション",
+  "quota_source_package": "パッケージ",
+  "quota_source_manual": "手動"
 }

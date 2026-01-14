@@ -200,5 +200,17 @@
   "quota_period_long": "长期有效",
   "quota_loading": "正在加载配额…",
   "quota_error": "无法加载配额",
-  "quota_none": "暂无配额"
+  "quota_none": "暂无配额",
+  "quota_active_grants": "生效中的配额",
+  "quota_grant_expires": "有效期至 {date}",
+  "quota_grant_expires_soon": "{days}天后过期",
+  "quota_grant_no_expiry": "长期有效",
+  "quota_video_not_supported": "不支持视频",
+  "quota_source_subscription": "订阅",
+  "quota_source_package": "加油包",
+  "quota_source_manual": "活动赠送",
+  "quota_source_promo": "活动赠送",
+  "quota_page_description": "管理您的订阅和使用配额",
+  "quota_overview_title": "概览",
+  "quota_overview_desc": "您在所有有效授权中的总可用配额"
 }

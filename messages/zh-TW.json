@@ -200,5 +200,16 @@
   "quota_period_long": "長期有效",
   "quota_loading": "正在載入配額…",
   "quota_error": "無法載入配額",
-  "quota_none": "尚無配額"
+  "quota_source_promo": "活動贈送",
+  "quota_page_description": "管理您的訂閱和使用配額",
+  "quota_overview_title": "總覽",
+  "quota_overview_desc": "您當前所有生效配額的總和",
+  "quota_active_grants": "生效中的配額",
+  "quota_grant_expires": "有效期至 {date}",
+  "quota_grant_expires_soon": "{days} 天後過期",
+  "quota_grant_no_expiry": "長期有效",
+  "quota_video_not_supported": "不支援影片",
+  "quota_source_subscription": "訂閱",
+  "quota_source_package": "加油包",
+  "quota_source_manual": "手動贈送"
 }

@@ -35,6 +35,7 @@ interface HeaderProps {
 const getDashboardNavItems = () => [
   { label: m.library(), to: "/library" },
   { label: m.playlists(), to: "/playlists" },
+  { label: m.quota_title(), to: "/quotas" },
 ];
 
 const localeNames: Record<string, string> = {

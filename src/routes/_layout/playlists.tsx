@@ -1,5 +1,11 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
 import { ConnectYouTubeAlert } from "~/lib/components/connect-youtube-alert";
@@ -279,7 +285,7 @@ function DashboardPlaylists() {
     });
   }, [activePlaylistId, playlistItems]);
 
-  const totalResults = itemsQuery.data?.pageInfo?.totalResults ?? null;
+  const totalResults = itemsQuery.data?.pages[0]?.pageInfo?.totalResults ?? null;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : null;
   const pageLabel = totalPages
     ? m.playlist_page_info({ current: pageIndex + 1, total: totalPages })
@@ -579,7 +585,9 @@ function DashboardPlaylists() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            {isRefreshing ? m.playlists_refreshing() : m.playlists_refresh()}
+            <RefreshCcw
+              className={cn("h-4 w-4", isRefreshing && "animate-spin")}
+            />{" "}
           </Button>
         )}
       </div>

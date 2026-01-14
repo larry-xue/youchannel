@@ -1,16 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  ChevronRight,
-  Library,
-  Loader2,
-  LogOut,
-  MessageSquare,
-  PieChart,
-  Play,
-  RefreshCw,
-  Video,
-} from "lucide-react";
+import { Library, Loader2, LogOut, PieChart, Play, RefreshCw } from "lucide-react";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
 import { Button } from "./ui/button";
 import {
@@ -71,7 +61,10 @@ function UserQuotas() {
   if (quota.videoSecondsTotal === 0 && quota.chatSecondsTotal === 0) {
     return (
       <div className="px-2 py-1.5">
-        <Link to="/quotas" className="group flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
+        <Link
+          to="/quotas"
+          className="group flex items-center justify-between rounded-md p-2 hover:bg-muted/50"
+        >
           <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
             {m.quota_title()}
           </span>
@@ -84,7 +77,10 @@ function UserQuotas() {
   return (
     <div className="px-2 py-2">
       <div className="mb-2 flex items-center justify-between px-1">
-        <Link to="/quotas" className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline">
+        <Link
+          to="/quotas"
+          className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline"
+        >
           {m.quota_title()}
         </Link>
         <Button
@@ -94,27 +90,43 @@ function UserQuotas() {
           onClick={handleRefresh}
           disabled={isRefetching}
         >
-          <RefreshCw className={`h-3 w-3 text-muted-foreground transition-all hover:text-foreground ${isRefetching ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-3 w-3 text-muted-foreground transition-all hover:text-foreground ${isRefetching ? "animate-spin" : ""}`}
+          />
         </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Video Quota */}
-        <Link to="/quotas" className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20">
+        <Link
+          to="/quotas"
+          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20"
+        >
           <div className="mb-1 text-lg">🎬</div>
           <div className="text-xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
-            {quota.videoPercent.toFixed(0)}<span className="text-xs font-normal text-muted-foreground">%</span>
+            {quota.videoPercent.toFixed(0)}
+            <span className="text-xs font-normal text-muted-foreground">%</span>
           </div>
-          <Progress value={quota.videoPercent} className="mt-2 h-1 bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500" />
+          <Progress
+            value={quota.videoPercent}
+            className="mt-2 h-1 bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500"
+          />
         </Link>
 
         {/* Chat Quota */}
-        <Link to="/quotas" className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20">
+        <Link
+          to="/quotas"
+          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20"
+        >
           <div className="mb-1 text-lg">💬</div>
           <div className="text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
-            {quota.chatPercent.toFixed(0)}<span className="text-xs font-normal text-muted-foreground">%</span>
+            {quota.chatPercent.toFixed(0)}
+            <span className="text-xs font-normal text-muted-foreground">%</span>
           </div>
-          <Progress value={quota.chatPercent} className="mt-2 h-1 bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500" />
+          <Progress
+            value={quota.chatPercent}
+            className="mt-2 h-1 bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500"
+          />
         </Link>
       </div>
     </div>

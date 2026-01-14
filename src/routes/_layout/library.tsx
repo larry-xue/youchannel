@@ -79,9 +79,8 @@ function DashboardPlaylists() {
           disabled={videosQuery.isRefetching}
         >
           <RefreshCcw
-            className={cn("mr-2 h-4 w-4", videosQuery.isRefetching && "animate-spin")}
+            className={cn("h-4 w-4", videosQuery.isRefetching && "animate-spin")}
           />
-          {m.playlists_refresh()}
         </Button>
       </div>
 
@@ -105,7 +104,7 @@ function DashboardPlaylists() {
                   video={video}
                   isSelected={false}
                   hideCheckbox={true}
-                  onSelect={() => {}}
+                  onSelect={() => { }}
                   isSelectable={false}
                   onOpen={handleOpenVideo}
                 />
@@ -122,9 +121,9 @@ function DashboardPlaylists() {
                   href={
                     page > 1
                       ? router.buildLocation({
-                          to: "/library",
-                          search: { page: page - 1 },
-                        }).href
+                        to: "/library",
+                        search: { page: page - 1 },
+                      }).href
                       : undefined
                   }
                   className={
@@ -212,9 +211,9 @@ function DashboardPlaylists() {
                   href={
                     page < totalPages
                       ? router.buildLocation({
-                          to: "/library",
-                          search: { page: page + 1 },
-                        }).href
+                        to: "/library",
+                        search: { page: page + 1 },
+                      }).href
                       : undefined
                   }
                   className={

@@ -1,14 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { CalendarClock, ChevronLeft, Loader2, MessageSquare, Video } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "~/lib/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/lib/components/ui/card";
 import { Progress } from "~/lib/components/ui/progress";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
 import * as m from "~/paraglide/messages";
@@ -34,11 +29,12 @@ function formatSeconds(seconds: number): string {
 }
 
 function QuotaPage() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ["userQuota"],
     queryFn: () => getUserActiveQuotaFn(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    refetchInterval: false,
   });
 
   if (isLoading) {
@@ -77,11 +73,26 @@ function QuotaPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-foreground">
-          {m.quota_title()}
-        </h1>
-        <p className="text-lg text-muted-foreground">{m.quota_page_description()}</p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-foreground">
+            {m.quota_title()}
+          </h1>
+          <p className="text-lg text-muted-foreground">{m.quota_page_description()}</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.preventDefault();
+            refetch();
+          }}
+          disabled={isRefetching}
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {/* Quota Overview Area */}
@@ -103,25 +114,35 @@ function QuotaPage() {
                     <span className="text-4xl text-muted-foreground/50">%</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">{formatSeconds(quota.videoSecondsRemaining)}</div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{m.quota_remaining()}</div>
+                    <div className="text-2xl font-bold">
+                      {formatSeconds(quota.videoSecondsRemaining)}
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {m.quota_remaining()}
+                    </div>
                   </div>
                 </div>
 
-                <Progress value={quota.videoPercent} className="h-2 w-full bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500" />
+                <Progress
+                  value={quota.videoPercent}
+                  className="h-2 w-full bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500"
+                />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span className="font-mono opacity-80">
                     {m.quota_used_total({
                       used: formatSeconds(quota.videoSecondsUsed),
-                      total: formatSeconds(quota.videoSecondsTotal)
+                      total: formatSeconds(quota.videoSecondsTotal),
                     })}
                   </span>
-                  {quota.perVideoLimitSeconds !== null && quota.perVideoLimitSeconds > 0 && (
-                    <Badge variant="secondary" className="font-normal opacity-80">
-                      {m.quota_per_video({ limit: formatSeconds(quota.perVideoLimitSeconds) })}
-                    </Badge>
-                  )}
+                  {quota.perVideoLimitSeconds !== null &&
+                    quota.perVideoLimitSeconds > 0 && (
+                      <Badge variant="secondary" className="font-normal opacity-80">
+                        {m.quota_per_video({
+                          limit: formatSeconds(quota.perVideoLimitSeconds),
+                        })}
+                      </Badge>
+                    )}
                 </div>
               </div>
             </CardContent>
@@ -143,18 +164,25 @@ function QuotaPage() {
                     <span className="text-4xl text-muted-foreground/50">%</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">{formatSeconds(quota.chatSecondsRemaining)}</div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{m.quota_remaining()}</div>
+                    <div className="text-2xl font-bold">
+                      {formatSeconds(quota.chatSecondsRemaining)}
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {m.quota_remaining()}
+                    </div>
                   </div>
                 </div>
 
-                <Progress value={quota.chatPercent} className="h-2 w-full bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500" />
+                <Progress
+                  value={quota.chatPercent}
+                  className="h-2 w-full bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500"
+                />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span className="font-mono opacity-80">
                     {m.quota_used_total({
                       used: formatSeconds(quota.chatSecondsUsed),
-                      total: formatSeconds(quota.chatSecondsTotal)
+                      total: formatSeconds(quota.chatSecondsTotal),
                     })}
                   </span>
                 </div>
@@ -170,29 +198,45 @@ function QuotaPage() {
           <h2 className="text-xl font-semibold">{m.quota_active_grants()}</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {grants.map((grant) => {
-              const grantVideoUsed = Math.max(0, grant.videoSecondsTotal - grant.videoSecondsRemaining);
-              const grantVideoPercent = grant.videoSecondsTotal > 0
-                ? (grantVideoUsed / grant.videoSecondsTotal) * 100
-                : 0;
+              const grantVideoUsed = Math.max(
+                0,
+                grant.videoSecondsTotal - grant.videoSecondsRemaining,
+              );
+              const grantVideoPercent =
+                grant.videoSecondsTotal > 0
+                  ? (grantVideoUsed / grant.videoSecondsTotal) * 100
+                  : 0;
 
-              const grantChatUsed = Math.max(0, grant.chatSecondsTotal - grant.chatSecondsRemaining);
-              const grantChatPercent = grant.chatSecondsTotal > 0
-                ? (grantChatUsed / grant.chatSecondsTotal) * 100
-                : 0;
+              const grantChatUsed = Math.max(
+                0,
+                grant.chatSecondsTotal - grant.chatSecondsRemaining,
+              );
+              const grantChatPercent =
+                grant.chatSecondsTotal > 0
+                  ? (grantChatUsed / grant.chatSecondsTotal) * 100
+                  : 0;
 
               const expiryDate = grant.validTo ? new Date(grant.validTo) : null;
               const daysUntilExpiry = expiryDate
-                ? Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                ? Math.ceil(
+                  (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                )
                 : null;
 
               let sourceLabel = grant.sourceType;
-              if (grant.sourceType === "subscription") sourceLabel = m.quota_source_subscription();
-              else if (grant.sourceType === "package") sourceLabel = m.quota_source_package();
-              else if (grant.sourceType === "manual") sourceLabel = m.quota_source_manual();
+              if (grant.sourceType === "subscription")
+                sourceLabel = m.quota_source_subscription();
+              else if (grant.sourceType === "package")
+                sourceLabel = m.quota_source_package();
+              else if (grant.sourceType === "manual")
+                sourceLabel = m.quota_source_manual();
               else if (grant.sourceType === "promo") sourceLabel = m.quota_source_promo();
 
               return (
-                <Card key={grant.id} className="flex flex-col border-border/50 shadow-sm transition-all hover:shadow-md">
+                <Card
+                  key={grant.id}
+                  className="flex flex-col border-border/50 shadow-sm transition-all hover:shadow-md"
+                >
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -201,17 +245,23 @@ function QuotaPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>{daysUntilExpiry && daysUntilExpiry <= 7 ? "⏳" : "📅"}</span>
+                          <span>
+                            {daysUntilExpiry && daysUntilExpiry <= 7 ? "⏳" : "📅"}
+                          </span>
                           <span className="font-medium">
                             {expiryDate
                               ? daysUntilExpiry && daysUntilExpiry <= 7
                                 ? m.quota_grant_expires_soon({ days: daysUntilExpiry })
-                                : m.quota_grant_expires({ date: expiryDate.toLocaleDateString() })
+                                : m.quota_grant_expires({
+                                  date: expiryDate.toLocaleDateString(),
+                                })
                               : m.quota_grant_no_expiry()}
                           </span>
                         </div>
                         {grant.sourceRef && (
-                          <span className="font-mono text-xs text-muted-foreground/50">#{grant.sourceRef.slice(0, 6)}</span>
+                          <span className="font-mono text-xs text-muted-foreground/50">
+                            #{grant.sourceRef.slice(0, 6)}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -222,7 +272,9 @@ function QuotaPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">🎬</span>
-                          <span className="font-medium text-muted-foreground">{m.quota_video_label()}</span>
+                          <span className="font-medium text-muted-foreground">
+                            {m.quota_video_label()}
+                          </span>
                         </div>
                         {grant.maxVideoSeconds === 0 ? (
                           <span className="text-xs text-muted-foreground/50">
@@ -230,12 +282,18 @@ function QuotaPage() {
                           </span>
                         ) : (
                           <span className="font-mono font-bold">
-                            {formatSeconds(grant.videoSecondsRemaining)} <span className="text-muted-foreground font-normal">/ {formatSeconds(grant.videoSecondsTotal)}</span>
+                            {formatSeconds(grant.videoSecondsRemaining)}{" "}
+                            <span className="text-muted-foreground font-normal">
+                              / {formatSeconds(grant.videoSecondsTotal)}
+                            </span>
                           </span>
                         )}
                       </div>
                       {grant.maxVideoSeconds > 0 && (
-                        <Progress value={grantVideoPercent} className="h-1.5 w-full bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500" />
+                        <Progress
+                          value={grantVideoPercent}
+                          className="h-1.5 w-full bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500"
+                        />
                       )}
                     </div>
 
@@ -244,13 +302,21 @@ function QuotaPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">💬</span>
-                          <span className="font-medium text-muted-foreground">{m.quota_chat_label()}</span>
+                          <span className="font-medium text-muted-foreground">
+                            {m.quota_chat_label()}
+                          </span>
                         </div>
                         <span className="font-mono font-bold">
-                          {formatSeconds(grant.chatSecondsRemaining)} <span className="text-muted-foreground font-normal">/ {formatSeconds(grant.chatSecondsTotal)}</span>
+                          {formatSeconds(grant.chatSecondsRemaining)}{" "}
+                          <span className="text-muted-foreground font-normal">
+                            / {formatSeconds(grant.chatSecondsTotal)}
+                          </span>
                         </span>
                       </div>
-                      <Progress value={grantChatPercent} className="h-1.5 w-full bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500" />
+                      <Progress
+                        value={grantChatPercent}
+                        className="h-1.5 w-full bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500"
+                      />
                     </div>
                   </CardContent>
                 </Card>

@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Progress } from "./ui/progress";
+import { Separator } from "./ui/separator";
 
 import { useAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
@@ -62,129 +63,86 @@ function QuotaDetailContent({
     : m.quota_period_long();
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Period Info */}
-      <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
-        <div>
-          <p className="text-sm font-medium text-foreground/90">{m.quota_title()}</p>
-          <p className="text-xs text-muted-foreground">{periodLabel}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-foreground">
-            {Math.max(quota.videoPercent, quota.chatPercent)}%
-          </p>
-          <p className="text-xs text-muted-foreground">Used</p>
-        </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">{m.quota_title()}</span>
+        <span className="text-xs text-muted-foreground">{periodLabel}</span>
       </div>
 
-      {/* Video Quota */}
-      {quota.videoSecondsTotal > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10">
-              <Video className="h-5 w-5 text-indigo-500" />
+      <div className="grid gap-6">
+        {/* Video Quota */}
+        {quota.videoSecondsTotal > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-foreground/90">
+                <Video className="h-4 w-4 text-indigo-500" />
+                <span className="font-medium">{m.quota_video_label()}</span>
+              </div>
+              <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                {quota.videoPercent.toFixed(2)}%
+              </span>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">
-                {m.quota_video_label()}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatSeconds(quota.videoSecondsRemaining)} {m.quota_remaining()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-base font-bold text-foreground">
-                {Math.round(quota.videoPercent)}%
-              </p>
-            </div>
-          </div>
 
-          <Progress value={quota.videoPercent} className="h-2 bg-indigo-500/10">
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-500"
-              style={{ width: `${quota.videoPercent}%` }}
+            <Progress
+              value={quota.videoPercent}
+              className="h-2 [&>[data-slot=progress-indicator]]:bg-indigo-500"
             />
-          </Progress>
 
-          <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Used</p>
-              <p className="text-sm font-semibold text-foreground">
-                {formatSeconds(quota.videoSecondsUsed)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-sm font-semibold text-foreground">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-mono">
+                {formatSeconds(quota.videoSecondsUsed)} /{" "}
                 {formatSeconds(quota.videoSecondsTotal)}
-              </p>
+              </span>
+              <span>{formatSeconds(quota.videoSecondsRemaining)} remaining</span>
             </div>
+
+            {quota.perVideoLimitSeconds !== null && (
+              <div className="flex justify-end pt-1">
+                <Badge
+                  variant="outline"
+                  className="h-5 border-indigo-200 px-1.5 text-[10px] font-normal text-indigo-700 dark:border-indigo-800 dark:text-indigo-300"
+                >
+                  Limit: {formatSeconds(quota.perVideoLimitSeconds)}
+                </Badge>
+              </div>
+            )}
           </div>
+        )}
 
-          {quota.perVideoLimitSeconds !== null && (
-            <div className="flex justify-center">
-              <Badge variant="outline" className="text-xs px-3 py-1 font-normal">
-                {m.quota_per_video({
-                  limit: formatSeconds(quota.perVideoLimitSeconds),
-                })}
-              </Badge>
-            </div>
-          )}
-          {quota.perVideoLimitSeconds === null && (
-            <div className="flex justify-center">
-              <Badge variant="outline" className="text-xs px-3 py-1 font-normal">
-                {m.quota_per_video({ limit: m.quota_unlimited() })}
-              </Badge>
-            </div>
-          )}
-        </div>
-      )}
+        {/* Separator if both exist */}
+        {quota.videoSecondsTotal > 0 && quota.chatSecondsTotal > 0 && (
+          <Separator className="bg-border/50" />
+        )}
 
-      {/* Chat Quota */}
-      {quota.chatSecondsTotal > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-              <MessageSquare className="h-5 w-5 text-emerald-500" />
+        {/* Chat Quota */}
+        {quota.chatSecondsTotal > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-foreground/90">
+                <MessageSquare className="h-4 w-4 text-emerald-500" />
+                <span className="font-medium">{m.quota_chat_label()}</span>
+              </div>
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {quota.chatPercent.toFixed(2)}%
+              </span>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">
-                {m.quota_chat_label()}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatSeconds(quota.chatSecondsRemaining)} {m.quota_remaining()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-base font-bold text-foreground">
-                {Math.round(quota.chatPercent)}%
-              </p>
-            </div>
-          </div>
 
-          <Progress value={quota.chatPercent} className="h-2 bg-emerald-500/10">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
-              style={{ width: `${quota.chatPercent}%` }}
+            <Progress
+              value={quota.chatPercent}
+              className="h-2 [&>[data-slot=progress-indicator]]:bg-emerald-500"
             />
-          </Progress>
 
-          <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Used</p>
-              <p className="text-sm font-semibold text-foreground">
-                {formatSeconds(quota.chatSecondsUsed)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-sm font-semibold text-foreground">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-mono">
+                {formatSeconds(quota.chatSecondsUsed)} /{" "}
                 {formatSeconds(quota.chatSecondsTotal)}
-              </p>
+              </span>
+              <span>{formatSeconds(quota.chatSecondsRemaining)} remaining</span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

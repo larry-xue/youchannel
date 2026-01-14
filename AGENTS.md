@@ -1,105 +1,77 @@
-# AGENTS.md
+# PROJECT KNOWLEDGE BASE
 
-This file contains essential guidance for agentic coding assistants working in this repository.
+**Generated:** 2026-01-14
+**Framework:** TanStack Start (Vite) + Supabase + TanStack Query
+**Style:** Shadcn UI + Tailwind CSS v4 (Material Design 3)
 
----
+## OVERVIEW
 
-## Build, Lint, and Format Commands
+Full-stack workspace for YouTube video analysis and language learning.
+Integrates **Supabase Auth/DB**, **TanStack Router** (file-based), and **Gemini AI** for video processing.
+Fully internationalized via **Paraglide** (Inlang).
 
-**Package Manager**: `pnpm` (use exclusively)
+## STRUCTURE
 
-| Command                  | Purpose                                            |
-| ------------------------ | -------------------------------------------------- |
-| `pnpm dev`               | Start development server (Vite with host access)   |
-| `pnpm build`             | Production build                                   |
-| `pnpm start`             | Run production server (`.output/server/index.mjs`) |
-| `pnpm lint`              | Run ESLint across all TS/TSX files                 |
-| `pnpm format`            | Format code with Prettier                          |
-| `pnpm machine-translate` | Trigger machine translation via Inlang             |
-| `pnpm ui <component>`    | Add Shadcn component (runs `shadcn@canary`)        |
+```
+.
+├── messages/                 # Source i18n JSON files (en, ja, de, etc.)
+├── src/
+│   ├── lib/
+│   │   ├── components/ui/    # Shadcn components (Material 3 styled)
+│   │   ├── dashboard/        # Feature: Dashboard logic & RPC wrappers
+│   │   ├── gemini/           # Feature: Client-side AI (Live/Audio)
+│   │   └── server/           # Backend: Auth, DB, quotas, external APIs
+│   ├── paraglide/            # Generated i18n code (DO NOT EDIT JS FILES)
+│   └── routes/               # TanStack Router (File-based)
+└── supabase/                 # Migrations & Config
+```
 
-**Testing**: No automated test suite is configured. No test runner or test scripts exist in the repo.
+## WHERE TO LOOK
 
----
+| Task                | Location                   | Notes                             |
+| ------------------- | -------------------------- | --------------------------------- |
+| **Routing**         | `src/routes`               | `__root`, `_layout`, `$` patterns |
+| **Backend Logic**   | `src/lib/server`           | pure logic, auth, external APIs   |
+| **RPC Functions**   | `src/lib/dashboard`        | `createServerFn` wrappers         |
+| **UI Components**   | `src/lib/components/ui`    | Shadcn + custom `loading`/`empty` |
+| **Database Schema** | `supabase/migrations`      | Timestamped SQL files             |
+| **Translations**    | `messages/*.json`          | `snake_case` keys                 |
+| **AI Integration**  | `src/lib/server/gemini.ts` | Server-side generation            |
 
-## Code Style Guidelines
+## CONVENTIONS
 
-### Formatting (Prettier + EditorConfig)
+### core
 
-- Indentation: 2 spaces (no tabs)
-- Line length: 90 characters max
-- Quotes: Double quotes (`"`)
-- Semicolons: Required
-- Line endings: LF
-- Trailing commas: All
-- Plugins: `prettier-plugin-tailwindcss`, `prettier-plugin-organize-imports`
+- **Package Manager**: `pnpm` exclusively.
+- **Formatting**: Prettier + EditorConfig (2 spaces, 90 chars).
+- **Linting**: ESLint Flat Config (Strict TS, React Compiler).
 
-### TypeScript Configuration
+### architecture
 
-- Strict mode: Enabled
-- Target: ES2022
-- Module resolution: Bundler
-- JSX: `react-jsx`
-- Path alias: `~/*` → `./src/*`
+- **Data Fetching**: **Client-side TanStack Query** (No Router Loaders).
+- **Auth**: SSR-aware via `src/lib/server/auth.server.ts` (Cookies).
+- **API**: RPC pattern using `createServerFn` (in `src/lib/dashboard` & `src/lib/server`).
+- **Styling**: Tailwind v4. **Material Design 3** aesthetics (rounded-3xl, etc).
 
-### Linting (ESLint Flat Config)
+### i18n (Paraglide)
 
-- TypeScript strict type checking
-- React Hooks recommended rules
-- React Compiler integration
-- TanStack Query and Router plugins (recommended rules)
-- Prettier integration (no conflicts)
+- Edit `messages/{locale}.json` only.
+- Keys: `snake_case` (e.g., `hero_title_start`).
+- Usage: `import * as m from "~/paraglide/messages"`.
 
-### Naming Conventions
+## COMMANDS
 
-**TanStack Router (File-Based Routing)**
+```bash
+pnpm dev              # Dev server
+pnpm build            # Production build
+pnpm ui <comp>        # Add Shadcn component (canary)
+pnpm machine-translate # Auto-translate missing keys
+pnpm supabase db reset # Reset local DB + Seed
+```
 
-- Root route: `__root.tsx`
-- Index routes: `index.tsx`
-- Dynamic segments: Prefix with `$` (e.g., `$postId.tsx`)
-- Pathless layouts: Prefix with `_` (e.g., `_layout.tsx`)
-- Excluded files/folders: Prefix with `-` (colocation support)
+## ANTI-PATTERNS
 
-**UI Components (Shadcn)**
-
-- Use canary version for all shadcn installs:
-  ```bash
-  npx shadcn@canary <package-name>
-  ```
-- Or via the `pnpm ui` alias: `pnpm ui <component>`
-
-### Imports and Organization
-
-- Use absolute imports with `~` alias for src files
-- Prettier automatically organizes imports via `prettier-plugin-organize-imports`
-- Tailwind classes are auto-sorted by `prettier-plugin-tailwindcss`
-
-### Error Handling
-
-- No specific patterns found in configs
-- Follow React/TypeScript best practices (try/catch, error boundaries, etc.)
-
-### React Compiler
-
-- Enabled with `eslint-plugin-react-compiler` and `babel-plugin-react-compiler`
-- Configure rules in `eslint.config.js` (currently using recommended config)
-
----
-
-## Tech Stack and Patterns
-
-- **Framework**: TanStack Start (Vite-based full-stack React)
-- **Routing**: TanStack Router with file-based routing
-- **State/Data**: TanStack Query (loader integration)
-- **UI**: Shadcn components + Tailwind CSS v4 (Material Design 3 style)
-- **Auth/DB**: Supabase Auth + Postgres with RLS
-- **AI**: TanStack AI + Gemini adapter
-- **i18n**: Inlang (Paraglide)
-
----
-
-## Important Notes
-
-- Always run `pnpm lint` and `pnpm format` before committing
-- No automated tests are currently set up — if adding tests, consider Vitest
-- Cursor rules in `.cursor/rules/` contain additional project-specific guidance
+- **NO Router Loaders**: Use `beforeLoad` for auth only. Use Query for data.
+- **NO Direct DB Clients**: Use `getSupabaseServerClient()` in server fns.
+- **NO `camelCase` i18n keys**: Build will fail/warn.
+- **NO `as any`**: Strict type safety required.

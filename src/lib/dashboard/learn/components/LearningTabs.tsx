@@ -3,6 +3,7 @@ import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import { formatDate } from "~/lib/dashboard/utils";
 import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 import { parseAnalysisText } from "../analysis";
 import { TAB_OPTIONS } from "../constants";
 
@@ -69,6 +70,14 @@ export function LearningTabs({
     parsedAnalysis?.summarize || (analysisText && !parsedAnalysis ? analysisText : null);
   const wikiItems =
     parsedAnalysis?.wiki && parsedAnalysis.wiki.length > 0 ? parsedAnalysis.wiki : null;
+  const transcript = parsedAnalysis?.transcript;
+  const transcriptSegments =
+    transcript?.segments && transcript.segments.length > 0 ? transcript.segments : null;
+  const tabLabels = {
+    learn_tab_overview: m.learn_tab_overview(),
+    learn_tab_wiki: m.learn_tab_wiki(),
+    learn_tab_transcript: m.learn_tab_transcript(),
+  } as const;
 
   return (
     <Tabs defaultValue="info" className="flex h-full min-h-0 flex-col">
@@ -79,7 +88,7 @@ export function LearningTabs({
             value={tab.key}
             className="h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
           >
-            {tab.label}
+            {tabLabels[tab.labelKey]}
           </TabsTrigger>
         ))}
       </TabsList>
@@ -88,21 +97,21 @@ export function LearningTabs({
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Video Info
+                {m.learn_video_info_heading()}
               </p>
               <div>
                 <h3 className="text-base font-semibold text-foreground">{title}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Published {formatDate(publishedAt)}
+                  {m.learn_published_at({ date: formatDate(publishedAt) })}
                 </p>
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground/90">
-                {description?.trim() || "No description available yet."}
+                {description?.trim() || m.learn_description_empty()}
               </p>
             </div>
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Summary
+                {m.learn_summary_heading()}
               </p>
               <div className="prose prose-base max-w-prose text-foreground/90 leading-relaxed tracking-[0.01em] prose-p:my-1 prose-li:my-1">
                 {summaryText ? (
@@ -110,8 +119,8 @@ export function LearningTabs({
                 ) : (
                   <p className="text-muted-foreground">
                     {hasAnalysisText
-                      ? "No summary available yet."
-                      : "Video analysis is not available yet. Please wait for the analysis to complete or trigger it from the playlists page."}
+                      ? m.learn_summary_empty()
+                      : m.learn_analysis_unavailable()}
                   </p>
                 )}
               </div>
@@ -149,8 +158,74 @@ export function LearningTabs({
             ) : (
               <p className="py-2 text-muted-foreground">
                 {hasAnalysisText
-                  ? "No wiki entries available yet."
-                  : "Video analysis is not available yet. Please wait for the analysis to complete or trigger it from the playlists page."}
+                  ? m.learn_wiki_empty()
+                  : m.learn_analysis_unavailable()}
+              </p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="transcript">
+          <div className="space-y-3 text-sm">
+            <div className="rounded-2xl border border-amber-200/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
+              {m.learn_transcript_notice()}
+            </div>
+            {transcript && (
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                {transcript.language && (
+                  <span>
+                    {m.learn_transcript_language({ language: transcript.language })}
+                  </span>
+                )}
+                {typeof transcript.is_truncated === "boolean" && (
+                  <span>
+                    {transcript.is_truncated
+                      ? m.learn_transcript_truncated()
+                      : m.learn_transcript_complete()}
+                  </span>
+                )}
+                {transcript.cursor && (
+                  <span>{m.learn_transcript_cursor({ cursor: transcript.cursor })}</span>
+                )}
+              </div>
+            )}
+            {transcriptSegments ? (
+              <div className="space-y-3">
+                {transcriptSegments.map((segment, index) => (
+                  <div
+                    key={`${segment.start || "segment"}-${segment.end || index}`}
+                    className="flex items-start gap-3"
+                  >
+                    {segment.start && (
+                      <TimestampButton
+                        timestamp={segment.start}
+                        onSeek={onSeekToTimestamp}
+                        className="text-xs shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      {segment.speaker && (
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          {segment.speaker}
+                        </p>
+                      )}
+                      <p className="whitespace-pre-wrap text-foreground/90">
+                        {segment.text || m.learn_transcript_text_empty()}
+                      </p>
+                      {segment.end && (
+                        <p className="text-xs text-muted-foreground">
+                          {m.learn_transcript_end({ end: segment.end })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-2 text-muted-foreground">
+                {hasAnalysisText
+                  ? m.learn_transcript_empty()
+                  : m.learn_analysis_unavailable()}
               </p>
             )}
           </div>
@@ -159,7 +234,7 @@ export function LearningTabs({
         <TabsContent value="captions">
           <div className="text-sm">
             <p className="py-2 text-muted-foreground">
-              Captions feature is not available yet.
+              {m.learn_captions_unavailable()}
             </p>
           </div>
         </TabsContent>

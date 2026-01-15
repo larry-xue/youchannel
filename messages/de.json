@@ -218,5 +218,25 @@
   "error_video_no_support": "Ihr Konto unterstützt keine Videoverarbeitung. Bitte upgraden Sie Ihren Plan.",
   "error_video_too_long": "Video \"{title}\" ({duration}s) überschreitet die maximale Videolänge Ihres Kontos von {limit}s. Bitte upgraden Sie Ihren Plan, um längere Videos zu verarbeiten.",
   "error_quota_insufficient": "Unzureichendes Video-Kontingent. Erforderlich: {required}s, Verbleibend: {remaining}s. Fehlend: {missing}s.",
-  "error_video_duration_invalid": "Ungültiges Videodauerformat: {duration}"
+  "error_video_duration_invalid": "Ungültiges Videodauerformat: {duration}",
+  "learn_tab_overview": "Überblick",
+  "learn_tab_wiki": "Wiki",
+  "learn_tab_transcript": "Transkript",
+  "learn_video_info_heading": "Video-Info",
+  "learn_published_at": "Veröffentlicht {date}",
+  "learn_description_empty": "Noch keine Beschreibung verfügbar.",
+  "learn_summary_heading": "Zusammenfassung",
+  "learn_summary_empty": "Noch keine Zusammenfassung verfügbar.",
+  "learn_analysis_unavailable": "Die Videoanalyse ist noch nicht verfügbar. Bitte warte auf den Abschluss oder starte sie auf der Playlists-Seite.",
+  "learn_wiki_empty": "Noch keine Wiki-Einträge verfügbar.",
+  "learn_transcript_notice": "Dieses Transkript wurde von KI erstellt und kann Fehler enthalten. Bitte mit dem Originalvideo abgleichen.",
+  "learn_transcript_language": "Sprache: {language}",
+  "learn_transcript_truncated": "Transkript gekürzt",
+  "learn_transcript_complete": "Transkript vollständig",
+  "learn_transcript_cursor": "Cursor: {cursor}",
+  "learn_transcript_text_empty": "Transkripttext nicht verfügbar.",
+  "learn_transcript_end": "Endet {end}",
+  "learn_transcript_empty": "Noch kein Transkript verfügbar.",
+  "learn_captions_unavailable": "Die Untertitel-Funktion ist noch nicht verfügbar."
 }
+

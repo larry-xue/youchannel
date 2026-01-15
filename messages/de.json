@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "app_name_part1": "Fluently",
   "app_name_part2": "By",
@@ -120,8 +120,10 @@
   "status_completed": "Abgeschlossen",
   "playlist_hint_private": "Private Videos können nicht ausgewählt werden.",
   "playlist_hint_too_long": "Videodauer überschreitet Ihr Kontolimit.",
+  "playlist_hint_added": "Dieses Video wurde bereits zu deiner Bibliothek hinzugefügt.",
   "playlist_label_private": "Privat",
   "playlist_label_too_long": "Zu lang",
+  "playlist_label_added": "Bereits hinzugefügt",
   "label_video": "Video",
   "label_videos": "Videos",
   "label_playlist": "Wiedergabeliste",

@@ -22,6 +22,7 @@ import { Loading } from "~/lib/components/ui/loading";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { VideoCard } from "~/lib/components/video-card";
 import {
+  getLibraryVideoIdsFn,
   getYouTubeAccountStatusFn,
   getYouTubePlaylistItemsFn,
   getYouTubePlaylistsFn,
@@ -161,6 +162,20 @@ function DashboardPlaylists() {
   });
   const hasAccount = accountQuery.data?.hasAccount ?? false;
 
+  const libraryQuery = useQuery({
+    queryKey: ["library-video-ids"],
+    queryFn: () => getLibraryVideoIdsFn(),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: hasAccount,
+  });
+  const libraryVideoIds = useMemo(
+    () => new Set(libraryQuery.data ?? []),
+    [libraryQuery.data],
+  );
+
   const playlistsQuery = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
     queryFn: () => getYouTubePlaylistsFn(),
@@ -225,16 +240,19 @@ function DashboardPlaylists() {
         maxDuration !== null &&
         typeof durationSeconds === "number" &&
         durationSeconds > maxDuration;
-      const selectionHint = isPrivate
-        ? m.playlist_hint_private()
-        : isTooLong
-          ? m.playlist_hint_too_long()
-          : undefined;
-      const selectionLabel = selectionHint
-        ? isPrivate
-          ? m.playlist_label_private()
-          : m.playlist_label_too_long()
-        : undefined;
+      const isAlreadyInLibrary = libraryVideoIds.has(item.videoId);
+      let selectionHint: string | undefined;
+      let selectionLabel: string | undefined;
+      if (isAlreadyInLibrary) {
+        selectionHint = m.playlist_hint_added();
+        selectionLabel = m.playlist_label_added();
+      } else if (isPrivate) {
+        selectionHint = m.playlist_hint_private();
+        selectionLabel = m.playlist_label_private();
+      } else if (isTooLong) {
+        selectionHint = m.playlist_hint_too_long();
+        selectionLabel = m.playlist_label_too_long();
+      }
       const isSelectable = !selectionHint;
 
       return {
@@ -259,7 +277,7 @@ function DashboardPlaylists() {
       const dateB = new Date(b.published_at || 0).getTime();
       return dateB - dateA;
     });
-  }, [activePlaylistId, playlistItems]);
+  }, [activePlaylistId, playlistItems, libraryVideoIds]);
 
   const totalResults = itemsQuery.data?.pages[0]?.pageInfo?.totalResults ?? null;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : null;

@@ -52,6 +52,23 @@ export const getVideosFn = createServerFn({ method: "POST" })
     };
   });
 
+export const getLibraryVideoIdsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { supabase, user } = await getSupabaseAndUser();
+    const { data, error } = await supabase
+      .from("videos")
+      .select("youtube_video_id")
+      .eq("user_id", user.id)
+      .is("removed_at", null);
+
+    if (error) throw error;
+
+    return (data ?? [])
+      .map((row) => row.youtube_video_id)
+      .filter((id): id is string => typeof id === "string");
+  },
+);
+
 export const getVideoByIdFn = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ videoId: z.string() }).parse(data))
   .handler(async ({ data }) => {

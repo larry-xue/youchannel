@@ -23,7 +23,7 @@ export {
 export { getYouTubePlaylistItemsFn, getYouTubePlaylistsFn } from "./youtube-playlists";
 
 // Video
-export { getVideoByIdFn, getVideosFn, type VideoWithStatus } from "./video";
+export { getVideoByIdFn, getLibraryVideoIdsFn, getVideosFn, type VideoWithStatus } from "./video";
 
 // Analysis
 export {

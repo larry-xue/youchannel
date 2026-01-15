@@ -306,9 +306,9 @@ function DashboardPlaylists() {
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
         ? m.quota_with_unknown({
-            time: formatSeconds(selectionQuota.totalSeconds),
-            count: selectionQuota.unknownCount,
-          })
+          time: formatSeconds(selectionQuota.totalSeconds),
+          count: selectionQuota.unknownCount,
+        })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -325,8 +325,8 @@ function DashboardPlaylists() {
     const averageKnown =
       knownSeconds.length > 0
         ? Math.round(
-            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
-          )
+          knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+        )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -385,17 +385,19 @@ function DashboardPlaylists() {
       }
       const skippedText =
         result.skipped > 0
-          ? `, and ${result.skipped} couldn't be started${
-              skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : ""
-            }`
+          ? m.toast_skipped_message({
+            count: result.skipped,
+            reasons:
+              skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
+          })
           : "";
 
       if (result.enqueued > 0) {
         toast.success(
           m.toast_success_desc({
             count: result.enqueued,
-            label: result.enqueued === 1 ? "video" : "videos",
-          }),
+            label: result.enqueued === 1 ? m.label_video() : m.label_videos(),
+          }) + skippedText,
         );
       } else {
         toast.info(m.toast_info_desc());
@@ -671,8 +673,8 @@ function DashboardPlaylists() {
                   <p className="text-xs text-muted-foreground">
                     {activeSelectedVideo?.source_playlist_title
                       ? m.review_source_from({
-                          source: activeSelectedVideo.source_playlist_title,
-                        })
+                        source: activeSelectedVideo.source_playlist_title,
+                      })
                       : m.review_source_selected()}
                     {activeSelectedVideo?.published_at
                       ? ` - ${formatDate(activeSelectedVideo.published_at)}`

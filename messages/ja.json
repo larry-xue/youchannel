@@ -75,6 +75,7 @@
   "review_selection_submitting": "送信中...",
   "toast_success_title": "対応中です",
   "toast_success_desc": "{count} つの {label} を処理しています。これには数分かかる場合があります。更新をお待ちください。",
+  "toast_skipped_message": " また、{count} 件を開始できませんでした{reasons}。",
   "toast_info_title": "開始するものがありません",
   "toast_info_desc": "現在の選択を開始できませんでした。後でもう一度お試しください。",
   "toast_error_title": "開始できませんでした",

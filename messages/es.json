@@ -75,6 +75,7 @@
   "review_selection_submitting": "Enviando...",
   "toast_success_title": "Estamos en ello",
   "toast_success_desc": "Estamos trabajando en {count} {label}. Esto puede tardar unos minutos; por favor, espera las actualizaciones.",
+  "toast_skipped_message": " Además, {count} no pudieron iniciarse{reasons}.",
   "toast_info_title": "Nada que empezar todavía",
   "toast_info_desc": "No pudimos comenzar con la selección actual. Por favor, inténtalo de nuevo más tarde.",
   "toast_error_title": "No pudimos empezar",

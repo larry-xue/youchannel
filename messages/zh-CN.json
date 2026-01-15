@@ -75,6 +75,7 @@
   "review_selection_submitting": "正在提交...",
   "toast_success_title": "我们正在处理",
   "toast_success_desc": "我们正在处理 {count} 个 {label}。这可能需要几分钟——请等待更新。",
+  "toast_skipped_message": " 另外，{count} 个无法开始{reasons}。",
   "toast_info_title": "暂无启动项",
   "toast_info_desc": "我们无法启动当前的选择。请稍后重试。",
   "toast_error_title": "我们无法启动",

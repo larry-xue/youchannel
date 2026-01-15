@@ -9,12 +9,16 @@ interface UseGeminiLiveOptions {
   apiKey: string;
   model?: string;
   voiceName?: string;
+  tools?: Array<{ functionDeclarations: Array<any> }>;
+  onToolCall?: (toolCall: any) => Promise<any> | any;
 }
 
 export function useGeminiLive({
   apiKey,
   model = "gemini-2.5-flash-native-audio-preview-09-2025",
   voiceName = "Orus",
+  tools,
+  onToolCall,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +94,7 @@ export function useGeminiLive({
             {
               googleSearch: {},
             },
+            ...(tools || []),
           ],
         };
 
@@ -106,10 +111,14 @@ export function useGeminiLive({
               setMessages([]); // Clear previous messages on new session
             },
             onmessage: async (message: LiveServerMessage) => {
+              // Log modelTurn parts
+              const parts = message.serverContent?.modelTurn?.parts;
+
+              // Log legacy toolCall envelope if present
+              const toolEnvelope = (message as any).toolCall;
+
               // Audio handling
-              const audioPart = message.serverContent?.modelTurn?.parts?.find(
-                (p) => p.inlineData,
-              );
+              const audioPart = parts?.find((p) => (p as any).inlineData);
               if (
                 audioPart?.inlineData &&
                 outputContextRef.current &&
@@ -194,7 +203,73 @@ export function useGeminiLive({
                 audioSourcesRef.current.clear();
                 nextStartTimeRef.current = 0;
               }
+
+              // Handle tool calls from the model (client-side execution)
+              const toolPart = message.serverContent?.modelTurn?.parts?.find(
+                (part) => (part as any).functionCall,
+              );
+              const envelopeToolCalls = (message as any).toolCall?.functionCalls;
+
+              // Prefer modelTurn.functionCall, but fall back to toolCall envelope if present
+              const toolCalls = [] as any[];
+              if (toolPart && (toolPart as any).functionCall) {
+                toolCalls.push((toolPart as any).functionCall);
+              }
+              if (Array.isArray(envelopeToolCalls)) {
+                toolCalls.push(...envelopeToolCalls);
+              }
+
+              for (const toolCall of toolCalls) {
+                if (!onToolCall) break;
+                try {
+                  const result = await onToolCall(toolCall);
+                  if (
+                    sessionRef.current &&
+                    typeof (sessionRef.current as any).sendToolResponse === "function"
+                  ) {
+                    (sessionRef.current as any).sendToolResponse({
+                      functionResponses: [
+                        {
+                          id: toolCall.id,
+                          name: toolCall.name,
+                          response: result ?? { success: true },
+                        },
+                      ],
+                    });
+                  }
+                } catch (err) {
+                  console.error("[GeminiLive] Client tool execution failed", err);
+                }
+              }
+
+              if (Array.isArray(envelopeToolCalls)) {
+                toolCalls.push(...envelopeToolCalls);
+              }
+
+              for (const toolCall of toolCalls) {
+                if (!onToolCall) break;
+                try {
+                  const result = await onToolCall(toolCall);
+                  if (
+                    sessionRef.current &&
+                    typeof (sessionRef.current as any).sendToolResponse === "function"
+                  ) {
+                    (sessionRef.current as any).sendToolResponse({
+                      functionResponses: [
+                        {
+                          id: toolCall.id,
+                          name: toolCall.name,
+                          response: result ?? { success: true },
+                        },
+                      ],
+                    });
+                  }
+                } catch (err) {
+                  console.error("[GeminiLive] Client tool execution failed", err);
+                }
+              }
             },
+
             onclose: (e) => {
               setStatus("disconnected");
             },
@@ -210,7 +285,7 @@ export function useGeminiLive({
         setStatus("error");
       }
     },
-    [apiKey, model, voiceName, ensureAudioContexts],
+    [apiKey, model, voiceName, ensureAudioContexts, tools, onToolCall],
   );
 
   const startRecording = useCallback(async () => {
@@ -241,7 +316,6 @@ export function useGeminiLive({
           audioContextInitializedRef.current = true;
         } catch (err: any) {
           // Ignore if already added (though we try to prevent this with the ref)
-          console.warn("AudioWorklet addModule error", err);
           if (!err.message.includes("already registered")) {
             throw err;
           }
@@ -342,8 +416,6 @@ export function useGeminiLive({
       } else {
         console.error("sendClientContent not found on session");
       }
-    } else {
-      console.warn("sendText called but session is null/undefined");
     }
   }, []);
 

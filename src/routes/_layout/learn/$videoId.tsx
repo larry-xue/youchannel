@@ -82,6 +82,7 @@ function DashboardLearnVideo() {
   };
 
   const handleSeekToTimestamp = (seconds: number) => {
+    console.log('seconds = ', seconds)
     if (!Number.isFinite(seconds)) return;
     const target = Math.max(0, seconds);
     const player = playerRef.current;
@@ -154,7 +155,11 @@ function DashboardLearnVideo() {
               value="chat"
               className="mt-0 min-h-0 flex-1 overflow-hidden rounded-lg border bg-card"
             >
-              <ChatSidebar className="h-full" analysisText={chatAnalysisText} />
+              <ChatSidebar
+                className="h-full"
+                analysisText={chatAnalysisText}
+                onSeekToTimestamp={handleSeekToTimestamp}
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -220,7 +225,11 @@ function DashboardLearnVideo() {
           collapsible
           collapsedSize={SIDEBAR_COLLAPSED_SIZE}
         >
-          <ChatSidebar className="h-full" analysisText={chatAnalysisText} />
+          <ChatSidebar
+            className="h-full"
+            analysisText={chatAnalysisText}
+            onSeekToTimestamp={handleSeekToTimestamp}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

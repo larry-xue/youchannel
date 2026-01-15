@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-ro
 import { FullPageLoader } from "~/lib/components/FullPageLoader";
 import { Header } from "~/lib/components/Header";
 import { signOutFn } from "~/lib/server/auth";
+import { getUserActiveQuotaFn } from "~/lib/server/quotas";
 import { setAuthUser } from "~/lib/store/auth";
 
 export const Route = createFileRoute("/_layout")({
@@ -10,6 +11,10 @@ export const Route = createFileRoute("/_layout")({
     if (!context.user) {
       throw redirect({ to: "/signin" });
     }
+    const quotaData = await getUserActiveQuotaFn();
+    return {
+      quota: quotaData.summary,
+    };
   },
   pendingComponent: FullPageLoader,
   component: DashboardLayout,

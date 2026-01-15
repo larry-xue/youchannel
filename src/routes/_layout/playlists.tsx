@@ -58,7 +58,6 @@ export const Route = createFileRoute("/_layout/playlists")({
 const PAGE_SIZE = 30;
 const PLAYLISTS_QUERY_KEY = ["youtube-playlists"] as const;
 const PLAYLIST_ITEMS_QUERY_KEY = ["youtube-playlist-items"] as const;
-const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const STACK_VISIBLE_RANGE = 4;
 const EMPTY_VIDEOS: PlaylistVideo[] = [];
 const QUOTA_COLORS = [
@@ -154,6 +153,7 @@ function DashboardPlaylists() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const search = Route.useSearch();
+  const { quota } = Route.useRouteContext();
 
   const accountQuery = useQuery({
     queryKey: ["youtube-account-status"],
@@ -220,8 +220,11 @@ function DashboardPlaylists() {
       const isPrivate =
         privacyStatus === "private" ||
         (item.title || "").trim().toLowerCase() === "private video";
+      const maxDuration = quota.perVideoLimitSeconds;
       const isTooLong =
-        typeof durationSeconds === "number" && durationSeconds > MAX_VIDEO_DURATION_SEC;
+        maxDuration !== null &&
+        typeof durationSeconds === "number" &&
+        durationSeconds > maxDuration;
       const selectionHint = isPrivate
         ? m.playlist_hint_private()
         : isTooLong
@@ -303,9 +306,9 @@ function DashboardPlaylists() {
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
         ? m.quota_with_unknown({
-          time: formatSeconds(selectionQuota.totalSeconds),
-          count: selectionQuota.unknownCount,
-        })
+            time: formatSeconds(selectionQuota.totalSeconds),
+            count: selectionQuota.unknownCount,
+          })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -322,8 +325,8 @@ function DashboardPlaylists() {
     const averageKnown =
       knownSeconds.length > 0
         ? Math.round(
-          knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
-        )
+            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+          )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -382,8 +385,9 @@ function DashboardPlaylists() {
       }
       const skippedText =
         result.skipped > 0
-          ? `, and ${result.skipped} couldn't be started${skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : ""
-          }`
+          ? `, and ${result.skipped} couldn't be started${
+              skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : ""
+            }`
           : "";
 
       if (result.enqueued > 0) {
@@ -667,8 +671,8 @@ function DashboardPlaylists() {
                   <p className="text-xs text-muted-foreground">
                     {activeSelectedVideo?.source_playlist_title
                       ? m.review_source_from({
-                        source: activeSelectedVideo.source_playlist_title,
-                      })
+                          source: activeSelectedVideo.source_playlist_title,
+                        })
                       : m.review_source_selected()}
                     {activeSelectedVideo?.published_at
                       ? ` - ${formatDate(activeSelectedVideo.published_at)}`

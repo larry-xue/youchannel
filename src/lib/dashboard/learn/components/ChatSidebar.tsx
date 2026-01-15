@@ -723,7 +723,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
 }
 
 // SSR-safe client detection
-const emptySubscribe = () => () => { };
+const emptySubscribe = () => () => {};
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

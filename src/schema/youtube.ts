@@ -12,6 +12,7 @@ export type Video = {
   removed_at: string | null;
   created_at: string;
   updated_at: string;
+  failed_count?: number | null;
 };
 
 export type VideoAnalysis = {

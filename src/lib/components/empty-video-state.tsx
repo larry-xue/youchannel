@@ -35,38 +35,48 @@ export function EmptyVideoState({
   const activeAction = { ...defaultAction, ...action };
 
   // Map color names to tailwind classes
-  const colorMap: Record<string, { bg: string }> = {
-    blue: { bg: "bg-blue-500/20" },
-    red: { bg: "bg-red-500/20" },
-    amber: { bg: "bg-amber-500/20" },
-    emerald: { bg: "bg-emerald-500/20" },
+  const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
+    blue: { bg: "bg-blue-500/10", text: "text-blue-500", ring: "ring-blue-500/20" },
+    red: { bg: "bg-red-500/10", text: "text-red-500", ring: "ring-red-500/20" },
+    amber: { bg: "bg-amber-500/10", text: "text-amber-500", ring: "ring-amber-500/20" },
+    emerald: {
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-500",
+      ring: "ring-emerald-500/20",
+    },
   };
 
   const colors = colorMap[colorClass] || colorMap.blue;
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 text-center animate-in fade-in zoom-in-95 duration-500">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface-container/30 px-4 py-16 text-center animate-in fade-in zoom-in-95 duration-500">
       <div className="relative mb-6">
         <div
-          className={`absolute inset-0 animate-pulse rounded-full ${colors.bg} blur-xl`}
+          className={`absolute inset-0 animate-pulse rounded-full ${colors.bg} blur-2xl opacity-50`}
         />
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-          <span className="text-4xl">{emoji}</span>
+        <div
+          className={`relative flex h-24 w-24 items-center justify-center rounded-[28px] ${colors.bg} shadow-sm ring-1 ${colors.ring}`}
+        >
+          <span className="text-5xl drop-shadow-sm">{emoji}</span>
         </div>
       </div>
 
-      <h3 className="mb-2 font-display text-xl font-semibold text-foreground">{title}</h3>
-      <p className="mb-8 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <h3 className="mb-2 font-display text-2xl font-semibold text-foreground tracking-tight">
+        {title}
+      </h3>
+      <p className="mb-8 max-w-sm text-balance text-base text-muted-foreground">
+        {description}
+      </p>
 
       <Button
         size="lg"
         onClick={activeAction.onClick}
         disabled={activeAction.isLoading}
-        className="h-11 rounded-full px-8 shadow-lg transition-all hover:shadow-primary/25"
+        className="h-12 rounded-full px-8 text-base font-medium shadow-md transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-95"
       >
         {activeAction.isLoading ? (
           <>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
             {activeAction.loadingText || m.empty_video_loading()}
           </>
         ) : (

@@ -25,10 +25,10 @@ function Home() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen app-shell">
       <Header onSignOut={handleSignOut} />
-      <main className="flex-1 pt-8">
-        <div className="container mx-auto max-w-7xl px-6">
+      <main className="flex-1 pt-8 pb-16">
+        <div className="container mx-auto max-w-7xl px-6 space-y-24">
           <Hero />
           <Features />
           <FAQ />

@@ -72,23 +72,25 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "success") {
     return (
-      <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-3xl border-none bg-emerald-500/5 px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
         <EmptyHeader>
           <EmptyMedia>
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-emerald-500/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-surface shadow-sm ring-1 ring-emerald-500/20">
                 <span className="text-4xl">✅</span>
               </div>
             </div>
           </EmptyMedia>
-          <EmptyTitle className="text-emerald-600">
+          <EmptyTitle className="font-display text-2xl text-emerald-700 dark:text-emerald-400">
             {m.connect_success_title()}
           </EmptyTitle>
-          <EmptyDescription>{m.connect_success_desc()}</EmptyDescription>
+          <EmptyDescription className="text-base text-emerald-600/80 dark:text-emerald-300/80">
+            {m.connect_success_desc()}
+          </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </EmptyContent>
       </Empty>
     );
@@ -96,18 +98,22 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "processing") {
     return (
-      <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-3xl border-none bg-surface-container px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
         <EmptyHeader>
           <EmptyMedia>
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-surface shadow-sm ring-1 ring-primary/20">
                 <span className="text-4xl">⏳</span>
               </div>
             </div>
           </EmptyMedia>
-          <EmptyTitle>{m.connect_processing_title()}</EmptyTitle>
-          <EmptyDescription>{m.connect_processing_desc()}</EmptyDescription>
+          <EmptyTitle className="font-display text-2xl">
+            {m.connect_processing_title()}
+          </EmptyTitle>
+          <EmptyDescription className="text-base">
+            {m.connect_processing_desc()}
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -115,20 +121,22 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "error") {
     return (
-      <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-3xl border-none bg-destructive/5 px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
         <EmptyHeader>
           <EmptyMedia>
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-destructive/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-surface shadow-sm ring-1 ring-destructive/20">
                 <span className="text-4xl">❌</span>
               </div>
             </div>
           </EmptyMedia>
-          <EmptyTitle className="text-destructive">
+          <EmptyTitle className="font-display text-2xl text-destructive">
             {m.connect_failure_title()}
           </EmptyTitle>
-          <EmptyDescription>{errorMessage}</EmptyDescription>
+          <EmptyDescription className="text-base text-destructive/80">
+            {errorMessage}
+          </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button
@@ -136,7 +144,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
             variant="outline"
             onClick={() => connectMutation.mutate()}
             disabled={connectMutation.isPending}
-            className="h-11 rounded-full px-8 shadow-lg transition-all hover:shadow-primary/25"
+            className="h-12 rounded-full border-destructive/20 bg-surface px-8 text-destructive hover:bg-destructive/10 hover:text-destructive shadow-sm"
           >
             {connectMutation.isPending ? (
               <>
@@ -153,33 +161,41 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
   }
 
   return (
-    <Empty className="rounded-3xl border border-dashed border-border/60 bg-muted/20 px-4 py-16 animate-in fade-in zoom-in-95 duration-500">
-      <EmptyHeader>
+    <Empty className="group relative overflow-hidden rounded-3xl border border-border/40 bg-surface-container px-6 py-16 shadow-md transition-all hover:shadow-lg animate-in fade-in zoom-in-95 duration-500">
+      {/* Decorative gradient blob */}
+      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl transition-all group-hover:bg-primary/10" />
+      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-secondary/5 blur-3xl transition-all group-hover:bg-secondary/10" />
+
+      <EmptyHeader className="relative z-10">
         <EmptyMedia>
-          <div className="relative">
-            <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-xl" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-background to-muted shadow-xl ring-1 ring-border/50">
-              <span className="text-4xl">▶️</span>
+          <div className="relative mb-4">
+            <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-2xl" />
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-[32px] bg-linear-to-br from-surface to-surface-container-high shadow-lg ring-1 ring-border/50">
+              <span className="text-5xl drop-shadow-md">▶️</span>
             </div>
           </div>
         </EmptyMedia>
-        <EmptyTitle>{m.connect_youtube_title()}</EmptyTitle>
-        <EmptyDescription>{m.connect_youtube_desc()}</EmptyDescription>
+        <EmptyTitle className="font-display text-3xl font-bold tracking-tight text-foreground">
+          {m.connect_youtube_title()}
+        </EmptyTitle>
+        <EmptyDescription className="mx-auto max-w-lg text-lg text-muted-foreground/90 leading-relaxed">
+          {m.connect_youtube_desc()}
+        </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent>
+      <EmptyContent className="relative z-10 mt-8">
         <Button
           size="lg"
           onClick={() => connectMutation.mutate()}
           disabled={connectMutation.isPending}
-          className="h-11 rounded-full px-8 shadow-lg transition-all hover:shadow-primary/25"
+          className="h-14 rounded-full px-10 text-lg font-medium shadow-xl shadow-primary/20 transition-all hover:scale-105 hover:shadow-2xl hover:shadow-primary/30"
         >
           {connectMutation.isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               {m.connect_redirecting()}
             </>
           ) : (
-            m.connect_youtube_button()
+            <div className="flex items-center gap-2">{m.connect_youtube_button()}</div>
           )}
         </Button>
       </EmptyContent>

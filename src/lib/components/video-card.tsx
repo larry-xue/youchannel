@@ -3,7 +3,6 @@ import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
 import type { VideoWithStatus } from "~/lib/dashboard/data";
-import { truncate } from "~/lib/dashboard/utils";
 import * as m from "~/paraglide/messages";
 import type { VideoAnalysisStatus } from "~/schema";
 
@@ -82,23 +81,28 @@ export function VideoCard({
       aria-label={m.aria_open_view({ title: video.title || m.default_video_title() })}
       onClick={() => onOpen(video)}
       onKeyDown={handleCardKeyDown}
-      className={`group flex w-full max-w-md cursor-pointer flex-col overflow-hidden rounded-3xl border bg-background/80 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-md`}
+      className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-border/50 bg-card transition-all duration-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
     >
+      {/* State Layer (Hover Overlay) */}
+      <div className="absolute inset-0 pointer-events-none z-10 bg-foreground/0 transition-colors duration-300 group-hover:bg-foreground/[0.08]" />
+
       <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
         {video.thumbnail_url ? (
           <img
             src={video.thumbnail_url}
             alt={video.title || m.aria_video_thumbnail()}
-            className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 will-change-transform group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+          <div className="absolute inset-0 flex items-center justify-center bg-surface-container-high text-xs text-muted-foreground">
             {m.video_no_thumbnail()}
           </div>
         )}
+
+        {/* Selection / Status Badge */}
         <div
-          className="absolute left-2 top-2"
+          className="absolute left-3 top-3 z-20"
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
           title={!isSelectable && !showTooltip ? resolvedSelectionHint : undefined}
@@ -108,8 +112,8 @@ export function VideoCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <label
-                    className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
-                      isSelectable ? "" : "opacity-60"
+                    className={`flex items-center gap-2 rounded-full bg-surface-container/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-surface-container ${
+                      isSelectable ? "" : "opacity-80"
                     }`}
                   >
                     <input
@@ -117,7 +121,7 @@ export function VideoCard({
                       checked={isSelected}
                       onChange={() => onSelect(video.id)}
                       disabled={!isSelectable}
-                      className="h-3.5 w-3.5"
+                      className="h-4 w-4 accent-primary rounded-full cursor-pointer"
                       aria-label={m.aria_select_video({
                         title: video.title || m.default_video_title(),
                       })}
@@ -125,12 +129,14 @@ export function VideoCard({
                     <span>{resolvedSelectionLabel}</span>
                   </label>
                 </TooltipTrigger>
-                <TooltipContent side="top">{resolvedSelectionHint}</TooltipContent>
+                <TooltipContent side="top" className="rounded-xl">
+                  {resolvedSelectionHint}
+                </TooltipContent>
               </Tooltip>
             ) : (
               <label
-                className={`flex items-center gap-2 rounded-full bg-background/80 px-2 py-1 text-[11px] text-foreground shadow ${
-                  isSelectable ? "" : "opacity-60"
+                className={`flex items-center gap-2 rounded-full bg-surface-container/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-surface-container ${
+                  isSelectable ? "" : "opacity-80"
                 }`}
               >
                 <input
@@ -138,7 +144,7 @@ export function VideoCard({
                   checked={isSelected}
                   onChange={() => onSelect(video.id)}
                   disabled={!isSelectable}
-                  className="h-3.5 w-3.5"
+                  className="h-4 w-4 accent-primary rounded-full cursor-pointer"
                   aria-label={m.aria_select_video({
                     title: video.title || m.default_video_title(),
                   })}
@@ -147,26 +153,29 @@ export function VideoCard({
               </label>
             ))}
         </div>
+
         {durationLabel && (
-          <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+          <div className="absolute bottom-3 right-3 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs">
             {durationLabel}
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col space-y-2 px-3 pb-3 pt-2">
-        <p
-          className="text-sm font-semibold leading-snug text-foreground"
+
+      <div className="flex flex-1 flex-col space-y-3 p-4">
+        <h3
+          className="line-clamp-2 text-base font-semibold leading-tight text-card-foreground font-display"
           title={video.title || m.default_video_title()}
         >
-          {truncate(video.title || m.default_video_title(), 48)}
-        </p>
+          {video.title || m.default_video_title()}
+        </h3>
+
         {!hideFooter && (
-          <div className="mt-auto! flex items-center justify-between gap-2 border-t border-border/40 pt-2">
+          <div className="mt-auto flex items-center justify-between gap-2 pt-1">
             <AnalysisStatusBadge status={video.status} />
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-8 rounded-full px-3 text-xs font-medium hover:bg-secondary/50"
               onClick={(event) => {
                 event.stopPropagation();
                 onOpen(video);

@@ -38,15 +38,17 @@ export function LanguageAppCheck({ children }: { children: React.ReactNode }) {
       <Dialog open={true} onOpenChange={() => {}}>
         {/* Prevent closing by passing empty onOpenChange and removing close button via CSS or custom content */}
         <DialogContent
-          className="sm:max-w-[625px] [&>button]:hidden"
+          className="sm:max-w-[625px] rounded-3xl border-border/50 bg-background/95 p-8 shadow-2xl backdrop-blur-xl [&>button]:hidden"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DialogHeader>
-            <DialogTitle>{m.user_settings()}</DialogTitle>
+          <DialogHeader className="space-y-4">
+            <DialogTitle className="text-2xl font-semibold tracking-tight">
+              {m.user_settings()}
+            </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-base text-muted-foreground mb-6 leading-relaxed">
               {m.learning_settings_modal_instruction()}
             </p>
             <LearningSettings onSuccess={() => setManuallyClosed(true)} />

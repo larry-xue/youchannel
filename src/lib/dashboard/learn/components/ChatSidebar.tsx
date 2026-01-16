@@ -415,7 +415,7 @@ function ChatSidebarContent({
             {/* Header */}
             <div className="px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                   <Users className="h-5 w-5 text-primary" aria-hidden />
                 </div>
                 <div>
@@ -450,7 +450,7 @@ function ChatSidebarContent({
                       type="button"
                       onClick={() => handleSelectCharacter(character.name)}
                       className={cn(
-                        "group w-full rounded-2xl p-4 text-left transition-all",
+                        "group w-full rounded-3xl p-4 text-left transition-all",
                         "bg-card hover:bg-accent/50",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       )}
@@ -583,7 +583,7 @@ function ChatSidebarContent({
                             </div>
                             <div
                               className={cn(
-                                "rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
+                                "rounded-3xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word shadow-sm",
                                 isModel
                                   ? "bg-muted/50 text-foreground rounded-tl-sm"
                                   : "bg-primary text-primary-foreground rounded-tr-sm",
@@ -652,7 +652,7 @@ function ChatSidebarContent({
               )}
               {/* Error message */}
               {sessionError && (
-                <p className="mb-3 rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                <p className="mb-3 rounded-3xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
                   {sessionError}
                 </p>
               )}
@@ -665,7 +665,7 @@ function ChatSidebarContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 justify-between rounded-xl px-3 text-sm"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border/50 hover:bg-accent/50 hover:border-accent"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_voice_select()}
                         title={activeVoice}
@@ -700,7 +700,7 @@ function ChatSidebarContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 justify-between rounded-xl px-3 text-sm"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border/50 hover:bg-accent/50 hover:border-accent"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_language_select()}
                         title={
@@ -738,7 +738,7 @@ function ChatSidebarContent({
                 <Button
                   size="lg"
                   className={cn(
-                    "h-14 w-full rounded-2xl text-base font-medium transition-all shadow-sm",
+                    "h-14 w-full rounded-full text-base font-medium transition-all shadow-md active:shadow-sm active:scale-[0.99]",
                     isActiveSession
                       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90",

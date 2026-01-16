@@ -99,27 +99,32 @@ function AuthPage() {
       <div className="flex min-h-screen flex-col">
         <Header onSignOut={handleSignOut} />
         <main className="flex flex-1 items-center justify-center px-6 py-12">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="text-2xl">{m.signin_welcome()}</CardTitle>
-              <CardDescription>{m.signin_description()}</CardDescription>
+          <Card className="w-full max-w-md rounded-3xl border-none bg-card shadow-xl shadow-black/5 dark:shadow-black/20 ring-1 ring-border/5">
+            <CardHeader className="space-y-1 pb-6 pt-8 text-center">
+              <CardTitle className="text-3xl font-medium tracking-tight text-card-foreground">
+                {m.signin_welcome()}
+              </CardTitle>
+              <CardDescription className="text-base text-muted-foreground">
+                {m.signin_description()}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-8 pb-8">
               {error && (
-                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {error}
+                <div className="flex items-center gap-3 rounded-2xl bg-destructive/15 p-4 text-destructive">
+                  <div className="text-sm font-medium">{error}</div>
                 </div>
               )}
 
               {isLoading && (
-                <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
-                  {m.signin_loading()}
+                <div className="flex items-center gap-3 rounded-2xl bg-accent p-4 text-accent-foreground">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground border-t-transparent" />
+                  <div className="text-sm font-medium">{m.signin_loading()}</div>
                 </div>
               )}
 
               <div
                 ref={containerRef}
-                className="flex flex-col items-center justify-center"
+                className="flex flex-col items-center justify-center min-h-[50px]"
               >
                 {!isLoading && containerWidth && (
                   <GoogleLogin
@@ -127,7 +132,7 @@ function AuthPage() {
                     onError={handleGoogleError}
                     size="large"
                     theme="outline"
-                    shape="circle"
+                    shape="pill"
                     text="continue_with"
                     width={containerWidth}
                     use_fedcm_for_prompt

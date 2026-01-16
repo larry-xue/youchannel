@@ -62,21 +62,25 @@ function DashboardPlaylists() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-rise">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-foreground">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl">
             {m.library_title()}
           </h1>
-          <p className="text-sm text-muted-foreground">{m.library_description()}</p>
+          <p className="mt-1 text-base text-muted-foreground">
+            {m.library_description()}
+          </p>
         </div>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
+          className="rounded-full h-10 w-10 shrink-0"
           onClick={() => {
             videosQuery.refetch();
           }}
           disabled={videosQuery.isRefetching}
+          title={m.video_card_processing()}
         >
           <RefreshCcw
             className={cn("h-4 w-4", videosQuery.isRefetching && "animate-spin")}
@@ -84,7 +88,7 @@ function DashboardPlaylists() {
         </Button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {isLoading ? (
           <Loading text={m.library_loading()} size="md" />
         ) : videos.length === 0 ? (
@@ -97,7 +101,7 @@ function DashboardPlaylists() {
                 : "transition-opacity duration-200"
             }
           >
-            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+            <div className="grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {videos.map((video) => (
                 <VideoCard
                   key={video.id}

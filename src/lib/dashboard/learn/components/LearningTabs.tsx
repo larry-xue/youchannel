@@ -81,12 +81,12 @@ export function LearningTabs({
 
   return (
     <Tabs defaultValue="info" className="flex h-full min-h-0 flex-col">
-      <TabsList className="flex h-auto w-full shrink-0 flex-wrap items-center gap-3 rounded-none border-0 bg-transparent p-0 px-4 pt-3 pb-1 text-muted-foreground">
+      <TabsList className="flex h-auto w-full shrink-0 flex-wrap items-center gap-2 rounded-none border-0 bg-transparent p-0 px-4 pt-4 pb-2 text-muted-foreground">
         {TAB_OPTIONS.map((tab) => (
           <TabsTrigger
             key={tab.key}
             value={tab.key}
-            className="h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            className="h-9 rounded-full border border-transparent bg-muted/30 px-4 py-1 text-xs font-medium text-muted-foreground transition-all hover:bg-muted/50 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
           >
             {tabLabels[tab.labelKey]}
           </TabsTrigger>
@@ -94,146 +94,161 @@ export function LearningTabs({
       </TabsList>
       <ScrollArea className="min-h-0 flex-1 px-4 pb-4 pt-2">
         <TabsContent value="info">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                {m.learn_video_info_heading()}
-              </p>
-              <div>
-                <h3 className="text-base font-semibold text-foreground">{title}</h3>
-                <p className="text-xs text-muted-foreground">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-1 rounded-full bg-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {m.learn_video_info_heading()}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-bold tracking-tight text-foreground">
+                  {title}
+                </h3>
+                <p className="text-sm font-medium text-muted-foreground">
                   {m.learn_published_at({ date: formatDate(publishedAt) })}
                 </p>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-foreground/90">
-                {description?.trim() || m.learn_description_empty()}
-              </p>
+              <div className="rounded-3xl bg-muted/20 p-5">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                  {description?.trim() || m.learn_description_empty()}
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                {m.learn_summary_heading()}
-              </p>
-              <div className="prose prose-base max-w-prose text-foreground/90 leading-relaxed tracking-[0.01em] prose-p:my-1 prose-li:my-1">
-                {summaryText ? (
-                  <p className="whitespace-pre-wrap">{summaryText}</p>
-                ) : (
-                  <p className="text-muted-foreground">
-                    {hasAnalysisText
-                      ? m.learn_summary_empty()
-                      : m.learn_analysis_unavailable()}
-                  </p>
-                )}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-1 rounded-full bg-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {m.learn_summary_heading()}
+                </p>
+              </div>
+              <div className="rounded-3xl bg-surface-container-high/50 p-6 border border-border/50">
+                <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed tracking-wide prose-p:my-2 prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+                  {summaryText ? (
+                    <p className="whitespace-pre-wrap">{summaryText}</p>
+                  ) : (
+                    <p className="text-muted-foreground italic">
+                      {hasAnalysisText
+                        ? m.learn_summary_empty()
+                        : m.learn_analysis_unavailable()}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="wiki">
-          <div className="prose prose-base flex max-w-none flex-wrap gap-x-6 gap-y-2 text-foreground/90 leading-relaxed tracking-[0.01em] prose-p:my-0">
+          <div className="flex flex-wrap gap-4">
             {wikiItems && wikiItems.length > 0 ? (
               wikiItems.map((item, index) => (
                 <div
                   key={`${item.title || "wiki"}-${item.timestamp || index}`}
-                  className="flex min-w-[18rem] flex-[1_1_calc(50%-12px)] items-start gap-3 py-1"
+                  className="group flex min-w-[300px] flex-[1_1_calc(50%-16px)] flex-col gap-2 rounded-3xl border border-border/40 bg-card p-5 transition-all hover:border-primary/20 hover:bg-accent/5 hover:shadow-md"
                 >
-                  {item.timestamp && (
-                    <TimestampButton
-                      timestamp={item.timestamp}
-                      onSeek={onSeekToTimestamp}
-                      className="text-xs shrink-0"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words">
-                      <span className="font-semibold text-foreground">
-                        {item.title || "Key moment"}
-                      </span>
-                      {item.details && (
-                        <span className="text-muted-foreground"> - {item.details}</span>
-                      )}
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {item.title || "Key moment"}
                     </p>
+                    {item.timestamp && (
+                      <TimestampButton
+                        timestamp={item.timestamp}
+                        onSeek={onSeekToTimestamp}
+                        className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 no-underline"
+                      />
+                    )}
                   </div>
+                  {item.details && (
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {item.details}
+                    </p>
+                  )}
                 </div>
               ))
             ) : (
-              <p className="py-2 text-muted-foreground">
-                {hasAnalysisText
-                  ? m.learn_wiki_empty()
-                  : m.learn_analysis_unavailable()}
-              </p>
+              <div className="flex h-40 w-full items-center justify-center rounded-3xl border border-dashed border-muted-foreground/20 bg-muted/10">
+                <p className="text-sm text-muted-foreground">
+                  {hasAnalysisText
+                    ? m.learn_wiki_empty()
+                    : m.learn_analysis_unavailable()}
+                </p>
+              </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="transcript">
-          <div className="space-y-3 text-sm">
-            <div className="rounded-2xl border border-amber-200/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
-              {m.learn_transcript_notice()}
+          <div className="space-y-4">
+            <div className="flex items-start gap-4 rounded-3xl border border-amber-200/40 bg-amber-50/50 p-4 text-sm text-amber-900/80">
+              <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+              <p className="text-xs font-medium leading-relaxed">
+                {m.learn_transcript_notice()}
+              </p>
             </div>
+
             {transcript && (
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 px-1">
                 {transcript.language && (
-                  <span>
+                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {m.learn_transcript_language({ language: transcript.language })}
                   </span>
                 )}
                 {typeof transcript.is_truncated === "boolean" && (
-                  <span>
+                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {transcript.is_truncated
                       ? m.learn_transcript_truncated()
                       : m.learn_transcript_complete()}
                   </span>
                 )}
-                {transcript.cursor && (
-                  <span>{m.learn_transcript_cursor({ cursor: transcript.cursor })}</span>
-                )}
               </div>
             )}
+
             {transcriptSegments ? (
-              <div className="space-y-3">
+              <div className="space-y-1">
                 {transcriptSegments.map((segment, index) => (
                   <div
                     key={`${segment.start || "segment"}-${segment.end || index}`}
-                    className="flex items-start gap-3"
+                    className="group flex gap-4 rounded-2xl p-3 transition-colors hover:bg-muted/30"
                   >
-                    {segment.start && (
-                      <TimestampButton
-                        timestamp={segment.start}
-                        onSeek={onSeekToTimestamp}
-                        className="text-xs shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1 space-y-1">
+                    <div className="mt-1 shrink-0">
+                      {segment.start && (
+                        <TimestampButton
+                          timestamp={segment.start}
+                          onSeek={onSeekToTimestamp}
+                          className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-bold text-muted-foreground hover:bg-primary/10 hover:text-primary no-underline transition-colors"
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-1">
                       {segment.speaker && (
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
                           {segment.speaker}
                         </p>
                       )}
-                      <p className="whitespace-pre-wrap text-foreground/90">
+                      <p className="text-sm leading-relaxed text-foreground/90">
                         {segment.text || m.learn_transcript_text_empty()}
                       </p>
-                      {segment.end && (
-                        <p className="text-xs text-muted-foreground">
-                          {m.learn_transcript_end({ end: segment.end })}
-                        </p>
-                      )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="py-2 text-muted-foreground">
-                {hasAnalysisText
-                  ? m.learn_transcript_empty()
-                  : m.learn_analysis_unavailable()}
-              </p>
+              <div className="flex h-40 w-full items-center justify-center rounded-3xl border border-dashed border-muted-foreground/20 bg-muted/10">
+                <p className="text-sm text-muted-foreground">
+                  {hasAnalysisText
+                    ? m.learn_transcript_empty()
+                    : m.learn_analysis_unavailable()}
+                </p>
+              </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="captions">
-          <div className="text-sm">
-            <p className="py-2 text-muted-foreground">
+          <div className="flex h-60 w-full items-center justify-center rounded-3xl border border-dashed border-muted-foreground/20 bg-muted/10">
+            <p className="text-sm text-muted-foreground">
               {m.learn_captions_unavailable()}
             </p>
           </div>

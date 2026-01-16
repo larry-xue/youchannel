@@ -76,37 +76,47 @@ export function Header({ onSignOut }: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full items-center gap-6 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-6">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="text-3xl">🎓</span>
-              <div className="flex items-baseline text-lg font-bold">
-                <span className="bg-linear-to-r from-amber-500 via-orange-400 to-rose-500 bg-clip-text text-transparent">
-                  {m.app_name_part1()}
+      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex items-center gap-8">
+            <Link
+              to="/"
+              className="group flex items-center gap-2.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 transition-transform group-hover:scale-105 group-hover:bg-primary/15">
+                <span className="text-2xl">🎓</span>
+              </div>
+              <div className="hidden flex-col leading-none sm:flex">
+                <div className="flex items-baseline text-lg font-bold tracking-tight">
+                  <span className="bg-linear-to-r from-amber-500 via-orange-400 to-rose-500 bg-clip-text text-transparent">
+                    {m.app_name_part1()}
+                  </span>
+                  <span className="bg-linear-to-r from-cyan-500 via-sky-500 to-blue-600 bg-clip-text text-transparent">
+                    {m.app_name_part2()}
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Workspace
                 </span>
-                <span className="bg-linear-to-r from-cyan-500 via-sky-500 to-blue-600 bg-clip-text text-transparent">
-                  {m.app_name_part2()}
-                </span>
-                <span className="text-foreground">.ai</span>
               </div>
             </Link>
 
             {/* Desktop Navigation */}
             {authUser && (
-              <nav className="hidden min-w-0 flex-wrap items-center gap-2 md:flex">
+              <nav className="hidden items-center gap-1 md:flex">
                 {navItems.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}
                     activeOptions={{ exact: false }}
                     className={cn(
-                      "rounded-2xl border px-4 py-2 text-sm font-medium transition",
-                      "border-border/60 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                      "group relative rounded-full px-5 py-2 text-sm font-medium transition-all duration-200",
+                      "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     )}
                     activeProps={{
                       className:
-                        "rounded-2xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground shadow-sm",
+                        "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90 hover:text-secondary-foreground font-semibold rounded-full px-5 py-2 text-sm",
                     }}
                   >
                     {item.label}
@@ -117,117 +127,159 @@ export function Header({ onSignOut }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Desktop Actions */}
+            <div className="hidden items-center gap-2 md:flex">
+              <LanguageSwitcher />
+              <ThemeToggle />
+              <div className="ml-1 h-8 w-px bg-border/40" />
+              {authUser ? (
+                <UserPanel onSignOut={onSignOut} showMenuItems={false} />
+              ) : (
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="rounded-full text-muted-foreground hover:text-foreground"
+                >
+                  <Link to="/signin">{m.sign_in()}</Link>
+                </Button>
+              )}
+            </div>
+
             {/* Mobile Menu Trigger */}
             <div className="md:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full h-10 w-10 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
                     <Menu className="h-5 w-5" />
                     <span className="sr-only">Toggle menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[240px]">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-[280px] rounded-3xl p-2 shadow-xl border-border/50 bg-background/95 backdrop-blur-2xl"
+                >
                   {authUser ? (
                     <>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex items-center gap-2">
+                      <DropdownMenuLabel className="px-4 py-3 font-normal">
+                        <div className="flex items-center gap-3">
                           {userAvatar ? (
                             <img
                               src={userAvatar}
                               alt="Avatar"
-                              className="h-8 w-8 rounded-full object-cover"
+                              className="h-10 w-10 rounded-full object-cover ring-2 ring-border/50"
                             />
                           ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary ring-2 ring-border/50">
                               {userInitial}
                             </div>
                           )}
-                          <div className="flex flex-col space-y-1 overflow-hidden">
-                            <p className="truncate text-sm font-medium">{userName}</p>
+                          <div className="flex flex-col space-y-0.5 overflow-hidden">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {userName}
+                            </p>
                             <p className="truncate text-xs text-muted-foreground">
                               {authUser?.email}
                             </p>
                           </div>
                         </div>
                       </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {navItems.map((item) => (
-                        <DropdownMenuItem key={item.to} asChild>
-                          <Link
-                            to={item.to}
-                            activeOptions={{ exact: false }}
-                            className="w-full cursor-pointer"
+                      <DropdownMenuSeparator className="bg-border/50" />
+                      <div className="flex flex-col gap-1 p-1">
+                        {navItems.map((item) => (
+                          <DropdownMenuItem
+                            key={item.to}
+                            asChild
+                            className="rounded-2xl focus:bg-muted"
                           >
-                            {item.label}
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
+                            <Link
+                              to={item.to}
+                              activeOptions={{ exact: false }}
+                              className="flex w-full cursor-pointer items-center py-2.5 px-3 text-base font-medium"
+                              activeProps={{
+                                className:
+                                  "bg-secondary/15 text-secondary-foreground font-semibold",
+                              }}
+                            >
+                              {item.label}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
                     </>
                   ) : (
-                    <DropdownMenuItem asChild>
-                      <Link to="/signin" className="w-full cursor-pointer">
-                        <UserIcon className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem asChild className="rounded-2xl p-1">
+                      <Link
+                        to="/signin"
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium hover:bg-muted"
+                      >
+                        <UserIcon className="h-4 w-4" />
                         {m.sign_in()}
                       </Link>
                     </DropdownMenuItem>
                   )}
 
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-border/50" />
 
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Languages className="mr-2 h-4 w-4" />
-                      <span>{m.language()}</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      {locales.map((locale) => (
-                        <DropdownMenuItem
-                          key={locale}
-                          onClick={() => setLocale(locale)}
-                          className={currentLocale === locale ? "bg-accent" : ""}
-                        >
-                          {localeNames[locale] || locale}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
+                  <div className="flex items-center justify-between p-2">
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="rounded-2xl px-4 py-2 text-sm font-medium hover:bg-muted w-full justify-start">
+                        <Languages className="mr-2 h-4 w-4" />
+                        <span>{m.language()}</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="rounded-2xl p-1 shadow-lg border-border/50">
+                        {locales.map((locale) => (
+                          <DropdownMenuItem
+                            key={locale}
+                            onClick={() => setLocale(locale)}
+                            className={cn(
+                              "rounded-xl px-3 py-2 cursor-pointer",
+                              currentLocale === locale &&
+                                "bg-secondary text-secondary-foreground font-medium",
+                            )}
+                          >
+                            {localeNames[locale] || locale}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </div>
 
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      toggleTheme();
-                    }}
-                  >
-                    <SunIcon className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <MoonIcon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="ml-2">Theme</span>
-                    {/* Simplified Theme Toggle in menu */}
-                  </DropdownMenuItem>
+                  <div className="p-2 pt-0">
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        toggleTheme();
+                      }}
+                      className="rounded-2xl px-4 py-2 text-sm font-medium hover:bg-muted cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <SunIcon className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                        <MoonIcon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                        <span>Theme</span>
+                      </div>
+                    </DropdownMenuItem>
+                  </div>
 
                   {authUser && (
                     <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={onSignOut} variant="destructive">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        {m.sign_out()}
-                      </DropdownMenuItem>
+                      <DropdownMenuSeparator className="bg-border/50" />
+                      <div className="p-2">
+                        <DropdownMenuItem
+                          onClick={onSignOut}
+                          className="rounded-2xl px-4 py-2 text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/30 dark:focus:text-red-400 cursor-pointer"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          {m.sign_out()}
+                        </DropdownMenuItem>
+                      </div>
                     </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-
-            {/* Desktop Actions */}
-            <div className="hidden max-w-fit items-center gap-3 md:flex">
-              {authUser ? (
-                <UserPanel onSignOut={onSignOut} showMenuItems={false} />
-              ) : (
-                <Button asChild variant="ghost">
-                  <Link to="/signin">{m.sign_in()}</Link>
-                </Button>
-              )}
-              <LanguageSwitcher />
-              <ThemeToggle />
             </div>
           </div>
         </div>

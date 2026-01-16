@@ -44,7 +44,7 @@ export function NotFound() {
             type="button"
             size="lg"
             onClick={() => window.history.back()}
-            className="w-full sm:w-auto group"
+            className="w-full sm:w-auto group rounded-full shadow-lg hover:shadow-xl transition-all"
           >
             <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" />
             {m.not_found_go_back()}
@@ -53,7 +53,7 @@ export function NotFound() {
             asChild
             variant="secondary"
             size="lg"
-            className="w-full sm:w-auto group"
+            className="w-full sm:w-auto group rounded-full shadow-sm hover:shadow-md transition-all"
           >
             <Link to="/">
               <Home className="size-4" />

@@ -23,17 +23,30 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Languages className="size-4" />
-          <span className="uppercase text-xs font-medium">{currentLocale}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-10 gap-2 rounded-full px-3 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <Languages className="h-5 w-5" />
+          <span className="text-xs font-semibold uppercase tracking-wide">
+            {currentLocale}
+          </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        className="w-[200px] rounded-3xl p-1.5 shadow-xl border-border/50 bg-background/95 backdrop-blur-2xl"
+      >
         {locales.map((locale) => (
           <DropdownMenuItem
             key={locale}
             onClick={() => setLocale(locale)}
-            className={currentLocale === locale ? "bg-accent" : ""}
+            className={
+              currentLocale === locale
+                ? "bg-secondary text-secondary-foreground font-semibold rounded-2xl"
+                : "rounded-2xl font-medium text-muted-foreground focus:text-foreground"
+            }
             data-active-locale={currentLocale === locale}
           >
             {localeNames[locale] || locale}

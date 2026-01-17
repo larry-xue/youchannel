@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { MessageSquare, RefreshCw } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/lib/components/ui/card";
-import { Loading } from "~/lib/components/ui/loading";
 import { Progress } from "~/lib/components/ui/progress";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
 import * as m from "~/paraglide/messages";
@@ -41,7 +40,7 @@ function QuotaPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loading size="lg" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -223,8 +222,8 @@ function QuotaPage() {
               const expiryDate = grant.validTo ? new Date(grant.validTo) : null;
               const daysUntilExpiry = expiryDate
                 ? Math.ceil(
-                  (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-                )
+                    (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                  )
                 : null;
 
               let sourceLabel = grant.sourceType;
@@ -257,8 +256,8 @@ function QuotaPage() {
                               ? daysUntilExpiry && daysUntilExpiry <= 7
                                 ? m.quota_grant_expires_soon({ days: daysUntilExpiry })
                                 : m.quota_grant_expires({
-                                  date: expiryDate.toLocaleDateString(),
-                                })
+                                    date: expiryDate.toLocaleDateString(),
+                                  })
                               : m.quota_grant_no_expiry()}
                           </span>
                         </div>

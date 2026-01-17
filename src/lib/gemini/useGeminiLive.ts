@@ -11,12 +11,18 @@ export interface Correction {
   ruleId?: string;
 }
 
+export interface Explanation {
+  original: string;
+  explanation: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "model";
   content: string;
   timestamp: Date;
   corrections?: Correction[];
+  explanations?: Explanation[];
 }
 
 interface UseGeminiLiveOptions {
@@ -503,6 +509,35 @@ export function useGeminiLive({
         ];
 
         msgs[lastUserMsgIndex] = msg;
+        return msgs;
+      });
+    },
+    addExplanation: (original: string, explanation: string) => {
+      setMessages((prev) => {
+        // Explanations usually come from the model using a tool to explain ITS OWN words
+        // OR explain user words. The user request says "when the model thinks a word needs explanation".
+        // Usually this refers to the MODEL'S output.
+        // Let's attach to the last MODEL message.
+        let lastModelMsgIndex = -1;
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].role === "model") {
+            lastModelMsgIndex = i;
+            break;
+          }
+        }
+
+        if (lastModelMsgIndex === -1) return prev;
+
+        const msgs = [...prev];
+        const msg = { ...msgs[lastModelMsgIndex] };
+
+        const currentExplanations = msg.explanations || [];
+        msg.explanations = [
+          ...currentExplanations,
+          { original, explanation }
+        ];
+
+        msgs[lastModelMsgIndex] = msg;
         return msgs;
       });
     },

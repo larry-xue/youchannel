@@ -85,64 +85,79 @@ export function LiveTranscript({
 }
 
 function renderMessageContent(message: Message) {
-  if (message.role === "model" || !message.corrections?.length) {
+  const hasCorrections = message.corrections && message.corrections.length > 0;
+  const hasExplanations = message.explanations && message.explanations.length > 0;
+
+  if (message.role === "model" && !hasExplanations) {
+    return message.content;
+  }
+  if (message.role === "user" && !hasCorrections) {
     return message.content;
   }
 
-  // Basic implementation to highlight corrected words
-  // This is a simple string replacement approach. For more complex cases (overlapping, etc.),
-  // a token-based approach would be better.
-  let content = message.content;
-  const parts: React.ReactNode[] = [];
+  // Combine logic.
+  // We can treat corrections and explanations similarly: annotations on text.
+  // Type: { type: 'correction'|'explanation', original: string, text: string }
+  // We align them by matching the original text.
 
-  // Create a map of start indices for replacements to handle them in order
-  // Note: multiple occurrences might need care. Here we just find the first match 
-  // or all matches. Let's try to handle all matches of the "original" string.
+  const annotations: Array<{
+    type: 'correction' | 'explanation';
+    original: string;
+    text: string; // corrected text OR explanation text
+  }> = [];
 
-  // Simpler approach: split by space and check generic words? No, phrases.
-  // Best effort: regex replace with components.
-
-  // Let's iterate through corrections and build a replacement map
-  // or use a specialized component that parses the string.
+  if (message.corrections) {
+    message.corrections.forEach(c => annotations.push({ type: 'correction', original: c.original, text: c.corrected }));
+  }
+  if (message.explanations) {
+    message.explanations.forEach(e => annotations.push({ type: 'explanation', original: e.original, text: e.explanation }));
+  }
 
   return (
     <span>
-      {processTextWithCorrections(message.content, message.corrections)}
+      {processTextWithAnnotations(message.content, annotations)}
     </span>
   );
 }
 
-function processTextWithCorrections(text: string, corrections: NonNullable<Message["corrections"]>) {
-  // Sort corrections by length descending to handle subsets, though rarely an issue here
-  // But actually we need to find positions.
-  // Let's just do a naive split for now or use a regex for each correction.
-
-  // We will preserve the text structure
+function processTextWithAnnotations(text: string, annotations: Array<{ type: 'correction' | 'explanation', original: string, text: string }>) {
   let result: React.ReactNode[] = [text];
 
-  corrections.forEach((correction) => {
+  annotations.forEach((annotation) => {
     const nextResult: React.ReactNode[] = [];
     result.forEach((part) => {
       if (typeof part === "string") {
-        // split this part by the correction original text
-        // create case-insensitive regex
-        const regex = new RegExp(`(${escapeRegExp(correction.original)})`, "gi");
+        const regex = new RegExp(`(${escapeRegExp(annotation.original)})`, "gi");
         const split = part.split(regex);
 
         split.forEach((s, idx) => {
-          if (s.toLowerCase() === correction.original.toLowerCase()) {
-            nextResult.push(
-              <span key={`${correction.original}-${idx}`} className="group/correction relative inline-block cursor-help mx-0.5">
-                <span className="text-red-400 font-semibold decoration-red-400/30 underline decoration-wavy underline-offset-4">
-                  {s}
+          if (s.toLowerCase() === annotation.original.toLowerCase()) {
+            if (annotation.type === 'correction') {
+              nextResult.push(
+                <span key={`corr-${idx}`} className="group/correction relative inline-block cursor-help mx-0.5">
+                  <span className="text-red-400 font-semibold decoration-red-400/30 underline decoration-wavy underline-offset-4">
+                    {s}
+                  </span>
+                  <span className="invisible group-hover/correction:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                    {annotation.text}
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-green-500"></span>
+                  </span>
                 </span>
-                <span className="invisible group-hover/correction:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
-                  {correction.corrected}
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-green-500"></span>
+              );
+            } else {
+              // Explanation
+              nextResult.push(
+                <span key={`expl-${idx}`} className="group/explanation relative inline-block cursor-help mx-0.5">
+                  <span className="text-blue-400 font-medium decoration-blue-400/30 underline decoration-wavy underline-offset-4">
+                    {s}
+                  </span>
+                  <span className="invisible group-hover/explanation:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-blue-600 text-white text-xs rounded-md shadow-xl max-w-[200px] text-center z-50">
+                    {annotation.text}
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-blue-600"></span>
+                  </span>
                 </span>
-                {/* Floating text that appears initially then fades could be cool too, but tooltip is safer for now */}
-              </span>
-            );
+              );
+            }
           } else {
             nextResult.push(s);
           }

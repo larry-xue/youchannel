@@ -64,6 +64,7 @@ function LivePage() {
     inputLevel,
     outputLevel,
     addCorrection,
+    addExplanation,
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
@@ -92,6 +93,24 @@ function LivePage() {
               required: ["original", "corrected"],
             },
           },
+          {
+            name: "og_explain_phrase",
+            description: "Explains a complex term or phrase used by the AI model to the user. Call this when you (the AI) use a word that might be difficult for the learner, or when you want to emphasize a definition.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                phrase: {
+                  type: "STRING",
+                  description: "The phrase or word to explain (must be present in your own response).",
+                },
+                context: {
+                  type: "STRING",
+                  description: "Optional context to help generate the definition.",
+                },
+              },
+              required: ["phrase"],
+            },
+          },
         ],
       },
     ],
@@ -101,6 +120,22 @@ function LivePage() {
         const { original, corrected, rule_id } = toolCall.args;
         addCorrection(original, corrected, rule_id);
         return { success: true };
+      }
+      if (toolCall.name === "og_explain_phrase") {
+        const { phrase, context } = toolCall.args;
+        try {
+          // We initiate the explanation fetch. 
+          // Since we can't await server action easily inside this specific callback if we want non-blocking UI?
+          // Actually we can await.
+          const { explainTerm } = await import("~/lib/gemini/actions");
+          // @ts-ignore
+          const result = await explainTerm({ data: { phrase, context } });
+          addExplanation(phrase, result.explanation);
+          return { success: true };
+        } catch (err) {
+          console.error("Failed to explain term", err);
+          return { error: "Failed to explain" };
+        }
       }
     },
   });

@@ -57,6 +57,17 @@ Keep questions focused and feedback actionable. Be professional but supportive.`
   },
 ];
 
+export const VOICES = [
+  { name: "Puck", style: "Upbeat, lively" },
+  { name: "Charon", style: "Informative, professional" },
+  { name: "Kore", style: "Calm, composed" },
+  { name: "Fenrir", style: "Excitable, energetic" },
+  { name: "Aoede", style: "Breezy, easygoing" },
+  { name: "Leda", style: "Youthful, playful" },
+  { name: "Orus", style: "Firm, confident" },
+  { name: "Zephyr", style: "Bright, inspiring" },
+] as const;
+
 export const DEFAULT_PERSONA_ID = "tutor";
 
 export function getPersonaById(id: string): Persona {

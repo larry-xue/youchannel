@@ -8,6 +8,8 @@ import { Progress } from "~/lib/components/ui/progress";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
 import * as m from "~/paraglide/messages";
 
+import { Loading } from "~/lib/components/ui/loading";
+
 export const Route = createFileRoute("/_layout/quotas")({
   component: QuotaPage,
   beforeLoad: async ({ context }) => {
@@ -40,7 +42,7 @@ function QuotaPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loading size="lg" />
       </div>
     );
   }
@@ -222,8 +224,8 @@ function QuotaPage() {
               const expiryDate = grant.validTo ? new Date(grant.validTo) : null;
               const daysUntilExpiry = expiryDate
                 ? Math.ceil(
-                    (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-                  )
+                  (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                )
                 : null;
 
               let sourceLabel = grant.sourceType;
@@ -256,8 +258,8 @@ function QuotaPage() {
                               ? daysUntilExpiry && daysUntilExpiry <= 7
                                 ? m.quota_grant_expires_soon({ days: daysUntilExpiry })
                                 : m.quota_grant_expires({
-                                    date: expiryDate.toLocaleDateString(),
-                                  })
+                                  date: expiryDate.toLocaleDateString(),
+                                })
                               : m.quota_grant_no_expiry()}
                           </span>
                         </div>

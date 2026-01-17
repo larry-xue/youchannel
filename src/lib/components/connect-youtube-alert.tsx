@@ -11,6 +11,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/lib/components/ui/empty";
+import { Loading } from "~/lib/components/ui/loading";
 import { completeYouTubeOauthFn, startYouTubeOAuthFn } from "~/lib/dashboard/data";
 import * as m from "~/paraglide/messages";
 
@@ -90,7 +91,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <Loading size="sm" />
         </EmptyContent>
       </Empty>
     );

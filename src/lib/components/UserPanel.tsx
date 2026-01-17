@@ -13,6 +13,8 @@ import {
 } from "./ui/dropdown-menu";
 import { Progress } from "./ui/progress";
 
+import { Loading } from "./ui/loading";
+
 import { useAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
 
@@ -40,7 +42,7 @@ function UserQuotas() {
   if (isLoading) {
     return (
       <div className="flex justify-center p-4">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <Loading size="sm" className="py-2" />
       </div>
     );
   }

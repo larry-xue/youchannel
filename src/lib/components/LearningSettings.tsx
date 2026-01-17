@@ -3,6 +3,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import supabase from "~/lib/auth-client";
 import { Button } from "~/lib/components/ui/button";
+import { Loading } from "~/lib/components/ui/loading";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -102,7 +103,7 @@ export function LearningSettings({ onSuccess }: { onSuccess?: () => void }) {
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loading size="sm" />
       </div>
     );
   }

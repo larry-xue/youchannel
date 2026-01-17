@@ -233,9 +233,11 @@ function processTextWithAnnotations(
 
         split.forEach((s, idx) => {
           if (s.toLowerCase() === matchedText.toLowerCase()) {
+            // Use annotation.original in key to ensure uniqueness across different annotations
+            const keyBase = `${annotation.original.slice(0, 10)}-${idx}`;
             if (annotation.type === 'correction') {
               nextResult.push(
-                <span key={`corr-${idx}`} className="group/correction relative inline-block cursor-help mx-0.5">
+                <span key={`corr-${keyBase}`} className="group/correction relative inline-block cursor-help mx-0.5">
                   <span className="text-red-400 font-medium decoration-red-400/50 underline decoration-wavy underline-offset-4">
                     {s}
                   </span>
@@ -247,7 +249,7 @@ function processTextWithAnnotations(
               );
             } else if (annotation.type === 'explanation') {
               nextResult.push(
-                <span key={`expl-${idx}`} className="group/explanation relative inline-block cursor-help mx-0.5">
+                <span key={`expl-${keyBase}`} className="group/explanation relative inline-block cursor-help mx-0.5">
                   <span className="text-blue-400 font-medium decoration-blue-400/30 underline decoration-wavy underline-offset-4">
                     {s}
                   </span>
@@ -259,7 +261,7 @@ function processTextWithAnnotations(
               );
             } else if (annotation.type === 'grammarCheck') {
               nextResult.push(
-                <span key={`gram-${idx}`} className="group/grammar relative inline-block cursor-help mx-0.5">
+                <span key={`gram-${keyBase}`} className="group/grammar relative inline-block cursor-help mx-0.5">
                   <span className="text-amber-400 font-medium decoration-amber-400/50 underline decoration-wavy underline-offset-4">
                     {s}
                   </span>

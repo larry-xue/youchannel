@@ -37,6 +37,7 @@ interface UseGeminiLiveOptions {
   apiKey: string;
   model?: string;
   voiceName?: string;
+  uiLanguage?: string;
   tools?: Array<{ functionDeclarations: Array<any> }>;
   onToolCall?: (toolCall: any) => Promise<any> | any;
 }
@@ -45,6 +46,7 @@ export function useGeminiLive({
   apiKey,
   model = "gemini-2.5-flash-native-audio-preview-09-2025",
   voiceName = "Orus",
+  uiLanguage = "en",
   tools,
   onToolCall,
 }: UseGeminiLiveOptions) {
@@ -86,7 +88,7 @@ export function useGeminiLive({
     try {
       const { analyzeUserInput } = await import("./actions");
       // @ts-ignore - bypassing strict type check for server fn
-      const result = await analyzeUserInput({ data: { sentence: content } });
+      const result = await analyzeUserInput({ data: { sentence: content, uiLanguage } });
 
       setMessages((prev) => {
         const msgIndex = prev.findIndex((m) => m.id === messageId);

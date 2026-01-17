@@ -94,7 +94,7 @@ export const explainTerm = createServerFn({ method: "POST" })
 
 // @ts-ignore - bypassing strict type check for server fn input inference issues
 export const analyzeUserInput = createServerFn({ method: "POST" }).handler(async (ctx: any) => {
-  const data = ctx.data as { sentence: string; context?: string };
+  const data = ctx.data as { sentence: string; context?: string; uiLanguage?: string };
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error("GOOGLE_API_KEY is not set on the server.");
@@ -102,19 +102,34 @@ export const analyzeUserInput = createServerFn({ method: "POST" }).handler(async
 
   const client = new GoogleGenAI({ apiKey });
 
+  // Map language codes to full names for clearer prompts
+  const languageNames: Record<string, string> = {
+    en: "English",
+    zh: "Simplified Chinese (简体中文)",
+    "zh-TW": "Traditional Chinese (繁體中文)",
+    ja: "Japanese (日本語)",
+    ko: "Korean (한국어)",
+    es: "Spanish (Español)",
+    de: "German (Deutsch)",
+    fr: "French (Français)",
+  };
+  const outputLanguage = languageNames[data.uiLanguage || "en"] || "English";
+
   const prompt = `Analyze the following sentence spoken by a language learner in a conversation.
 
 Sentence: "${data.sentence}"
 ${data.context ? `Context: "${data.context}"` : ""}
 
+**IMPORTANT: All explanations MUST be written in ${outputLanguage}.**
+
 Task:
 1. **Grammar Check**: Determine if the sentence is grammatically correct AND sounds natural.
    - If natural and correct (even if casual), set grammar to null.
-   - If it has errors or sounds unnatural, provide a corrected version and brief explanation (max 15 words).
+   - If it has errors or sounds unnatural, provide a corrected version and brief explanation (max 15 words, in ${outputLanguage}).
    - IGNORE minor disfluencies or valid slang. Focus on genuine errors.
 
 2. **Phrase Explanations**: Identify 0-2 interesting phrases, idioms, or vocabulary words in the sentence that a language learner might benefit from understanding better.
-   - For each phrase, provide a brief explanation (max 20 words).
+   - For each phrase, provide a brief explanation (max 20 words, in ${outputLanguage}).
    - Only include phrases that are genuinely interesting or educational.
    - If no phrases are worth explaining, return an empty array.
 
@@ -122,12 +137,12 @@ Output JSON format:
 {
   "grammar": {
     "corrected": "string | null",
-    "explanation": "string | null"
+    "explanation": "string | null (in ${outputLanguage})"
   },
   "phrases": [
     {
       "phrase": "string",
-      "explanation": "string"
+      "explanation": "string (in ${outputLanguage})"
     }
   ]
 }`;

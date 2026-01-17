@@ -20,6 +20,7 @@ import {
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
+import { getLocale } from "~/paraglide/runtime";
 
 export const Route = createFileRoute("/_layout/live")({
   component: LivePage,
@@ -71,6 +72,7 @@ function LivePage() {
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
+    uiLanguage: getLocale(),
     tools: [
       {
         functionDeclarations: [

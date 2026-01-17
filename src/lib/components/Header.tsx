@@ -36,6 +36,7 @@ const getDashboardNavItems = () => [
   { label: m.library(), to: "/library" },
   { label: m.playlists(), to: "/playlists" },
   { label: m.quota_title(), to: "/quotas" },
+  { label: m.live(), to: "/live" },
 ];
 
 const localeNames: Record<string, string> = {
@@ -235,7 +236,7 @@ export function Header({ onSignOut }: HeaderProps) {
                             className={cn(
                               "rounded-xl px-3 py-2 cursor-pointer",
                               currentLocale === locale &&
-                                "bg-secondary text-secondary-foreground font-medium",
+                              "bg-secondary text-secondary-foreground font-medium",
                             )}
                           >
                             {localeNames[locale] || locale}

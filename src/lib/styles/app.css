@@ -285,6 +285,18 @@
   .type-label {
     @apply font-sans text-sm leading-none font-medium;
   }
+
+  .animate-ambient-drift {
+    animation: ambient-drift 20s ease-in-out infinite;
+  }
+
+  .animate-ambient-drift-reverse {
+    animation: ambient-drift 15s ease-in-out infinite reverse;
+  }
+
+  .animate-ambient-breathe {
+    animation: ambient-breathe 4s ease-in-out infinite;
+  }
 }
 
 @keyframes rise {
@@ -295,5 +307,33 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes ambient-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(5%, -3%) rotate(2deg);
+  }
+  50% {
+    transform: translate(-3%, 5%) rotate(-1deg);
+  }
+  75% {
+    transform: translate(-5%, -2%) rotate(1deg);
+  }
+}
+
+@keyframes ambient-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
   }
 }

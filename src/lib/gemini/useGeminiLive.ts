@@ -26,6 +26,10 @@ export function useGeminiLive({
   const [messages, setMessages] = useState<
     Array<{ id: string; role: "user" | "model"; content: string; timestamp: Date }>
   >([]);
+  const [inputLevel, setInputLevel] = useState(0);
+  const [outputLevel, setOutputLevel] = useState(0);
+  const lastInputUpdateRef = useRef(0);
+  const lastOutputUpdateRef = useRef(0);
 
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -137,6 +141,21 @@ export function useGeminiLive({
                     24000,
                     1,
                   );
+
+                  // Calculate RMS for output level visualization
+                  const channelData = audioBuffer.getChannelData(0);
+                  let outSum = 0;
+                  for (let i = 0; i < channelData.length; i++) {
+                    outSum += channelData[i] * channelData[i];
+                  }
+                  const outRms = Math.sqrt(outSum / channelData.length);
+                  const outLevel = Math.min(1, outRms * 5);
+
+                  const outNow = performance.now();
+                  if (outNow - lastOutputUpdateRef.current > 33) {
+                    setOutputLevel(outLevel);
+                    lastOutputUpdateRef.current = outNow;
+                  }
 
                   const source = ctx.createBufferSource();
                   source.buffer = audioBuffer;
@@ -329,7 +348,23 @@ export function useGeminiLive({
       processorRef.current = workletNode;
 
       workletNode.port.onmessage = (event) => {
-        const inputData = event.data;
+        const inputData = event.data as Float32Array;
+
+        // Calculate RMS for input level visualization
+        let sum = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          sum += inputData[i] * inputData[i];
+        }
+        const rms = Math.sqrt(sum / inputData.length);
+        const level = Math.min(1, rms * 5); // Amplify for better visual response
+
+        // Throttle to ~30fps to avoid excessive re-renders
+        const now = performance.now();
+        if (now - lastInputUpdateRef.current > 33) {
+          setInputLevel(level);
+          lastInputUpdateRef.current = now;
+        }
+
         // Send off to session
         if (sessionRef.current) {
           sessionRef.current.sendRealtimeInput({ media: createBlob(inputData) });
@@ -371,6 +406,8 @@ export function useGeminiLive({
       sessionRef.current = null;
     }
     setStatus("disconnected");
+    setInputLevel(0);
+    setOutputLevel(0);
   }, [stopRecording]);
 
   useEffect(() => {
@@ -428,6 +465,8 @@ export function useGeminiLive({
     status,
     error,
     isRecording,
-    messages, // Export messages
+    messages,
+    inputLevel,
+    outputLevel,
   };
 }

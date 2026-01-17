@@ -72,7 +72,7 @@ export function EmptyVideoState({
         size="lg"
         onClick={activeAction.onClick}
         disabled={activeAction.isLoading}
-        className="h-12 rounded-full px-8 text-base font-medium shadow-md transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-95"
+        className="h-12 rounded-full px-8 text-base font-medium shadow-md transition-[box-shadow,scale] hover:shadow-lg hover:shadow-primary/20 active:scale-95"
       >
         {activeAction.isLoading ? (
           <>

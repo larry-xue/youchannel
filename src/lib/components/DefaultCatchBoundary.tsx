@@ -44,7 +44,7 @@ export function DefaultCatchBoundary({ error }: Readonly<ErrorComponentProps>) {
             onClick={() => {
               router.invalidate();
             }}
-            className="rounded-full shadow-md hover:shadow-lg transition-all"
+            className="rounded-full shadow-md hover:shadow-lg transition-[background-color,color,border-color,box-shadow,translate,scale,rotate]"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Try Again
@@ -53,7 +53,7 @@ export function DefaultCatchBoundary({ error }: Readonly<ErrorComponentProps>) {
             <Button
               asChild
               variant="secondary"
-              className="rounded-full shadow-sm hover:shadow-md transition-all"
+              className="rounded-full shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,translate,scale,rotate]"
             >
               <Link to="/">
                 <Home className="mr-2 h-4 w-4" />
@@ -64,7 +64,7 @@ export function DefaultCatchBoundary({ error }: Readonly<ErrorComponentProps>) {
             <Button
               asChild
               variant="secondary"
-              className="rounded-full shadow-sm hover:shadow-md transition-all"
+              className="rounded-full shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,translate,scale,rotate]"
             >
               <Link
                 to="/"

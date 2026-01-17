@@ -450,14 +450,14 @@ function ChatSidebarContent({
                       type="button"
                       onClick={() => handleSelectCharacter(character.name)}
                       className={cn(
-                        "group w-full rounded-3xl p-4 text-left transition-all",
-                        "bg-card hover:bg-accent/50",
+                        "group w-full rounded-3xl p-4 text-left transition-[background-color,border-color,box-shadow] duration-300 motion-safe:transition-[background-color,border-color,box-shadow]",
+                        "bg-card hover:bg-surface-2 shadow-lll-sm hover:shadow-lll-md border border-transparent hover:border-primary/10",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       )}
                     >
                       <div className="flex items-center gap-4">
                         {/* Avatar */}
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary transition-colors group-hover:bg-primary/15">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary transition-colors duration-200 group-hover:bg-primary/20">
                           {getInitial(character.name)}
                         </div>
                         {/* Info */}
@@ -470,7 +470,7 @@ function ChatSidebarContent({
                           </p>
                         </div>
                         {/* Arrow indicator */}
-                        <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground/50 transition-transform group-hover:translate-x-1" />
+                        <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground/50 transition-transform duration-200 group-hover:translate-x-1" />
                       </div>
                     </button>
                   ))}
@@ -482,13 +482,13 @@ function ChatSidebarContent({
           /* ========== Chat View ========== */
           <div className="flex h-full flex-col">
             {/* Header with character info */}
-            <div className="px-6 py-5">
+            <div className="px-6 py-5 bg-surface/50 backdrop-blur-sm border-b border-border-soft">
               <div className="flex items-start gap-4">
                 {/* Back button */}
                 <button
                   type="button"
                   onClick={handleBackToDirectory}
-                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground transition-colors duration-200 hover:bg-surface-2/80 hover:text-foreground"
                   aria-label="Back to characters"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -513,7 +513,7 @@ function ChatSidebarContent({
             <ScrollArea className="min-h-0 flex-1 px-6 py-4">
               {!hasContext ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 py-12 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2">
                     <Sparkles className="h-7 w-7 text-muted-foreground" />
                   </div>
                   <p className="max-w-[200px] text-sm leading-relaxed text-muted-foreground">
@@ -540,10 +540,10 @@ function ChatSidebarContent({
                           {/* Avatar */}
                           <div
                             className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full select-none overflow-hidden",
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full select-none overflow-hidden shadow-sm",
                               isModel
                                 ? "bg-primary/10 text-primary"
-                                : "bg-muted text-muted-foreground",
+                                : "bg-surface-2 text-muted-foreground",
                             )}
                           >
                             {isModel ? (
@@ -585,7 +585,7 @@ function ChatSidebarContent({
                               className={cn(
                                 "rounded-3xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word shadow-sm",
                                 isModel
-                                  ? "bg-muted/50 text-foreground rounded-tl-sm"
+                                  ? "bg-surface-2 text-foreground rounded-tl-sm"
                                   : "bg-primary text-primary-foreground rounded-tr-sm",
                               )}
                             >
@@ -608,8 +608,8 @@ function ChatSidebarContent({
 
                     {!isActiveSession && messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                          <Mic className="h-9 w-9 text-primary" />
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-surface-2 shadow-inner">
+                          <Mic className="h-9 w-9 text-primary/50" />
                         </div>
                         <p className="text-sm text-muted-foreground max-w-[200px]">
                           {m.chat_sidebar_start_session_hint()}
@@ -623,13 +623,14 @@ function ChatSidebarContent({
             </ScrollArea>
 
             {/* Voice control footer */}
-            <div className="px-6 py-5">
+            <div className="px-6 py-5 bg-surface/50 backdrop-blur-sm border-t border-border-soft">
               {import.meta.env.DEV && (
                 <div className="flex gap-2 mb-4">
                   <Input
                     value={debugInput}
                     onChange={(e) => setDebugInput(e.target.value)}
                     placeholder="Debug text..."
+                    className="rounded-full bg-surface-2 border-transparent focus:border-primary"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && debugInput.trim()) {
                         sendText(debugInput);
@@ -639,6 +640,7 @@ function ChatSidebarContent({
                   />
                   <Button
                     variant="outline"
+                    className="rounded-full"
                     onClick={() => {
                       if (debugInput.trim()) {
                         sendText(debugInput);
@@ -665,7 +667,7 @@ function ChatSidebarContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border/50 hover:bg-accent/50 hover:border-accent"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border-soft bg-surface hover:bg-surface-2 hover:border-primary/20 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-200"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_voice_select()}
                         title={activeVoice}
@@ -676,13 +678,13 @@ function ChatSidebarContent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="start"
-                      className="w-[200px] max-h-[300px] overflow-y-auto"
+                      className="w-[200px] max-h-[300px] overflow-y-auto rounded-xl shadow-lll-md border-border-soft"
                     >
                       {VOICES.map((voice) => (
                         <DropdownMenuItem
                           key={voice.name}
                           onClick={() => updateCharacterSelection({ voice: voice.name })}
-                          className="flex items-center justify-between gap-4"
+                          className="flex items-center justify-between gap-4 rounded-lg focus:bg-surface-2 cursor-pointer"
                         >
                           <div className="flex flex-col">
                             <span className="font-medium">{voice.name}</span>
@@ -690,7 +692,9 @@ function ChatSidebarContent({
                               {voice.style}
                             </span>
                           </div>
-                          {activeVoice === voice.name && <Check className="h-4 w-4" />}
+                          {activeVoice === voice.name && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -700,7 +704,7 @@ function ChatSidebarContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border/50 hover:bg-accent/50 hover:border-accent"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border-soft bg-surface hover:bg-surface-2 hover:border-primary/20 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-200"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_language_select()}
                         title={
@@ -715,7 +719,7 @@ function ChatSidebarContent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-[200px] max-h-[300px] overflow-y-auto"
+                      className="w-[200px] max-h-[300px] overflow-y-auto rounded-xl shadow-lll-md border-border-soft"
                     >
                       {Array.from(
                         new Set([activeLanguage, ...CHARACTER_LANGUAGE_OPTIONS]),
@@ -723,12 +727,14 @@ function ChatSidebarContent({
                         <DropdownMenuItem
                           key={language}
                           onClick={() => updateCharacterSelection({ language })}
-                          className="flex items-center justify-between gap-4"
+                          className="flex items-center justify-between gap-4 rounded-lg focus:bg-surface-2 cursor-pointer"
                         >
                           <span className="font-medium">
                             {CHARACTER_LANGUAGE_LABELS[language] || language}
                           </span>
-                          {activeLanguage === language && <Check className="h-4 w-4" />}
+                          {activeLanguage === language && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -738,7 +744,7 @@ function ChatSidebarContent({
                 <Button
                   size="lg"
                   className={cn(
-                    "h-14 w-full rounded-full text-base font-medium transition-all shadow-md active:shadow-sm active:scale-[0.99]",
+                    "h-14 w-full rounded-full text-base font-medium transition-[background-color,box-shadow,transform] duration-300 shadow-lll-md active:shadow-sm active:scale-[0.98] motion-safe:transition-[background-color,box-shadow,transform]",
                     isActiveSession
                       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90",

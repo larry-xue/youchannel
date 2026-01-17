@@ -161,10 +161,10 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
   }
 
   return (
-    <Empty className="group relative overflow-hidden rounded-3xl border border-border/40 bg-surface-container px-6 py-16 shadow-md transition-all hover:shadow-lg animate-in fade-in zoom-in-95 duration-500">
+    <Empty className="group relative overflow-hidden rounded-3xl border border-border/40 bg-surface-container px-6 py-16 shadow-md transition-shadow hover:shadow-lg animate-in fade-in zoom-in-95 duration-500">
       {/* Decorative gradient blob */}
-      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl transition-all group-hover:bg-primary/10" />
-      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-secondary/5 blur-3xl transition-all group-hover:bg-secondary/10" />
+      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl transition-colors group-hover:bg-primary/10" />
+      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-secondary/5 blur-3xl transition-colors group-hover:bg-secondary/10" />
 
       <EmptyHeader className="relative z-10">
         <EmptyMedia>
@@ -187,7 +187,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
           size="lg"
           onClick={() => connectMutation.mutate()}
           disabled={connectMutation.isPending}
-          className="h-14 rounded-full px-10 text-lg font-medium shadow-xl shadow-primary/20 transition-all hover:scale-105 hover:shadow-2xl hover:shadow-primary/30"
+          className="h-14 rounded-full px-10 text-lg font-medium shadow-xl shadow-primary/20 transition-[scale,box-shadow] hover:scale-105 hover:shadow-2xl hover:shadow-primary/30"
         >
           {connectMutation.isPending ? (
             <>

@@ -118,7 +118,7 @@ function DashboardLearnVideo() {
       <div className="flex flex-col h-[calc(100vh-(--spacing(20)))] space-y-4">
         {/* Fixed Video Section */}
         <div className="w-full shrink-0">
-          <div className="aspect-video w-full overflow-hidden rounded-3xl border bg-black/5 shadow-sm">
+          <div className="aspect-video w-full overflow-hidden rounded-3xl border border-border-soft bg-black/5 shadow-lll-sm">
             <VideoPlayerCard
               title={title}
               youtubeId={youtubeId}
@@ -133,14 +133,18 @@ function DashboardLearnVideo() {
         {/* Tabs for Content */}
         <div className="min-h-0 flex-1">
           <Tabs defaultValue="learn" className="flex h-full flex-col">
-            <TabsList className="grid w-full grid-cols-2 mb-2">
-              <TabsTrigger value="learn">Learn</TabsTrigger>
-              <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-2 p-1 bg-surface-2 rounded-full">
+              <TabsTrigger value="learn" className="rounded-full">
+                Learn
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="rounded-full">
+                Chat
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent
               value="learn"
-              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border bg-card shadow-sm"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border-soft bg-card shadow-lll-sm"
             >
               <LearningTabs
                 title={title}
@@ -153,7 +157,7 @@ function DashboardLearnVideo() {
 
             <TabsContent
               value="chat"
-              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border bg-card shadow-sm"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border-soft bg-card shadow-lll-sm"
             >
               <ChatSidebar
                 className="h-full"
@@ -172,7 +176,7 @@ function DashboardLearnVideo() {
     <div className="space-y-6 h-[84vh] min-h-[600px]">
       <ResizablePanelGroup
         direction="horizontal"
-        className="rounded-3xl border shadow-sm bg-background"
+        className="rounded-3xl border border-border-soft shadow-lll-sm bg-card overflow-hidden"
       >
         {/* Main content area */}
         <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>

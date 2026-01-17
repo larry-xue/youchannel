@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "app_name_part1": "Fluently",
   "app_name_part2": "By",
@@ -239,4 +239,3 @@
   "learn_transcript_empty": "Noch kein Transkript verfügbar.",
   "learn_captions_unavailable": "Die Untertitel-Funktion ist noch nicht verfügbar."
 }
-

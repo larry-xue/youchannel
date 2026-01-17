@@ -81,7 +81,7 @@ export function VideoCard({
       aria-label={m.aria_open_view({ title: video.title || m.default_video_title() })}
       onClick={() => onOpen(video)}
       onKeyDown={handleCardKeyDown}
-      className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-border/50 bg-card transition-all duration-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
+      className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-border/50 bg-card transition-shadow duration-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
     >
       {/* State Layer (Hover Overlay) */}
       <div className="absolute inset-0 pointer-events-none z-10 bg-foreground/0 transition-colors duration-300 group-hover:bg-foreground/[0.08]" />

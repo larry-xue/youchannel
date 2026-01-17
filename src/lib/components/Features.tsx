@@ -31,37 +31,41 @@ const features = () => [
 
 export function Features() {
   return (
-    <section className="grid gap-6 sm:grid-cols-2 lg:gap-8">
-      {features().map((feature, index) => (
-        <Card
-          key={feature.title}
-          className={cn(
-            "group relative overflow-hidden rounded-3xl border-border/50 bg-surface-container/50 p-2 transition-all duration-300",
-            "hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:ring-1 hover:ring-primary/20",
-            "animate-rise",
-          )}
-          style={{ animationDelay: `${index * 100}ms` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+    <section className="mx-auto max-w-5xl py-12 lg:py-24">
+      <div className="mb-16 text-center">
+        <h2 className="type-h2 text-foreground">Why choose Fluently?</h2>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
+        {features().map((feature, index) => (
+          <Card
+            key={feature.title}
+            className={cn(
+              "group relative overflow-hidden rounded-[2rem] border-border/40 bg-surface-container/30 p-2 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-300",
+              "hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/5 hover:ring-1 hover:ring-primary/20 hover:bg-surface-container/50",
+            )}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
-          <CardHeader className="relative pb-2">
-            <div
-              className={cn(
-                "mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl text-2xl",
-                feature.color,
-              )}
-            >
-              {feature.icon}
-            </div>
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground">
-              {feature.title}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="relative text-base text-muted-foreground/90">
-            {feature.description}
-          </CardContent>
-        </Card>
-      ))}
+            <CardHeader className="relative pb-2">
+              <div
+                className={cn(
+                  "mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl text-3xl ring-1 ring-border/20 shadow-sm",
+                  feature.color,
+                )}
+              >
+                {feature.icon}
+              </div>
+              <CardTitle className="font-display text-xl font-bold tracking-tight text-foreground">
+                {feature.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative text-base leading-relaxed text-muted-foreground">
+              {feature.description}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </section>
   );
 }

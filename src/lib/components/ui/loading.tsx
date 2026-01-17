@@ -41,7 +41,7 @@ export function Loading({ className, size = "md", text }: LoadingProps) {
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             fill="none"
-            className="text-primary/15"
+            className="text-foreground/15"
           />
           {/* Animated arc */}
           <circle
@@ -54,7 +54,7 @@ export function Loading({ className, size = "md", text }: LoadingProps) {
             fill="none"
             strokeDasharray={dashArray}
             strokeDashoffset={circumference * 0.125}
-            className="text-primary"
+            className="text-foreground"
             style={{
               transformOrigin: `${center}px ${center}px`,
             }}

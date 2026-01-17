@@ -65,10 +65,8 @@ function DashboardPlaylists() {
     <div className="space-y-8 animate-rise">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            {m.library_title()}
-          </h1>
-          <p className="mt-1 text-base text-muted-foreground">
+          <h1 className="type-h1 text-foreground">{m.library_title()}</h1>
+          <p className="mt-1 type-body text-muted-foreground">
             {m.library_description()}
           </p>
         </div>

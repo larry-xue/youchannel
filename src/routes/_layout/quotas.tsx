@@ -73,18 +73,18 @@ function QuotaPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-foreground">
-            {m.quota_title()}
-          </h1>
-          <p className="text-lg text-muted-foreground">{m.quota_page_description()}</p>
+          <h1 className="type-h1 text-foreground">{m.quota_title()}</h1>
+          <p className="type-body text-muted-foreground mt-2">
+            {m.quota_page_description()}
+          </p>
         </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
+          className="rounded-full shadow-lll-sm hover:shadow-lll-md transition-shadow duration-300"
           onClick={(e) => {
             e.preventDefault();
             refetch();
@@ -99,7 +99,7 @@ function QuotaPage() {
       <div className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Video Quota Card */}
-          <Card className="overflow-hidden border-border/50 shadow-sm transition-all hover:border-indigo-500/50 hover:shadow-md">
+          <Card className="overflow-hidden rounded-3xl border-border-soft shadow-lll-sm transition-shadow duration-300 hover:shadow-lll-md motion-safe:transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-xl font-medium">
                 <span className="mr-2 text-2xl">🎬</span>
@@ -137,7 +137,10 @@ function QuotaPage() {
                   </span>
                   {quota.perVideoLimitSeconds !== null &&
                     quota.perVideoLimitSeconds > 0 && (
-                      <Badge variant="secondary" className="font-normal opacity-80">
+                      <Badge
+                        variant="secondary"
+                        className="font-normal opacity-80 rounded-full"
+                      >
                         {m.quota_per_video({
                           limit: formatSeconds(quota.perVideoLimitSeconds),
                         })}
@@ -149,7 +152,7 @@ function QuotaPage() {
           </Card>
 
           {/* Chat Quota Card */}
-          <Card className="overflow-hidden border-border/50 shadow-sm transition-all hover:border-emerald-500/50 hover:shadow-md">
+          <Card className="overflow-hidden rounded-3xl border-border-soft shadow-lll-sm transition-shadow duration-300 hover:shadow-lll-md motion-safe:transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-xl font-medium">
                 <span className="mr-2 text-2xl">💬</span>
@@ -195,7 +198,7 @@ function QuotaPage() {
       {/* active grants */}
       {grants.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">{m.quota_active_grants()}</h2>
+          <h2 className="type-h2 text-foreground">{m.quota_active_grants()}</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {grants.map((grant) => {
               const grantVideoUsed = Math.max(
@@ -235,7 +238,7 @@ function QuotaPage() {
               return (
                 <Card
                   key={grant.id}
-                  className="flex flex-col border-border/50 shadow-sm transition-all hover:shadow-md"
+                  className="flex flex-col rounded-3xl border-border-soft shadow-lll-sm transition-shadow duration-300 hover:shadow-lll-md motion-safe:transition-shadow"
                 >
                   <CardHeader>
                     <div className="flex items-center justify-between">

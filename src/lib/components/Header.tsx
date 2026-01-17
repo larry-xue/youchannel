@@ -76,8 +76,8 @@ export function Header({ onSignOut }: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
+      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-6">
           <div className="flex items-center gap-8">
             <Link
               to="/"
@@ -87,7 +87,7 @@ export function Header({ onSignOut }: HeaderProps) {
                 <span className="text-2xl">🎓</span>
               </div>
               <div className="hidden flex-col leading-none sm:flex">
-                <div className="flex items-baseline text-lg font-bold tracking-tight">
+                <div className="flex items-baseline font-display text-xl font-bold tracking-tight">
                   <span className="bg-linear-to-r from-amber-500 via-orange-400 to-rose-500 bg-clip-text text-transparent">
                     {m.app_name_part1()}
                   </span>
@@ -95,9 +95,6 @@ export function Header({ onSignOut }: HeaderProps) {
                     {m.app_name_part2()}
                   </span>
                 </div>
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Workspace
-                </span>
               </div>
             </Link>
 
@@ -110,7 +107,7 @@ export function Header({ onSignOut }: HeaderProps) {
                     to={item.to}
                     activeOptions={{ exact: false }}
                     className={cn(
-                      "group relative rounded-full px-5 py-2 text-sm font-medium transition-all duration-200",
+                      "group relative rounded-full px-5 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-200",
                       "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     )}
@@ -257,8 +254,8 @@ export function Header({ onSignOut }: HeaderProps) {
                       className="rounded-2xl px-4 py-2 text-sm font-medium hover:bg-muted cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <SunIcon className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                        <MoonIcon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                        <SunIcon className="h-4 w-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+                        <MoonIcon className="absolute h-4 w-4 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
                         <span>Theme</span>
                       </div>
                     </DropdownMenuItem>

@@ -91,7 +91,7 @@ function UserQuotas() {
           disabled={isRefetching}
         >
           <RefreshCw
-            className={`h-3 w-3 text-muted-foreground transition-all hover:text-foreground ${isRefetching ? "animate-spin" : ""}`}
+            className={`h-3 w-3 text-muted-foreground transition-colors hover:text-foreground ${isRefetching ? "animate-spin" : ""}`}
           />
         </Button>
       </div>
@@ -100,7 +100,7 @@ function UserQuotas() {
         {/* Video Quota */}
         <Link
           to="/quotas"
-          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20"
+          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-colors hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20"
         >
           <div className="mb-1 text-lg">🎬</div>
           <div className="text-xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
@@ -116,7 +116,7 @@ function UserQuotas() {
         {/* Chat Quota */}
         <Link
           to="/quotas"
-          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-all hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20"
+          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-colors hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20"
         >
           <div className="mb-1 text-lg">💬</div>
           <div className="text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">

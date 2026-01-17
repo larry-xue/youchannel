@@ -541,5 +541,20 @@ export function useGeminiLive({
         return msgs;
       });
     },
+    // Pause/Resume
+    pause: useCallback(() => {
+      stopRecording(); // Stop mic
+      // Stop current audio output
+      audioSourcesRef.current.forEach((s) => {
+        try { s.stop(); } catch (e) { /* ignore */ }
+      });
+      audioSourcesRef.current.clear();
+      // Reset timing to avoid sync issues on resume?
+      // Next audio chunk will calculate a new start time based on context.currentTime or use delay.
+      // But we just stopped everything.
+    }, [stopRecording]),
+    resume: useCallback(() => {
+      startRecording();
+    }, [startRecording]),
   };
 }

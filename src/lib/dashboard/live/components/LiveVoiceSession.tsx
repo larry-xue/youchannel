@@ -32,7 +32,7 @@ export function LiveTranscript({
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <ScrollArea className="flex-1 rounded-3xl bg-surface/5 backdrop-blur-sm p-6 overflow-hidden h-full">
-        <div className="flex flex-col gap-6 min-h-full justify-end">
+        <div className="flex flex-col gap-6 min-h-full justify-end h-full">
           {messages.length === 0 && !isActiveSession && (
             <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground/50">
               <Mic className="h-16 w-16 mb-6 opacity-20" />

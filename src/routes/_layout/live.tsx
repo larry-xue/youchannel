@@ -65,6 +65,8 @@ function LivePage() {
     outputLevel,
     addCorrection,
     addExplanation,
+    pause,
+    resume,
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
@@ -145,10 +147,12 @@ function LivePage() {
     if (error) setSessionError(error);
   }, [error]);
 
+  const [isPaused, setIsPaused] = useState(false);
+
   // Auto-start recording when connected
   useEffect(() => {
     if (status === "connected") {
-      if (!isRecording) {
+      if (!isRecording && !isPaused) {
         startRecording();
       }
       // Send initial greeting to trigger AI response
@@ -158,8 +162,9 @@ function LivePage() {
       }
     } else {
       hasSentGreetingRef.current = false;
+      setIsPaused(false); // Reset pause state on disconnect
     }
-  }, [status, isRecording, startRecording, sendText]);
+  }, [status, isRecording, isPaused, startRecording, sendText]);
 
   const connectSession = useCallback(async () => {
     setSessionError(null);
@@ -299,38 +304,89 @@ function LivePage() {
               </div>
             )}
 
-            {/* Big call button */}
-            <Button
-              size="lg"
-              className={cn(
-                "h-20 w-full rounded-[2rem] text-xl font-medium tracking-wide transition-all duration-500 shadow-xl hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]",
-                isActiveSession
-                  ? "bg-destructive/90 text-destructive-foreground hover:bg-destructive shadow-destructive/20"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25",
-              )}
-              onClick={handleToggleSession}
-              disabled={isConnecting}
-            >
-              {isActiveSession ? (
-                <>
-                  <PhoneOff className="mr-3 h-7 w-7" />
-                  End Session
-                </>
-              ) : (
-                <>
-                  {isConnecting ? (
-                    <Loader2 className="mr-3 h-7 w-7 animate-spin" />
-                  ) : (
-                    <Phone className="mr-3 h-7 w-7" />
+            {/* Big call button + Pause Control */}
+            <div className="flex gap-4 w-full">
+              <Button
+                size="lg"
+                className={cn(
+                  "h-20 flex-1 rounded-[2rem] text-xl font-medium tracking-wide transition-all duration-500 shadow-xl hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]",
+                  isActiveSession
+                    ? "bg-destructive/90 text-destructive-foreground hover:bg-destructive shadow-destructive/20"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25",
+                )}
+                onClick={handleToggleSession}
+                disabled={isConnecting}
+              >
+                {isActiveSession ? (
+                  <>
+                    <PhoneOff className="mr-3 h-7 w-7" />
+                    End Session
+                  </>
+                ) : (
+                  <>
+                    {isConnecting ? (
+                      <Loader2 className="mr-3 h-7 w-7 animate-spin" />
+                    ) : (
+                      <Phone className="mr-3 h-7 w-7" />
+                    )}
+                    {isConnecting ? "Connecting..." : "Start Call"}
+                  </>
+                )}
+              </Button>
+
+              {isActiveSession && (
+                <Button
+                  size="lg"
+                  className={cn(
+                    "h-20 w-24 rounded-[2rem] text-xl font-medium transition-all duration-500 shadow-xl hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]",
+                    !isRecording
+                      ? "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
+                      : "bg-surface-2 text-foreground hover:bg-surface-3"
                   )}
-                  {isConnecting ? "Connecting..." : "Start Call"}
-                </>
+                  onClick={() => {
+                    if (isRecording) {
+                      setIsPaused(true);
+                      pause();
+                    } else {
+                      setIsPaused(false);
+                      resume();
+                    }
+                  }}
+                >
+                  {!isRecording ? (
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs font-bold uppercase tracking-wider mb-1">Resume</span>
+                      {/* Play icon */}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-6 h-6"
+                      >
+                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Pause</span>
+                      {/* Pause icon */}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-6 h-6"
+                      >
+                        <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
 
             {/* Status Text */}
             <div className="flex justify-center">
-              {status === "disconnected" && (
+              {status === "disconnected" && !isConnecting && (
                 <span className="text-sm text-muted-foreground/60 font-medium">
                   Ready to connect
                 </span>
@@ -341,9 +397,9 @@ function LivePage() {
                 </span>
               )}
               {isActiveSession && (
-                <span className="text-sm text-green-500 font-medium flex items-center gap-2">
-                  <span className="block h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  Live Session Active
+                <span className={cn("text-sm font-medium flex items-center gap-2", !isRecording ? "text-amber-500" : "text-green-500")}>
+                  <span className={cn("block h-2 w-2 rounded-full animate-pulse", !isRecording ? "bg-amber-500" : "bg-green-500")} />
+                  {!isRecording ? "Session Paused" : "Live Session Active"}
                 </span>
               )}
             </div>

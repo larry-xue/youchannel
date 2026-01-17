@@ -238,7 +238,7 @@ function processTextWithAnnotations(
             if (annotation.type === 'correction') {
               nextResult.push(
                 <span key={`corr-${keyBase}`} className="group/correction relative inline-block cursor-help mx-0.5">
-                  <span className="text-red-400 font-medium decoration-red-400/50 underline decoration-wavy underline-offset-4">
+                  <span className="text-white font-semibold bg-red-500/30 px-1 rounded decoration-red-300 underline decoration-wavy decoration-2 underline-offset-2">
                     {s}
                   </span>
                   <span className="invisible group-hover/correction:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-xs rounded-md shadow-xl whitespace-nowrap z-50">
@@ -250,24 +250,24 @@ function processTextWithAnnotations(
             } else if (annotation.type === 'explanation') {
               nextResult.push(
                 <span key={`expl-${keyBase}`} className="group/explanation relative inline-block cursor-help mx-0.5">
-                  <span className="text-blue-400 font-medium decoration-blue-400/30 underline decoration-wavy underline-offset-4">
+                  <span className="text-white font-semibold bg-cyan-500/30 px-1 rounded decoration-cyan-300 underline decoration-dotted decoration-2 underline-offset-2">
                     {s}
                   </span>
-                  <span className="invisible group-hover/explanation:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-blue-600 text-white text-xs rounded-md shadow-xl max-w-[200px] text-center z-50">
+                  <span className="invisible group-hover/explanation:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-cyan-600 text-white text-xs rounded-md shadow-xl max-w-[220px] text-center z-50">
                     {annotation.text}
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-blue-600"></span>
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-cyan-600"></span>
                   </span>
                 </span>
               );
             } else if (annotation.type === 'grammarCheck') {
               nextResult.push(
                 <span key={`gram-${keyBase}`} className="group/grammar relative inline-block cursor-help mx-0.5">
-                  <span className="text-amber-400 font-medium decoration-amber-400/50 underline decoration-wavy underline-offset-4">
+                  <span className="text-white font-semibold bg-amber-500/30 px-1 rounded decoration-amber-300 underline decoration-wavy decoration-2 underline-offset-2">
                     {s}
                   </span>
-                  <span className="invisible group-hover/grammar:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-amber-600 text-white text-xs rounded-md shadow-xl max-w-[250px] text-center z-50">
-                    <div className="font-bold mb-1">Corrected: {annotation.text}</div>
-                    <div className="font-light opacity-90">{annotation.explanation}</div>
+                  <span className="invisible group-hover/grammar:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-amber-600 text-white text-xs rounded-md shadow-xl max-w-[260px] text-center z-50">
+                    <div className="font-bold mb-1">✓ {annotation.text}</div>
+                    <div className="font-normal opacity-90 text-amber-100">{annotation.explanation}</div>
                     <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-amber-600"></span>
                   </span>
                 </span>

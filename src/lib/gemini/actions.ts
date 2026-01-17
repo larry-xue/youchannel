@@ -94,7 +94,11 @@ export const explainTerm = createServerFn({ method: "POST" })
 
 // @ts-ignore - bypassing strict type check for server fn input inference issues
 export const analyzeUserInput = createServerFn({ method: "POST" }).handler(async (ctx: any) => {
-  const data = ctx.data as { sentence: string; context?: string; uiLanguage?: string };
+  const data = ctx.data as {
+    sentence: string;
+    conversationHistory?: Array<{ role: string; content: string }>;
+    uiLanguage?: string;
+  };
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error("GOOGLE_API_KEY is not set on the server.");
@@ -115,34 +119,58 @@ export const analyzeUserInput = createServerFn({ method: "POST" }).handler(async
   };
   const outputLanguage = languageNames[data.uiLanguage || "en"] || "English";
 
-  const prompt = `Analyze the following sentence spoken by a language learner in a conversation.
+  // Format conversation history for context
+  const historyContext = data.conversationHistory && data.conversationHistory.length > 0
+    ? `Recent conversation:\n${data.conversationHistory.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n')}\n\n`
+    : "";
 
-Sentence: "${data.sentence}"
-${data.context ? `Context: "${data.context}"` : ""}
+  const prompt = `You are analyzing SPOKEN conversation from a language learner. This is real-time voice chat with automatic speech recognition (ASR).
 
-**IMPORTANT: All explanations MUST be written in ${outputLanguage}.**
+${historyContext}Current user input (ASR result): "${data.sentence}"
 
-Task:
-1. **Grammar Check**: Determine if the sentence is grammatically correct AND sounds natural.
-   - If natural and correct (even if casual), set grammar to null.
-   - If it has errors or sounds unnatural, provide a corrected version and brief explanation (max 15 words, in ${outputLanguage}).
-   - IGNORE minor disfluencies or valid slang. Focus on genuine errors.
+**IMPORTANT**: 
+- All explanations MUST be written in ${outputLanguage}.
+- This is SPOKEN language with potential ASR errors - be very tolerant.
 
-2. **Phrase Explanations**: Identify 0-2 interesting phrases, idioms, or vocabulary words in the sentence that a language learner might benefit from understanding better.
-   - For each phrase, provide a brief explanation (max 20 words, in ${outputLanguage}).
-   - Only include phrases that are genuinely interesting or educational.
-   - If no phrases are worth explaining, return an empty array.
+Task 0 - ASR Calibration (REQUIRED):
+The speech recognition may have misheard words. Based on the conversation context, determine what the user most likely intended to say.
+- Fix obvious ASR errors like "a life" → "alive", "we'll" → "wheel", "their" → "there"
+- Consider the conversation context to understand intended meaning
+- If the ASR result seems correct, return it unchanged
+- This is NOT grammar correction - only fix what was likely misheard
+- Return the calibrated sentence in the "calibrated" field
+
+Task 1 - Grammar Check (on calibrated sentence):
+- ONLY flag errors that would cause genuine misunderstanding or sound very wrong
+- Be very tolerant of spoken language patterns:
+  - Filler words, hesitations, repetitions
+  - Informal contractions and casual speech
+  - Sentence fragments natural in conversation
+- If acceptable for casual spoken conversation, return grammar as null
+- If correction is needed, provide: corrected sentence + brief explanation (max 15 words, in ${outputLanguage})
+
+Task 2 - Annotations (0-3 items, on calibrated sentence):
+Identify interesting items that deserve a brief explanation:
+- Proper nouns: Names of people, places, events, brands, organizations
+- Idioms and phrasal verbs
+- Cultural references
+- Advanced vocabulary words
+- Technical terms
+
+For each item, provide a brief explanation (max 25 words, in ${outputLanguage}).
+If nothing is worth annotating, return an empty array.
 
 Output JSON format:
 {
-  "grammar": {
-    "corrected": "string | null",
-    "explanation": "string | null (in ${outputLanguage})"
+  "calibrated": "string (the ASR-calibrated sentence)",
+  "grammar": null | {
+    "corrected": "string",
+    "explanation": "string"
   },
-  "phrases": [
+  "phrases": [] | [
     {
       "phrase": "string",
-      "explanation": "string (in ${outputLanguage})"
+      "explanation": "string"
     }
   ]
 }`;
@@ -162,9 +190,12 @@ Output JSON format:
 
     const parsedOutput = JSON.parse(output || "{}");
 
+    // Get calibrated sentence (fall back to original if not provided)
+    const calibrated = parsedOutput.calibrated || data.sentence;
+
     // Normalize grammar result
     let grammar = null;
-    if (parsedOutput.grammar?.corrected && parsedOutput.grammar.corrected !== data.sentence) {
+    if (parsedOutput.grammar?.corrected && parsedOutput.grammar.corrected !== calibrated) {
       grammar = {
         corrected: parsedOutput.grammar.corrected,
         explanation: parsedOutput.grammar.explanation || "Improved phrasing.",
@@ -176,10 +207,10 @@ Output JSON format:
       ? parsedOutput.phrases.filter((p: any) => p.phrase && p.explanation)
       : [];
 
-    return { grammar, phrases };
+    return { calibrated, grammar, phrases };
   } catch (error) {
     console.error("User input analysis failed:", error);
-    return { grammar: null, phrases: [] };
+    return { calibrated: data.sentence, grammar: null, phrases: [] };
   }
 });
 

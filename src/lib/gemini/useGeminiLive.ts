@@ -80,15 +80,28 @@ export function useGeminiLive({
   // Track user message IDs that have already been analyzed
   const grammarCheckedMessageIdsRef = useRef<Set<string>>(new Set());
 
-  // Trigger user input analysis (grammar check + phrase explanations) asynchronously
-  const triggerUserInputAnalysis = useCallback(async (messageId: string, content: string) => {
+  // Trigger user input analysis (ASR calibration + grammar check + annotations) asynchronously
+  const triggerUserInputAnalysis = useCallback(async (messageId: string, content: string, allMessages: Message[]) => {
     // Skip very short messages (likely not meaningful for analysis)
     if (content.trim().length < 5) return;
 
     try {
       const { analyzeUserInput } = await import("./actions");
+
+      // Get recent conversation history (last 6 messages for context)
+      const recentMessages = allMessages
+        .slice(-6)
+        .filter(m => m.id !== messageId) // Exclude the current message being analyzed
+        .map(m => ({ role: m.role, content: m.content }));
+
       // @ts-ignore - bypassing strict type check for server fn
-      const result = await analyzeUserInput({ data: { sentence: content, uiLanguage } });
+      const result = await analyzeUserInput({
+        data: {
+          sentence: content,
+          conversationHistory: recentMessages,
+          uiLanguage
+        }
+      });
 
       setMessages((prev) => {
         const msgIndex = prev.findIndex((m) => m.id === messageId);
@@ -98,19 +111,26 @@ export function useGeminiLive({
         const msg = { ...msgs[msgIndex] };
         let hasChanges = false;
 
-        // Handle grammar check result
+        // Handle ASR calibration - update message content if calibrated differently
+        const calibrated = result.calibrated || content;
+        if (calibrated !== content) {
+          msg.content = calibrated;
+          hasChanges = true;
+        }
+
+        // Handle grammar check result (compared against calibrated sentence)
         if (result.grammar && result.grammar.corrected) {
           const currentChecks = msg.grammarChecks || [];
           const grammarCorrected = result.grammar.corrected;
           const grammarExplanation = result.grammar.explanation || "";
           const alreadyExists = currentChecks.some(
-            (c) => c.original === content || c.corrected === grammarCorrected
+            (c) => c.original === calibrated || c.corrected === grammarCorrected
           );
           if (!alreadyExists) {
             msg.grammarChecks = [
               ...currentChecks,
               {
-                original: content,
+                original: calibrated,
                 corrected: grammarCorrected,
                 explanation: grammarExplanation
               }
@@ -146,7 +166,7 @@ export function useGeminiLive({
     } catch (err) {
       console.error("[GeminiLive] User input analysis failed:", err);
     }
-  }, []);
+  }, [uiLanguage]);
 
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
@@ -297,7 +317,8 @@ export function useGeminiLive({
                   if (lastUserMsg && !grammarCheckedMessageIdsRef.current.has(lastUserMsg.id)) {
                     grammarCheckedMessageIdsRef.current.add(lastUserMsg.id);
                     // Trigger analysis asynchronously (don't await inside setMessages)
-                    triggerUserInputAnalysis(lastUserMsg.id, lastUserMsg.content);
+                    // Pass the current messages array for conversation context
+                    triggerUserInputAnalysis(lastUserMsg.id, lastUserMsg.content, prev);
                   }
 
                   // Continue with normal message update

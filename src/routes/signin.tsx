@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/lib/components/ui/card";
+import { Loading } from "~/lib/components/ui/loading";
 import { setAuthUser } from "~/lib/store/auth";
 import * as m from "~/paraglide/messages";
 
@@ -29,7 +30,7 @@ function AuthPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const handleSignOut = async () => {};
+  const handleSignOut = async () => { };
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) {
@@ -116,9 +117,11 @@ function AuthPage() {
               )}
 
               {isLoading && (
-                <div className="flex items-center gap-3 rounded-2xl bg-accent p-4 text-accent-foreground">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground border-t-transparent" />
-                  <div className="text-sm font-medium">{m.signin_loading()}</div>
+                <div className="flex flex-col items-center justify-center py-6">
+                  <Loading size="md" />
+                  <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
+                    {m.signin_loading()}
+                  </p>
                 </div>
               )}
 

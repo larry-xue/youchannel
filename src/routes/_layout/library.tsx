@@ -88,7 +88,12 @@ function DashboardPlaylists() {
 
       <div className="space-y-6">
         {isLoading ? (
-          <Loading text={m.library_loading()} size="md" />
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loading size="lg" />
+            <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
+              {m.library_loading()}
+            </p>
+          </div>
         ) : videos.length === 0 ? (
           <EmptyVideoState />
         ) : (
@@ -106,7 +111,7 @@ function DashboardPlaylists() {
                   video={video}
                   isSelected={false}
                   hideCheckbox={true}
-                  onSelect={() => {}}
+                  onSelect={() => { }}
                   isSelectable={false}
                   onOpen={handleOpenVideo}
                 />
@@ -123,9 +128,9 @@ function DashboardPlaylists() {
                   href={
                     page > 1
                       ? router.buildLocation({
-                          to: "/library",
-                          search: { page: page - 1 },
-                        }).href
+                        to: "/library",
+                        search: { page: page - 1 },
+                      }).href
                       : undefined
                   }
                   className={
@@ -213,9 +218,9 @@ function DashboardPlaylists() {
                   href={
                     page < totalPages
                       ? router.buildLocation({
-                          to: "/library",
-                          search: { page: page + 1 },
-                        }).href
+                        to: "/library",
+                        search: { page: page + 1 },
+                      }).href
                       : undefined
                   }
                   className={

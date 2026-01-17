@@ -324,9 +324,9 @@ function DashboardPlaylists() {
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
         ? m.quota_with_unknown({
-            time: formatSeconds(selectionQuota.totalSeconds),
-            count: selectionQuota.unknownCount,
-          })
+          time: formatSeconds(selectionQuota.totalSeconds),
+          count: selectionQuota.unknownCount,
+        })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -343,8 +343,8 @@ function DashboardPlaylists() {
     const averageKnown =
       knownSeconds.length > 0
         ? Math.round(
-            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
-          )
+          knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+        )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -404,9 +404,9 @@ function DashboardPlaylists() {
       const skippedText =
         result.skipped > 0
           ? m.toast_skipped_message({
-              count: result.skipped,
-              reasons: skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
-            })
+            count: result.skipped,
+            reasons: skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
+          })
           : "";
 
       if (result.enqueued > 0) {
@@ -695,8 +695,8 @@ function DashboardPlaylists() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {activeSelectedVideo?.source_playlist_title
                         ? m.review_source_from({
-                            source: activeSelectedVideo.source_playlist_title,
-                          })
+                          source: activeSelectedVideo.source_playlist_title,
+                        })
                         : m.review_source_selected()}
                       {activeSelectedVideo?.published_at
                         ? ` • ${formatDate(activeSelectedVideo.published_at)}`
@@ -798,7 +798,12 @@ function DashboardPlaylists() {
       </Dialog>
 
       {accountQuery.isLoading ? (
-        <Loading text={m.loading_checking_account()} size="md" />
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loading size="md" />
+          <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
+            {m.loading_checking_account()}
+          </p>
+        </div>
       ) : !hasAccount || search.code ? (
         <ConnectYouTubeAlert
           code={search.code}
@@ -819,7 +824,12 @@ function DashboardPlaylists() {
               </div>
               <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
                 {isLoadingPlaylists ? (
-                  <Loading size="sm" text={m.playlists_loading()} />
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Loading size="sm" />
+                    <p className="mt-2 text-xs font-medium text-muted-foreground animate-pulse">
+                      {m.playlists_loading()}
+                    </p>
+                  </div>
                 ) : playlistsQuery.isError ? (
                   <p className="px-2 text-sm text-destructive">
                     {m.playlists_error_load()}
@@ -885,8 +895,11 @@ function DashboardPlaylists() {
 
           <div className="min-w-0 flex-1 space-y-6">
             {isLoadingPlaylists ? (
-              <div className="flex h-40 items-center justify-center rounded-3xl bg-surface-container-low">
-                <Loading text={m.playlist_loading_single()} size="sm" />
+              <div className="flex flex-col items-center justify-center h-40 rounded-3xl bg-surface-container-low">
+                <Loading size="sm" />
+                <p className="mt-2 text-sm font-medium text-muted-foreground animate-pulse">
+                  {m.playlist_loading_single()}
+                </p>
               </div>
             ) : activePlaylist ? (
               <div className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface-container-low p-6 transition-[background-color,border-color] border border-border/50">
@@ -997,7 +1010,12 @@ function DashboardPlaylists() {
                   </div>
                 )}
                 {isLoadingItems ? (
-                  <Loading text={m.library_loading()} size="md" />
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loading size="md" />
+                    <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
+                      {m.library_loading()}
+                    </p>
+                  </div>
                 ) : itemsQuery.isError ? (
                   <div className="rounded-3xl bg-error-container px-6 py-4 text-sm text-on-error-container">
                     {m.playlist_items_error()}

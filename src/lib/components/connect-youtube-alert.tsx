@@ -3,6 +3,7 @@ import { useRouter } from "@tanstack/react-router";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
+import { Loading } from "~/lib/components/ui/loading";
 import {
   Empty,
   EmptyContent,
@@ -90,7 +91,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <Loading size="sm" />
         </EmptyContent>
       </Empty>
     );

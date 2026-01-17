@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Library, Loader2, LogOut, PieChart, Play, RefreshCw } from "lucide-react";
+import { Library, LogOut, PieChart, Play, RefreshCw } from "lucide-react";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
+import { Loading } from "./ui/loading";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -40,7 +41,7 @@ function UserQuotas() {
   if (isLoading) {
     return (
       <div className="flex justify-center p-4">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <Loading size="sm" />
       </div>
     );
   }

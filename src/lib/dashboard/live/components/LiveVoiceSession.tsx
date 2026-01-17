@@ -66,7 +66,7 @@ export function LiveTranscript({
                 </div>
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-3xl px-6 py-4 text-[0.95rem] leading-relaxed shadow-sm backdrop-blur-md relative", // Added relative for absolute positioning of badge
+                    "max-w-[85%] rounded-3xl px-6 py-4 text-[0.95rem] leading-relaxed shadow-sm backdrop-blur-md relative whitespace-pre-wrap", // Added whitespace-pre-wrap for multiline support
                     isModel
                       ? "bg-surface/60 text-foreground rounded-tl-sm"
                       : "bg-primary/90 text-primary-foreground rounded-tr-sm shadow-primary/20",
@@ -118,7 +118,65 @@ export function LiveTranscript({
   );
 }
 
+
 function renderMessageContent(msg: Message) {
+  // If we have grammar structure parts (for AI messages), render them
+  if (msg.grammarParts && msg.grammarParts.length > 0) {
+    return (
+      <div className="whitespace-pre-wrap leading-relaxed block">
+        {msg.grammarParts.map((part, idx) => {
+          let colorClass = "";
+          let label = "";
+
+          switch (part.type) {
+            case 'subject':
+              colorClass = "text-blue-700 dark:text-blue-300 border-b-2 border-blue-400/30";
+              label = "Subj";
+              break;
+            case 'predicate':
+              colorClass = "text-green-700 dark:text-green-300 border-b-2 border-green-400/30";
+              label = "Verb";
+              break;
+            case 'object':
+              colorClass = "text-purple-700 dark:text-purple-300 border-b-2 border-purple-400/30";
+              label = "Obj";
+              break;
+            case 'modifier':
+              colorClass = "text-orange-700 dark:text-orange-300 border-b border-orange-400/30 border-dashed";
+              label = "Mod";
+              break;
+            case 'conjunction':
+              colorClass = "text-zinc-600 dark:text-zinc-400";
+              label = "Conj";
+              break;
+            case 'preposition':
+              colorClass = "text-teal-700 dark:text-teal-300 border-b border-teal-400/30 border-dotted";
+              label = "Prep";
+              break;
+            case 'clause':
+              colorClass = "text-pink-700 dark:text-pink-300 border-b border-pink-400/30";
+              label = "Clause";
+              break;
+            default:
+              colorClass = "text-foreground";
+          }
+
+          return (
+            <span key={idx} className={cn("relative group/grammar cursor-help px-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors inline-block mr-1.5 mb-1", colorClass)}>
+              <span className="relative z-10">{part.text}</span>
+              {label && (
+                <span className="invisible group-hover/grammar:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-900 text-white text-[11px] font-semibold tracking-wide rounded-md shadow-xl whitespace-nowrap z-20 pointer-events-none">
+                  {label}
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></span>
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
+
   const annotations: Array<{ type: 'correction' | 'explanation' | 'grammarCheck', original: string, text: string, explanation?: string }> = [];
 
   if (msg.corrections) {
@@ -138,6 +196,7 @@ function renderMessageContent(msg: Message) {
 
   return processTextWithAnnotations(msg.content, annotations);
 }
+
 
 /**
  * Normalize text for fuzzy matching:
@@ -253,7 +312,7 @@ function processTextWithAnnotations(
                   <span className="text-white font-semibold bg-cyan-500/30 px-1 rounded decoration-cyan-300 underline decoration-dotted decoration-2 underline-offset-2">
                     {s}
                   </span>
-                  <span className="invisible group-hover/explanation:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-cyan-600 text-white text-xs rounded-md shadow-xl max-w-[220px] text-center z-50">
+                  <span className="invisible group-hover/explanation:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-cyan-600 text-white text-xs rounded-md shadow-xl w-max max-w-[500px] text-center z-50">
                     {annotation.text}
                     <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-cyan-600"></span>
                   </span>
@@ -265,7 +324,7 @@ function processTextWithAnnotations(
                   <span className="text-white font-semibold bg-amber-500/30 px-1 rounded decoration-amber-300 underline decoration-wavy decoration-2 underline-offset-2">
                     {s}
                   </span>
-                  <span className="invisible group-hover/grammar:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-amber-600 text-white text-xs rounded-md shadow-xl max-w-[260px] text-center z-50">
+                  <span className="invisible group-hover/grammar:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-amber-600 text-white text-xs rounded-md shadow-xl w-max max-w-[500px] text-center z-50">
                     <div className="font-bold mb-1">✓ {annotation.text}</div>
                     <div className="font-normal opacity-90 text-amber-100">{annotation.explanation}</div>
                     <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-amber-600"></span>

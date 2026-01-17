@@ -216,3 +216,124 @@ Output JSON format:
 
 // Keep checkGrammar as alias for backward compatibility
 export const checkGrammar = analyzeUserInput;
+
+// Grammar structure types for color-coded highlighting
+export type GrammarPartType =
+  | 'subject'      // 主语 - blue
+  | 'predicate'    // 谓语/动词 - green
+  | 'object'       // 宾语 - purple
+  | 'modifier'     // 修饰语/形容词/副词 - orange
+  | 'conjunction'  // 连词 - gray
+  | 'preposition'  // 介词短语 - teal
+  | 'clause';      // 从句 - pink
+
+export interface GrammarPart {
+  text: string;
+  type: GrammarPartType;
+}
+
+// @ts-ignore - bypassing strict type check for server fn input inference issues
+export const analyzeModelOutput = createServerFn({ method: "POST" }).handler(async (ctx: any) => {
+  const data = ctx.data as {
+    sentence: string;
+    uiLanguage?: string;
+  };
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("GOOGLE_API_KEY is not set on the server.");
+  }
+
+  const client = new GoogleGenAI({ apiKey });
+
+  // Map language codes to full names
+  const languageNames: Record<string, string> = {
+    en: "English",
+    zh: "Simplified Chinese (简体中文)",
+    "zh-TW": "Traditional Chinese (繁體中文)",
+    ja: "Japanese (日本語)",
+    ko: "Korean (한국어)",
+    es: "Spanish (Español)",
+    de: "German (Deutsch)",
+    fr: "French (Français)",
+  };
+  const outputLanguage = languageNames[data.uiLanguage || "en"] || "English";
+
+  const prompt = `Analyze this sentence spoken by an AI in a language learning conversation.
+
+Sentence: "${data.sentence}"
+
+**All explanations MUST be in ${outputLanguage}.**
+
+Task 1 - Phrase Explanations (0-3 items):
+Identify words/phrases that a language learner would benefit from understanding:
+- Idioms and phrasal verbs
+- Advanced vocabulary
+- Cultural references
+- Technical terms
+- Proper nouns (people, places, events)
+
+For each, provide a brief explanation (max 25 words, in ${outputLanguage}).
+
+Task 2 - Grammar Structure Analysis:
+Break down the sentence into grammatical parts with types:
+- "subject": The subject of the sentence (who/what performs the action)
+- "predicate": The main verb or verb phrase
+- "object": The object (who/what receives the action)
+- "modifier": Adjectives, adverbs, or modifying phrases
+- "conjunction": Connecting words (and, but, or, etc.)
+- "preposition": Prepositional phrases (in, on, at, with...)
+- "clause": Subordinate/relative clauses
+
+Rules:
+- Cover the ENTIRE sentence - every word must be in exactly one part
+- Keep grammatical units together (e.g., "has been running" is one predicate)
+- Order parts as they appear in the sentence
+- For languages with different structures (Japanese, Korean, etc.), use appropriate grammatical categories
+
+Output JSON format:
+{
+  "phrases": [] | [
+    {
+      "phrase": "string",
+      "explanation": "string"
+    }
+  ],
+  "grammarParts": [
+    {
+      "text": "string (exact text from sentence)",
+      "type": "subject" | "predicate" | "object" | "modifier" | "conjunction" | "preposition" | "clause"
+    }
+  ]
+}`;
+
+  try {
+    const response = await client.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const output = typeof response.text === 'function'
+      ? (response.text as any)()
+      : (response.text as unknown as string);
+
+    const parsedOutput = JSON.parse(output || "{}");
+
+    // Normalize phrases result
+    const phrases = Array.isArray(parsedOutput.phrases)
+      ? parsedOutput.phrases.filter((p: any) => p.phrase && p.explanation)
+      : [];
+
+    // Normalize grammar parts result
+    const grammarParts = Array.isArray(parsedOutput.grammarParts)
+      ? parsedOutput.grammarParts.filter((p: any) => p.text && p.type)
+      : [];
+
+    return { phrases, grammarParts };
+  } catch (error) {
+    console.error("Model output analysis failed:", error);
+    return { phrases: [], grammarParts: [] };
+  }
+});

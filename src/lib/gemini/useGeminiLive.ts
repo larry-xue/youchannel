@@ -23,6 +23,21 @@ export interface Correction {
   ruleId?: string;
 }
 
+// Grammar structure parts for color-coded highlighting
+export type GrammarPartType =
+  | 'subject'      // 主语 - blue
+  | 'predicate'    // 谓语/动词 - green
+  | 'object'       // 宾语 - purple
+  | 'modifier'     // 修饰语/形容词/副词 - orange
+  | 'conjunction'  // 连词 - gray
+  | 'preposition'  // 介词短语 - teal
+  | 'clause';      // 从句 - pink
+
+export interface GrammarPart {
+  text: string;
+  type: GrammarPartType;
+}
+
 export interface Message {
   id: string;
   role: "user" | "model";
@@ -31,6 +46,7 @@ export interface Message {
   corrections?: Correction[];
   explanations?: Explanation[];
   grammarChecks?: GrammarCheck[];
+  grammarParts?: GrammarPart[];  // For model messages - grammar structure highlighting
 }
 
 interface UseGeminiLiveOptions {
@@ -79,6 +95,66 @@ export function useGeminiLive({
 
   // Track user message IDs that have already been analyzed
   const grammarCheckedMessageIdsRef = useRef<Set<string>>(new Set());
+
+  // Track model message IDs that have already been analyzed
+  const modelAnalyzedMessageIdsRef = useRef<Set<string>>(new Set());
+
+  // Trigger model output analysis (phrase explanations + grammar structure) asynchronously
+  const triggerModelOutputAnalysis = useCallback(async (messageId: string, content: string) => {
+    // Skip very short messages
+    if (content.trim().length < 10) return;
+
+    try {
+      const { analyzeModelOutput } = await import("./actions");
+
+      // @ts-ignore - bypassing strict type check for server fn
+      const result = await analyzeModelOutput({
+        data: {
+          sentence: content,
+          uiLanguage
+        }
+      });
+
+      setMessages((prev) => {
+        const msgIndex = prev.findIndex((m) => m.id === messageId);
+        if (msgIndex === -1) return prev;
+
+        const msgs = [...prev];
+        const msg = { ...msgs[msgIndex] };
+        let hasChanges = false;
+
+        // Handle phrase explanations
+        if (result.phrases && result.phrases.length > 0) {
+          const currentExplanations = msg.explanations || [];
+          for (const phrase of result.phrases) {
+            const alreadyExists = currentExplanations.some(
+              (e) => e.original === phrase.phrase
+            );
+            if (!alreadyExists) {
+              currentExplanations.push({
+                original: phrase.phrase,
+                explanation: phrase.explanation
+              });
+              hasChanges = true;
+            }
+          }
+          msg.explanations = currentExplanations;
+        }
+
+        // Handle grammar parts
+        if (result.grammarParts && result.grammarParts.length > 0) {
+          msg.grammarParts = result.grammarParts;
+          hasChanges = true;
+        }
+
+        if (!hasChanges) return prev;
+        msgs[msgIndex] = msg;
+        return msgs;
+      });
+    } catch (err) {
+      console.error("[GeminiLive] Model output analysis failed:", err);
+    }
+  }, [uiLanguage]);
 
   // Trigger user input analysis (ASR calibration + grammar check + annotations) asynchronously
   const triggerUserInputAnalysis = useCallback(async (messageId: string, content: string, allMessages: Message[]) => {
@@ -237,6 +313,7 @@ export function useGeminiLive({
               setMessages([]); // Clear previous messages on new session
               processedToolCallIdsRef.current.clear(); // Clear processed tool call IDs
               grammarCheckedMessageIdsRef.current.clear(); // Clear grammar-checked message IDs
+              modelAnalyzedMessageIdsRef.current.clear(); // Clear model-analyzed message IDs
             },
             onmessage: async (message: LiveServerMessage) => {
               // Log modelTurn parts
@@ -344,6 +421,30 @@ export function useGeminiLive({
               const inputText = message.serverContent?.inputTranscription?.text;
               if (inputText) {
                 console.log("onmessage inputText", message.serverContent?.inputTranscription);
+
+                // When user starts speaking, it means model's turn has ended
+                // Trigger model output analysis for the last model message
+                setMessages((prev) => {
+                  // Find the last model message
+                  let lastModelMsg: Message | null = null;
+                  for (let i = prev.length - 1; i >= 0; i--) {
+                    if (prev[i].role === "model") {
+                      lastModelMsg = prev[i];
+                      break;
+                    }
+                  }
+
+                  // Trigger model output analysis if we haven't already analyzed this message
+                  if (lastModelMsg && !modelAnalyzedMessageIdsRef.current.has(lastModelMsg.id)) {
+                    modelAnalyzedMessageIdsRef.current.add(lastModelMsg.id);
+                    // Trigger analysis asynchronously
+                    triggerModelOutputAnalysis(lastModelMsg.id, lastModelMsg.content);
+                  }
+
+                  return prev; // Don't modify messages here, just trigger analysis
+                });
+
+                // Update user message
                 setMessages((prev) => {
                   const last = prev[prev.length - 1];
                   if (last && last.role === "user") {

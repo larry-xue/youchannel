@@ -63,9 +63,46 @@ function LivePage() {
     messages,
     inputLevel,
     outputLevel,
+    addCorrection,
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
+    tools: [
+      {
+        functionDeclarations: [
+          {
+            name: "og_silent_correction",
+            description: "Silently corrects a mistake in the user's speech without interrupting the conversation. Use this when the user makes a grammar or vocabulary error that you want to highlight subtly.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                original: {
+                  type: "STRING",
+                  description: "The exact word or phrase from the user's speech that was incorrect.",
+                },
+                corrected: {
+                  type: "STRING",
+                  description: "The correct word or phrase.",
+                },
+                rule_id: {
+                  type: "STRING",
+                  description: "Optional ID for the grammar rule violated.",
+                },
+              },
+              required: ["original", "corrected"],
+            },
+          },
+        ],
+      },
+    ],
+    onToolCall: async (toolCall) => {
+      console.log("Tool call received:", toolCall);
+      if (toolCall.name === "og_silent_correction") {
+        const { original, corrected, rule_id } = toolCall.args;
+        addCorrection(original, corrected, rule_id);
+        return { success: true };
+      }
+    },
   });
 
   // Sync error state

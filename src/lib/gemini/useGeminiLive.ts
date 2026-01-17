@@ -5,6 +5,20 @@ import { createBlob, decode, decodeAudioData } from "./utils";
 
 export type GeminiLiveStatus = "disconnected" | "connecting" | "connected" | "error";
 
+export interface Correction {
+  original: string;
+  corrected: string;
+  ruleId?: string;
+}
+
+export interface Message {
+  id: string;
+  role: "user" | "model";
+  content: string;
+  timestamp: Date;
+  corrections?: Correction[];
+}
+
 interface UseGeminiLiveOptions {
   apiKey: string;
   model?: string;
@@ -23,9 +37,7 @@ export function useGeminiLive({
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [messages, setMessages] = useState<
-    Array<{ id: string; role: "user" | "model"; content: string; timestamp: Date }>
-  >([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputLevel, setInputLevel] = useState(0);
   const [outputLevel, setOutputLevel] = useState(0);
   const lastInputUpdateRef = useRef(0);
@@ -468,5 +480,31 @@ export function useGeminiLive({
     messages,
     inputLevel,
     outputLevel,
+    addCorrection: (original: string, corrected: string, ruleId?: string) => {
+      setMessages((prev) => {
+        let lastUserMsgIndex = -1;
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].role === "user") {
+            lastUserMsgIndex = i;
+            break;
+          }
+        }
+
+        if (lastUserMsgIndex === -1) return prev;
+
+        const msgs = [...prev];
+        const msg = { ...msgs[lastUserMsgIndex] };
+
+        const currentCorrections = msg.corrections || [];
+        // Avoid duplicates if needed, or just append
+        msg.corrections = [
+          ...currentCorrections,
+          { original, corrected, ruleId }
+        ];
+
+        msgs[lastUserMsgIndex] = msg;
+        return msgs;
+      });
+    },
   };
 }

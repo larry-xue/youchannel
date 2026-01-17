@@ -6,9 +6,6 @@ export function FullPageLoader() {
     <div className="min-h-screen flex items-center justify-center bg-background/50 backdrop-blur-sm transition-[opacity,background-color,backdrop-filter] duration-500">
       <div className="flex flex-col items-center gap-6" role="status">
         <Loading size="lg" />
-        <p className="text-base font-medium tracking-tight text-muted-foreground animate-pulse">
-          {m.full_page_loading()}
-        </p>
       </div>
     </div>
   );

@@ -65,6 +65,7 @@ function LivePage() {
     outputLevel,
     addCorrection,
     addExplanation,
+    addGrammarCheck,
     pause,
     resume,
   } = useGeminiLive({
@@ -75,42 +76,25 @@ function LivePage() {
         functionDeclarations: [
           {
             name: "og_silent_correction",
-            description: "Silently corrects a mistake in the user's speech without interrupting the conversation. Use this when the user makes a grammar or vocabulary error that you want to highlight subtly.",
+            // 强调这是“局部”且“即时”的。用于用户说错了一个词或时态，模型在说话时顺手点一下“红线”。
+            description: "Use this for immediate, discrete errors (e.g., wrong tense, preposition, or word choice). Call this as soon as you notice a specific slip. This action is silent and will not interrupt the conversation flow.",
             parameters: {
               type: "OBJECT",
               properties: {
                 original: {
                   type: "STRING",
-                  description: "The exact word or phrase from the user's speech that was incorrect.",
+                  description: "The specific incorrect word or short phrase spoken by the user.",
                 },
                 corrected: {
                   type: "STRING",
-                  description: "The correct word or phrase.",
+                  description: "The correct version of that specific word or phrase.",
                 },
                 rule_id: {
                   type: "STRING",
-                  description: "Optional ID for the grammar rule violated.",
+                  description: "Optional: The type of error (e.g., 'tense', 'article', 'preposition').",
                 },
               },
               required: ["original", "corrected"],
-            },
-          },
-          {
-            name: "og_explain_phrase",
-            description: "Explains a complex term or phrase used by the AI model to the user. Call this when you (the AI) use a word that might be difficult for the learner, or when you want to emphasize a definition.",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                phrase: {
-                  type: "STRING",
-                  description: "The phrase or word to explain (must be present in your own response).",
-                },
-                context: {
-                  type: "STRING",
-                  description: "Optional context to help generate the definition.",
-                },
-              },
-              required: ["phrase"],
             },
           },
         ],
@@ -122,22 +106,6 @@ function LivePage() {
         const { original, corrected, rule_id } = toolCall.args;
         addCorrection(original, corrected, rule_id);
         return { success: true };
-      }
-      if (toolCall.name === "og_explain_phrase") {
-        const { phrase, context } = toolCall.args;
-        try {
-          // We initiate the explanation fetch. 
-          // Since we can't await server action easily inside this specific callback if we want non-blocking UI?
-          // Actually we can await.
-          const { explainTerm } = await import("~/lib/gemini/actions");
-          // @ts-ignore
-          const result = await explainTerm({ data: { phrase, context } });
-          addExplanation(phrase, result.explanation);
-          return { success: true };
-        } catch (err) {
-          console.error("Failed to explain term", err);
-          return { error: "Failed to explain" };
-        }
       }
     },
   });
@@ -386,11 +354,6 @@ function LivePage() {
 
             {/* Status Text */}
             <div className="flex justify-center">
-              {status === "disconnected" && !isConnecting && (
-                <span className="text-sm text-muted-foreground/60 font-medium">
-                  Ready to connect
-                </span>
-              )}
               {isConnecting && (
                 <span className="text-sm text-primary font-medium animate-pulse">
                   Establishing connection...

@@ -5,15 +5,22 @@ import { createBlob, decode, decodeAudioData } from "./utils";
 
 export type GeminiLiveStatus = "disconnected" | "connecting" | "connected" | "error";
 
-export interface Correction {
+// Add GrammarCheck type
+export interface GrammarCheck {
   original: string;
   corrected: string;
-  ruleId?: string;
+  explanation: string;
 }
 
 export interface Explanation {
   original: string;
   explanation: string;
+}
+
+export interface Correction {
+  original: string;
+  corrected: string;
+  ruleId?: string;
 }
 
 export interface Message {
@@ -23,6 +30,7 @@ export interface Message {
   timestamp: Date;
   corrections?: Correction[];
   explanations?: Explanation[];
+  grammarChecks?: GrammarCheck[];
 }
 
 interface UseGeminiLiveOptions {
@@ -63,6 +71,80 @@ export function useGeminiLive({
   const audioContextInitializedRef = useRef<boolean>(false);
 
   const processorRef = useRef<AudioWorkletNode | null>(null);
+
+  // Track processed function call IDs to prevent duplicate execution
+  const processedToolCallIdsRef = useRef<Set<string>>(new Set());
+
+  // Track user message IDs that have already been analyzed
+  const grammarCheckedMessageIdsRef = useRef<Set<string>>(new Set());
+
+  // Trigger user input analysis (grammar check + phrase explanations) asynchronously
+  const triggerUserInputAnalysis = useCallback(async (messageId: string, content: string) => {
+    // Skip very short messages (likely not meaningful for analysis)
+    if (content.trim().length < 5) return;
+
+    try {
+      const { analyzeUserInput } = await import("./actions");
+      // @ts-ignore - bypassing strict type check for server fn
+      const result = await analyzeUserInput({ data: { sentence: content } });
+
+      setMessages((prev) => {
+        const msgIndex = prev.findIndex((m) => m.id === messageId);
+        if (msgIndex === -1) return prev;
+
+        const msgs = [...prev];
+        const msg = { ...msgs[msgIndex] };
+        let hasChanges = false;
+
+        // Handle grammar check result
+        if (result.grammar && result.grammar.corrected) {
+          const currentChecks = msg.grammarChecks || [];
+          const grammarCorrected = result.grammar.corrected;
+          const grammarExplanation = result.grammar.explanation || "";
+          const alreadyExists = currentChecks.some(
+            (c) => c.original === content || c.corrected === grammarCorrected
+          );
+          if (!alreadyExists) {
+            msg.grammarChecks = [
+              ...currentChecks,
+              {
+                original: content,
+                corrected: grammarCorrected,
+                explanation: grammarExplanation
+              }
+            ];
+            hasChanges = true;
+          }
+        }
+
+        // Handle phrase explanations
+        if (result.phrases && result.phrases.length > 0) {
+          const currentExplanations = msg.explanations || [];
+          for (const phrase of result.phrases) {
+            const alreadyExists = currentExplanations.some(
+              (e) => e.original === phrase.phrase
+            );
+            if (!alreadyExists) {
+              currentExplanations.push({
+                original: phrase.phrase,
+                explanation: phrase.explanation
+              });
+              hasChanges = true;
+            }
+          }
+          if (hasChanges) {
+            msg.explanations = currentExplanations;
+          }
+        }
+
+        if (!hasChanges) return prev;
+        msgs[msgIndex] = msg;
+        return msgs;
+      });
+    } catch (err) {
+      console.error("[GeminiLive] User input analysis failed:", err);
+    }
+  }, []);
 
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
@@ -131,6 +213,8 @@ export function useGeminiLive({
             onopen: () => {
               setStatus("connected");
               setMessages([]); // Clear previous messages on new session
+              processedToolCallIdsRef.current.clear(); // Clear processed tool call IDs
+              grammarCheckedMessageIdsRef.current.clear(); // Clear grammar-checked message IDs
             },
             onmessage: async (message: LiveServerMessage) => {
               // Log modelTurn parts
@@ -193,7 +277,28 @@ export function useGeminiLive({
               // Handle output transcription (model's audio -> text)
               const outputText = message.serverContent?.outputTranscription?.text;
               if (outputText) {
+                console.log("onmessage outputText", message.serverContent?.outputTranscription);
+
+                // When model starts outputting, it means user's turn has ended
+                // Trigger grammar check for the last user message (if not already checked)
                 setMessages((prev) => {
+                  // Find the last user message
+                  let lastUserMsg: Message | null = null;
+                  for (let i = prev.length - 1; i >= 0; i--) {
+                    if (prev[i].role === "user") {
+                      lastUserMsg = prev[i];
+                      break;
+                    }
+                  }
+
+                  // Trigger user input analysis if we haven't already analyzed this message
+                  if (lastUserMsg && !grammarCheckedMessageIdsRef.current.has(lastUserMsg.id)) {
+                    grammarCheckedMessageIdsRef.current.add(lastUserMsg.id);
+                    // Trigger analysis asynchronously (don't await inside setMessages)
+                    triggerUserInputAnalysis(lastUserMsg.id, lastUserMsg.content);
+                  }
+
+                  // Continue with normal message update
                   const last = prev[prev.length - 1];
                   if (last && last.role === "model") {
                     const updated = { ...last, content: last.content + outputText };
@@ -215,6 +320,7 @@ export function useGeminiLive({
               // Handle input transcription (user's audio -> text)
               const inputText = message.serverContent?.inputTranscription?.text;
               if (inputText) {
+                console.log("onmessage inputText", message.serverContent?.inputTranscription);
                 setMessages((prev) => {
                   const last = prev[prev.length - 1];
                   if (last && last.role === "user") {
@@ -258,33 +364,12 @@ export function useGeminiLive({
 
               for (const toolCall of toolCalls) {
                 if (!onToolCall) break;
-                try {
-                  const result = await onToolCall(toolCall);
-                  if (
-                    sessionRef.current &&
-                    typeof (sessionRef.current as any).sendToolResponse === "function"
-                  ) {
-                    (sessionRef.current as any).sendToolResponse({
-                      functionResponses: [
-                        {
-                          id: toolCall.id,
-                          name: toolCall.name,
-                          response: result ?? { success: true },
-                        },
-                      ],
-                    });
-                  }
-                } catch (err) {
-                  console.error("[GeminiLive] Client tool execution failed", err);
+                // Skip if this function call ID has already been processed
+                if (processedToolCallIdsRef.current.has(toolCall.id)) {
+                  continue;
                 }
-              }
+                processedToolCallIdsRef.current.add(toolCall.id);
 
-              if (Array.isArray(envelopeToolCalls)) {
-                toolCalls.push(...envelopeToolCalls);
-              }
-
-              for (const toolCall of toolCalls) {
-                if (!onToolCall) break;
                 try {
                   const result = await onToolCall(toolCall);
                   if (
@@ -538,6 +623,39 @@ export function useGeminiLive({
         ];
 
         msgs[lastModelMsgIndex] = msg;
+        return msgs;
+      });
+    },
+    addGrammarCheck: (original: string, corrected: string, explanation: string) => {
+      setMessages((prev) => {
+        // Grammar checks are usually for the USER'S speech.
+        // So we attach to the last USER message.
+        let lastUserMsgIndex = -1;
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].role === "user") {
+            lastUserMsgIndex = i;
+            break;
+          }
+        }
+
+        if (lastUserMsgIndex === -1) return prev;
+
+        const msgs = [...prev];
+        const msg = { ...msgs[lastUserMsgIndex] };
+
+        const currentChecks = msg.grammarChecks || [];
+
+        // Deduplicate: Don't add if we already have a check for this "original" text snippet
+        // or effectively the same correction.
+        const alreadyExists = currentChecks.some(c => c.original === original || c.corrected === corrected);
+        if (alreadyExists) return prev;
+
+        msg.grammarChecks = [
+          ...currentChecks,
+          { original, corrected, explanation }
+        ];
+
+        msgs[lastUserMsgIndex] = msg;
         return msgs;
       });
     },

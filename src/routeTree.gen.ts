@@ -13,7 +13,6 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as LayoutRouteRouteImport } from './routes/_layout/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiCharacterChatRouteImport } from './routes/api/character-chat'
 import { Route as LayoutQuotasRouteImport } from './routes/_layout/quotas'
 import { Route as LayoutPlaylistsRouteImport } from './routes/_layout/playlists'
 import { Route as LayoutLiveRouteImport } from './routes/_layout/live'
@@ -37,11 +36,6 @@ const LayoutRouteRoute = LayoutRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCharacterChatRoute = ApiCharacterChatRouteImport.update({
-  id: '/api/character-chat',
-  path: '/api/character-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LayoutQuotasRoute = LayoutQuotasRouteImport.update({
@@ -78,7 +72,6 @@ export interface FileRoutesByFullPath {
   '/live': typeof LayoutLiveRoute
   '/playlists': typeof LayoutPlaylistsRoute
   '/quotas': typeof LayoutQuotasRoute
-  '/api/character-chat': typeof ApiCharacterChatRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRoutesByTo {
@@ -89,7 +82,6 @@ export interface FileRoutesByTo {
   '/live': typeof LayoutLiveRoute
   '/playlists': typeof LayoutPlaylistsRoute
   '/quotas': typeof LayoutQuotasRoute
-  '/api/character-chat': typeof ApiCharacterChatRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRoutesById {
@@ -102,7 +94,6 @@ export interface FileRoutesById {
   '/_layout/live': typeof LayoutLiveRoute
   '/_layout/playlists': typeof LayoutPlaylistsRoute
   '/_layout/quotas': typeof LayoutQuotasRoute
-  '/api/character-chat': typeof ApiCharacterChatRoute
   '/_layout/learn/$videoId': typeof LayoutLearnVideoIdRoute
 }
 export interface FileRouteTypes {
@@ -115,7 +106,6 @@ export interface FileRouteTypes {
     | '/live'
     | '/playlists'
     | '/quotas'
-    | '/api/character-chat'
     | '/learn/$videoId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -126,7 +116,6 @@ export interface FileRouteTypes {
     | '/live'
     | '/playlists'
     | '/quotas'
-    | '/api/character-chat'
     | '/learn/$videoId'
   id:
     | '__root__'
@@ -138,7 +127,6 @@ export interface FileRouteTypes {
     | '/_layout/live'
     | '/_layout/playlists'
     | '/_layout/quotas'
-    | '/api/character-chat'
     | '/_layout/learn/$videoId'
   fileRoutesById: FileRoutesById
 }
@@ -147,7 +135,6 @@ export interface RootRouteChildren {
   LayoutRouteRoute: typeof LayoutRouteRouteWithChildren
   SplatRoute: typeof SplatRoute
   SigninRoute: typeof SigninRoute
-  ApiCharacterChatRoute: typeof ApiCharacterChatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -178,13 +165,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/character-chat': {
-      id: '/api/character-chat'
-      path: '/api/character-chat'
-      fullPath: '/api/character-chat'
-      preLoaderRoute: typeof ApiCharacterChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_layout/quotas': {
@@ -250,7 +230,6 @@ const rootRouteChildren: RootRouteChildren = {
   LayoutRouteRoute: LayoutRouteRouteWithChildren,
   SplatRoute: SplatRoute,
   SigninRoute: SigninRoute,
-  ApiCharacterChatRoute: ApiCharacterChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -2,12 +2,6 @@
   "name": "tanstarter",
   "private": true,
   "type": "module",
-  "pnpm": {
-    "overrides": {
-      "@humeai/voice-react>react": "$react",
-      "@humeai/voice-react>react-dom": "$react-dom"
-    }
-  },
   "scripts": {
     "dev": "vite dev --host",
     "build": "vite build",
@@ -21,7 +15,6 @@
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
-    "@humeai/voice-react": "^0.2.11",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -36,9 +29,6 @@
     "@react-oauth/google": "^0.13.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.49.1",
-    "@tanstack/ai": "^0.2.0",
-    "@tanstack/ai-gemini": "^0.2.0",
-    "@tanstack/ai-react": "^0.2.0",
     "@tanstack/react-query": "^5.90.2",
     "@tanstack/react-query-devtools": "^5.90.2",
     "@tanstack/react-router": "^1.145.7",

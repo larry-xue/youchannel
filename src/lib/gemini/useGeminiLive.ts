@@ -5,48 +5,13 @@ import { createBlob, decode, decodeAudioData } from "./utils";
 
 export type GeminiLiveStatus = "disconnected" | "connecting" | "connected" | "error";
 
-// Add GrammarCheck type
-export interface GrammarCheck {
-  original: string;
-  corrected: string;
-  explanation: string;
-}
-
-export interface Explanation {
-  original: string;
-  explanation: string;
-}
-
-export interface Correction {
-  original: string;
-  corrected: string;
-  ruleId?: string;
-}
-
-// Grammar structure parts for color-coded highlighting
-export type GrammarPartType =
-  | 'subject'      // 主语 - blue
-  | 'predicate'    // 谓语/动词 - green
-  | 'object'       // 宾语 - purple
-  | 'modifier'     // 修饰语/形容词/副词 - orange
-  | 'conjunction'  // 连词 - gray
-  | 'preposition'  // 介词短语 - teal
-  | 'clause';      // 从句 - pink
-
-export interface GrammarPart {
-  text: string;
-  type: GrammarPartType;
-}
+// Types removed for simplification
 
 export interface Message {
   id: string;
   role: "user" | "model";
   content: string;
   timestamp: Date;
-  corrections?: Correction[];
-  explanations?: Explanation[];
-  grammarChecks?: GrammarCheck[];
-  grammarParts?: GrammarPart[];  // For model messages - grammar structure highlighting
 }
 
 interface UseGeminiLiveOptions {
@@ -54,8 +19,6 @@ interface UseGeminiLiveOptions {
   model?: string;
   voiceName?: string;
   uiLanguage?: string;
-  tools?: Array<{ functionDeclarations: Array<any> }>;
-  onToolCall?: (toolCall: any) => Promise<any> | any;
 }
 
 export function useGeminiLive({
@@ -63,8 +26,6 @@ export function useGeminiLive({
   model = "gemini-2.5-flash-native-audio-preview-09-2025",
   voiceName = "Orus",
   uiLanguage = "en",
-  tools,
-  onToolCall,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -90,159 +51,7 @@ export function useGeminiLive({
 
   const processorRef = useRef<AudioWorkletNode | null>(null);
 
-  // Track processed function call IDs to prevent duplicate execution
-  const processedToolCallIdsRef = useRef<Set<string>>(new Set());
 
-  // Track user message IDs that have already been analyzed
-  const grammarCheckedMessageIdsRef = useRef<Set<string>>(new Set());
-
-  // Track model message IDs that have already been analyzed
-  const modelAnalyzedMessageIdsRef = useRef<Set<string>>(new Set());
-
-  // Trigger model output analysis (phrase explanations + grammar structure) asynchronously
-  const triggerModelOutputAnalysis = useCallback(async (messageId: string, content: string) => {
-    // Skip very short messages
-    if (content.trim().length < 10) return;
-
-    try {
-      const { analyzeModelOutput } = await import("./actions");
-
-      // @ts-ignore - bypassing strict type check for server fn
-      const result = await analyzeModelOutput({
-        data: {
-          sentence: content,
-          uiLanguage
-        }
-      });
-
-      setMessages((prev) => {
-        const msgIndex = prev.findIndex((m) => m.id === messageId);
-        if (msgIndex === -1) return prev;
-
-        const msgs = [...prev];
-        const msg = { ...msgs[msgIndex] };
-        let hasChanges = false;
-
-        // Handle phrase explanations
-        if (result.phrases && result.phrases.length > 0) {
-          const currentExplanations = msg.explanations || [];
-          for (const phrase of result.phrases) {
-            const alreadyExists = currentExplanations.some(
-              (e) => e.original === phrase.phrase
-            );
-            if (!alreadyExists) {
-              currentExplanations.push({
-                original: phrase.phrase,
-                explanation: phrase.explanation
-              });
-              hasChanges = true;
-            }
-          }
-          msg.explanations = currentExplanations;
-        }
-
-        // Handle grammar parts
-        if (result.grammarParts && result.grammarParts.length > 0) {
-          msg.grammarParts = result.grammarParts;
-          hasChanges = true;
-        }
-
-        if (!hasChanges) return prev;
-        msgs[msgIndex] = msg;
-        return msgs;
-      });
-    } catch (err) {
-      console.error("[GeminiLive] Model output analysis failed:", err);
-    }
-  }, [uiLanguage]);
-
-  // Trigger user input analysis (ASR calibration + grammar check + annotations) asynchronously
-  const triggerUserInputAnalysis = useCallback(async (messageId: string, content: string, allMessages: Message[]) => {
-    // Skip very short messages (likely not meaningful for analysis)
-    if (content.trim().length < 5) return;
-
-    try {
-      const { analyzeUserInput } = await import("./actions");
-
-      // Get recent conversation history (last 6 messages for context)
-      const recentMessages = allMessages
-        .slice(-6)
-        .filter(m => m.id !== messageId) // Exclude the current message being analyzed
-        .map(m => ({ role: m.role, content: m.content }));
-
-      // @ts-ignore - bypassing strict type check for server fn
-      const result = await analyzeUserInput({
-        data: {
-          sentence: content,
-          conversationHistory: recentMessages,
-          uiLanguage
-        }
-      });
-
-      setMessages((prev) => {
-        const msgIndex = prev.findIndex((m) => m.id === messageId);
-        if (msgIndex === -1) return prev;
-
-        const msgs = [...prev];
-        const msg = { ...msgs[msgIndex] };
-        let hasChanges = false;
-
-        // Handle ASR calibration - update message content if calibrated differently
-        const calibrated = result.calibrated || content;
-        if (calibrated !== content) {
-          msg.content = calibrated;
-          hasChanges = true;
-        }
-
-        // Handle grammar check result (compared against calibrated sentence)
-        if (result.grammar && result.grammar.corrected) {
-          const currentChecks = msg.grammarChecks || [];
-          const grammarCorrected = result.grammar.corrected;
-          const grammarExplanation = result.grammar.explanation || "";
-          const alreadyExists = currentChecks.some(
-            (c) => c.original === calibrated || c.corrected === grammarCorrected
-          );
-          if (!alreadyExists) {
-            msg.grammarChecks = [
-              ...currentChecks,
-              {
-                original: calibrated,
-                corrected: grammarCorrected,
-                explanation: grammarExplanation
-              }
-            ];
-            hasChanges = true;
-          }
-        }
-
-        // Handle phrase explanations
-        if (result.phrases && result.phrases.length > 0) {
-          const currentExplanations = msg.explanations || [];
-          for (const phrase of result.phrases) {
-            const alreadyExists = currentExplanations.some(
-              (e) => e.original === phrase.phrase
-            );
-            if (!alreadyExists) {
-              currentExplanations.push({
-                original: phrase.phrase,
-                explanation: phrase.explanation
-              });
-              hasChanges = true;
-            }
-          }
-          if (hasChanges) {
-            msg.explanations = currentExplanations;
-          }
-        }
-
-        if (!hasChanges) return prev;
-        msgs[msgIndex] = msg;
-        return msgs;
-      });
-    } catch (err) {
-      console.error("[GeminiLive] User input analysis failed:", err);
-    }
-  }, [uiLanguage]);
 
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
@@ -292,12 +101,7 @@ export function useGeminiLive({
           enableAffectiveDialog: true,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
-          tools: [
-            {
-              googleSearch: {},
-            },
-            ...(tools || []),
-          ],
+          tools: [],
         };
 
         if (systemInstruction) {
@@ -311,16 +115,10 @@ export function useGeminiLive({
             onopen: () => {
               setStatus("connected");
               setMessages([]); // Clear previous messages on new session
-              processedToolCallIdsRef.current.clear(); // Clear processed tool call IDs
-              grammarCheckedMessageIdsRef.current.clear(); // Clear grammar-checked message IDs
-              modelAnalyzedMessageIdsRef.current.clear(); // Clear model-analyzed message IDs
             },
             onmessage: async (message: LiveServerMessage) => {
               // Log modelTurn parts
               const parts = message.serverContent?.modelTurn?.parts;
-
-              // Log legacy toolCall envelope if present
-              const toolEnvelope = (message as any).toolCall;
 
               // Audio handling
               const audioPart = parts?.find((p) => (p as any).inlineData);
@@ -376,29 +174,7 @@ export function useGeminiLive({
               // Handle output transcription (model's audio -> text)
               const outputText = message.serverContent?.outputTranscription?.text;
               if (outputText) {
-                console.log("onmessage outputText", message.serverContent?.outputTranscription);
-
-                // When model starts outputting, it means user's turn has ended
-                // Trigger grammar check for the last user message (if not already checked)
                 setMessages((prev) => {
-                  // Find the last user message
-                  let lastUserMsg: Message | null = null;
-                  for (let i = prev.length - 1; i >= 0; i--) {
-                    if (prev[i].role === "user") {
-                      lastUserMsg = prev[i];
-                      break;
-                    }
-                  }
-
-                  // Trigger user input analysis if we haven't already analyzed this message
-                  if (lastUserMsg && !grammarCheckedMessageIdsRef.current.has(lastUserMsg.id)) {
-                    grammarCheckedMessageIdsRef.current.add(lastUserMsg.id);
-                    // Trigger analysis asynchronously (don't await inside setMessages)
-                    // Pass the current messages array for conversation context
-                    triggerUserInputAnalysis(lastUserMsg.id, lastUserMsg.content, prev);
-                  }
-
-                  // Continue with normal message update
                   const last = prev[prev.length - 1];
                   if (last && last.role === "model") {
                     const updated = { ...last, content: last.content + outputText };
@@ -420,30 +196,6 @@ export function useGeminiLive({
               // Handle input transcription (user's audio -> text)
               const inputText = message.serverContent?.inputTranscription?.text;
               if (inputText) {
-                console.log("onmessage inputText", message.serverContent?.inputTranscription);
-
-                // When user starts speaking, it means model's turn has ended
-                // Trigger model output analysis for the last model message
-                setMessages((prev) => {
-                  // Find the last model message
-                  let lastModelMsg: Message | null = null;
-                  for (let i = prev.length - 1; i >= 0; i--) {
-                    if (prev[i].role === "model") {
-                      lastModelMsg = prev[i];
-                      break;
-                    }
-                  }
-
-                  // Trigger model output analysis if we haven't already analyzed this message
-                  if (lastModelMsg && !modelAnalyzedMessageIdsRef.current.has(lastModelMsg.id)) {
-                    modelAnalyzedMessageIdsRef.current.add(lastModelMsg.id);
-                    // Trigger analysis asynchronously
-                    triggerModelOutputAnalysis(lastModelMsg.id, lastModelMsg.content);
-                  }
-
-                  return prev; // Don't modify messages here, just trigger analysis
-                });
-
                 // Update user message
                 setMessages((prev) => {
                   const last = prev[prev.length - 1];
@@ -470,50 +222,6 @@ export function useGeminiLive({
                 audioSourcesRef.current.clear();
                 nextStartTimeRef.current = 0;
               }
-
-              // Handle tool calls from the model (client-side execution)
-              const toolPart = message.serverContent?.modelTurn?.parts?.find(
-                (part) => (part as any).functionCall,
-              );
-              const envelopeToolCalls = (message as any).toolCall?.functionCalls;
-
-              // Prefer modelTurn.functionCall, but fall back to toolCall envelope if present
-              const toolCalls = [] as any[];
-              if (toolPart && (toolPart as any).functionCall) {
-                toolCalls.push((toolPart as any).functionCall);
-              }
-              if (Array.isArray(envelopeToolCalls)) {
-                toolCalls.push(...envelopeToolCalls);
-              }
-
-              for (const toolCall of toolCalls) {
-                if (!onToolCall) break;
-                // Skip if this function call ID has already been processed
-                if (processedToolCallIdsRef.current.has(toolCall.id)) {
-                  continue;
-                }
-                processedToolCallIdsRef.current.add(toolCall.id);
-
-                try {
-                  const result = await onToolCall(toolCall);
-                  if (
-                    sessionRef.current &&
-                    typeof (sessionRef.current as any).sendToolResponse === "function"
-                  ) {
-                    (sessionRef.current as any).sendToolResponse({
-                      functionResponses: [
-                        {
-                          id: toolCall.id,
-                          name: toolCall.name,
-                          response: result ?? { success: true },
-                        },
-                      ],
-                    });
-                  }
-                } catch (err) {
-                  console.error("[GeminiLive] Client tool execution failed", err);
-                }
-              }
             },
 
             onclose: (e) => {
@@ -531,7 +239,7 @@ export function useGeminiLive({
         setStatus("error");
       }
     },
-    [apiKey, model, voiceName, ensureAudioContexts, tools, onToolCall],
+    [apiKey, model, voiceName, ensureAudioContexts],
   );
 
   const startRecording = useCallback(async () => {
@@ -695,106 +403,6 @@ export function useGeminiLive({
     messages,
     inputLevel,
     outputLevel,
-    addCorrection: (original: string, corrected: string, ruleId?: string) => {
-      setMessages((prev) => {
-        let lastUserMsgIndex = -1;
-        for (let i = prev.length - 1; i >= 0; i--) {
-          if (prev[i].role === "user") {
-            lastUserMsgIndex = i;
-            break;
-          }
-        }
-
-        if (lastUserMsgIndex === -1) return prev;
-
-        const msgs = [...prev];
-        const msg = { ...msgs[lastUserMsgIndex] };
-
-        const currentCorrections = msg.corrections || [];
-        // Avoid duplicates if needed, or just append
-        msg.corrections = [
-          ...currentCorrections,
-          { original, corrected, ruleId }
-        ];
-
-        msgs[lastUserMsgIndex] = msg;
-        return msgs;
-      });
-    },
-    addExplanation: (original: string, explanation: string) => {
-      setMessages((prev) => {
-        // Explanations usually come from the model using a tool to explain ITS OWN words
-        // OR explain user words. The user request says "when the model thinks a word needs explanation".
-        // Usually this refers to the MODEL'S output.
-        // Let's attach to the last MODEL message.
-        let lastModelMsgIndex = -1;
-        for (let i = prev.length - 1; i >= 0; i--) {
-          if (prev[i].role === "model") {
-            lastModelMsgIndex = i;
-            break;
-          }
-        }
-
-        if (lastModelMsgIndex === -1) return prev;
-
-        const msgs = [...prev];
-        const msg = { ...msgs[lastModelMsgIndex] };
-
-        const currentExplanations = msg.explanations || [];
-        msg.explanations = [
-          ...currentExplanations,
-          { original, explanation }
-        ];
-
-        msgs[lastModelMsgIndex] = msg;
-        return msgs;
-      });
-    },
-    addGrammarCheck: (original: string, corrected: string, explanation: string) => {
-      setMessages((prev) => {
-        // Grammar checks are usually for the USER'S speech.
-        // So we attach to the last USER message.
-        let lastUserMsgIndex = -1;
-        for (let i = prev.length - 1; i >= 0; i--) {
-          if (prev[i].role === "user") {
-            lastUserMsgIndex = i;
-            break;
-          }
-        }
-
-        if (lastUserMsgIndex === -1) return prev;
-
-        const msgs = [...prev];
-        const msg = { ...msgs[lastUserMsgIndex] };
-
-        const currentChecks = msg.grammarChecks || [];
-
-        // Deduplicate: Don't add if we already have a check for this "original" text snippet
-        // or effectively the same correction.
-        const alreadyExists = currentChecks.some(c => c.original === original || c.corrected === corrected);
-        if (alreadyExists) return prev;
-
-        msg.grammarChecks = [
-          ...currentChecks,
-          { original, corrected, explanation }
-        ];
-
-        msgs[lastUserMsgIndex] = msg;
-        return msgs;
-      });
-    },
-    // Pause/Resume
-    pause: useCallback(() => {
-      stopRecording(); // Stop mic
-      // Stop current audio output
-      audioSourcesRef.current.forEach((s) => {
-        try { s.stop(); } catch (e) { /* ignore */ }
-      });
-      audioSourcesRef.current.clear();
-      // Reset timing to avoid sync issues on resume?
-      // Next audio chunk will calculate a new start time based on context.currentTime or use delay.
-      // But we just stopped everything.
-    }, [stopRecording]),
     resume: useCallback(() => {
       startRecording();
     }, [startRecording]),

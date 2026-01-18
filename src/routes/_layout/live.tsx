@@ -64,52 +64,12 @@ function LivePage() {
     messages,
     inputLevel,
     outputLevel,
-    addCorrection,
-    addExplanation,
-    addGrammarCheck,
-    pause,
+    stopRecording: pause,
     resume,
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
     uiLanguage: getLocale(),
-    tools: [
-      {
-        functionDeclarations: [
-          {
-            name: "og_silent_correction",
-            // 强调这是“局部”且“即时”的。用于用户说错了一个词或时态，模型在说话时顺手点一下“红线”。
-            description: "Use this for immediate, discrete errors (e.g., wrong tense, preposition, or word choice). Call this as soon as you notice a specific slip. This action is silent and will not interrupt the conversation flow.",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                original: {
-                  type: "STRING",
-                  description: "The specific incorrect word or short phrase spoken by the user.",
-                },
-                corrected: {
-                  type: "STRING",
-                  description: "The correct version of that specific word or phrase.",
-                },
-                rule_id: {
-                  type: "STRING",
-                  description: "Optional: The type of error (e.g., 'tense', 'article', 'preposition').",
-                },
-              },
-              required: ["original", "corrected"],
-            },
-          },
-        ],
-      },
-    ],
-    onToolCall: async (toolCall) => {
-      console.log("Tool call received:", toolCall);
-      if (toolCall.name === "og_silent_correction") {
-        const { original, corrected, rule_id } = toolCall.args;
-        addCorrection(original, corrected, rule_id);
-        return { success: true };
-      }
-    },
   });
 
   // Sync error state

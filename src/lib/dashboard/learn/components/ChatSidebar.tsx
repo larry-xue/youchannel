@@ -142,55 +142,18 @@ const VOICES = [
 
 const DEFAULT_LANGUAGE: CharacterLanguage = "en-US";
 
-const VIDEO_CONTROL_TOOLS = [
-  {
-    functionDeclarations: [
-      {
-        name: "seekToTimestamp",
-        description:
-          "Jump the video player to a specific timestamp in seconds when highlighting key moments.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            seconds: {
-              type: "NUMBER",
-              description: "Target timestamp in seconds to seek to.",
-            },
-          },
-          required: ["seconds"],
-        },
-      },
-    ],
-  },
-];
+
 
 type CharacterSelection = {
   voice: string;
   language: CharacterLanguage;
 };
 
-function parseSecondsFromToolCall(toolCall: any): number | null {
-  const rawArgs = toolCall?.args ?? toolCall?.arguments ?? toolCall?.parameters;
-  const args =
-    typeof rawArgs === "string"
-      ? (() => {
-          try {
-            return JSON.parse(rawArgs);
-          } catch {
-            return null;
-          }
-        })()
-      : rawArgs;
-  if (!args || typeof args !== "object") return null;
-  const seconds = (args as Record<string, unknown>).seconds;
-  const numeric = Number(seconds);
-  return Number.isFinite(numeric) ? numeric : null;
-}
+
 
 function ChatSidebarContent({
   className,
   analysisText,
-  onSeekToTimestamp,
 }: ChatSidebarProps) {
   const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
@@ -238,21 +201,7 @@ function ChatSidebarContent({
   const promptLanguage =
     activeSelection?.language ?? activeCharacter?.language ?? DEFAULT_LANGUAGE;
 
-  const handleToolCall = useCallback(
-    async (toolCall: any) => {
-      if (!toolCall?.name) return { success: false, message: "Invalid tool call" };
-      if (toolCall.name === "seekToTimestamp") {
-        const seconds = parseSecondsFromToolCall(toolCall);
-        if (!onSeekToTimestamp || seconds === null) {
-          return { success: false, message: "Seek handler unavailable" };
-        }
-        onSeekToTimestamp(Math.max(0, seconds));
-        return { success: true };
-      }
-      return { success: false, message: "Unsupported tool" };
-    },
-    [onSeekToTimestamp],
-  );
+
 
   // Removed hardcoded API key dependency
   const {
@@ -267,8 +216,6 @@ function ChatSidebarContent({
   } = useGeminiLive({
     apiKey: "", // We will provide token at connection time
     voiceName: activeVoice,
-    tools: VIDEO_CONTROL_TOOLS,
-    onToolCall: handleToolCall,
   });
 
   // Sync internal error state
@@ -789,7 +736,7 @@ function ChatSidebarContent({
 }
 
 // SSR-safe client detection
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

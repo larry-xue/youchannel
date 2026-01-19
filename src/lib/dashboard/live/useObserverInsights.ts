@@ -3,11 +3,14 @@ import { useMemo, useState } from "react";
 import { runObserverFn, type ObserverResponse, type ObserverTurn } from "./observer";
 import type { Message } from "~/lib/gemini/useGeminiLive";
 
+type ToolOutput = NonNullable<ObserverResponse["toolResult"]>;
+
 type ObserverOutput = {
   id: string;
   createdAt: number;
   toolName: string;
-  payload: NonNullable<ObserverResponse["toolResult"]>;
+  payload: ToolOutput;
+  explanation: Array<{ term: string; note: string; example: string }> | null;
 };
 
 function asTurns(messages: Message[]): ObserverTurn[] {
@@ -60,6 +63,7 @@ export function useObserverInsights(uiLocale: string) {
           createdAt: Date.now(),
           toolName: toolResult.toolName,
           payload: toolResult,
+          explanation: result?.explanation ?? null,
         },
       ]);
     },

@@ -413,17 +413,24 @@ function ObserverPanel({
           return (
             <div
               key={entry.id}
-              className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
+              className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm overflow-auto"
             >
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{entry.toolName}</Badge>
-                {turnId && (
-                  <span className="text-xs text-muted-foreground">Turn {turnId}</span>
-                )}
-              </div>
-              <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">
-                {JSON.stringify(entry.payload.output, null, 2)}
-              </pre>
+              {entry.explanation && entry.explanation.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {entry.explanation.map((item, idx) => (
+                    <div key={idx} className="bg-background/40 rounded-lg p-2 text-xs">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-semibold text-primary">{item.term}</span>
+                        <span className="text-muted-foreground">-</span>
+                        <span className="text-foreground/90">{item.note}</span>
+                      </div>
+                      <div className="mt-1 text-muted-foreground/80 italic">
+                        "{item.example}"
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

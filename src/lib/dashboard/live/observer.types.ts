@@ -6,5 +6,6 @@ export type ToolOutput = {
 
 export interface ObserverResponse {
   toolResult: ToolOutput | null;
+  explanation?: Array<{ term: string; note: string; example: string }> | null;
   finishReason?: string | null;
 }

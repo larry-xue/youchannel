@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type Interactions } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
 import { logObserver } from "./observer.logger";
 import { observerSystemInstruction } from "./observer.prompt";
@@ -56,16 +56,85 @@ export const runObserverFn = createServerFn({ method: "POST" })
         sessionId: data.sessionId,
         uiLocale: data.uiLocale,
       });
+      let explanation: Array<{ term: string; note: string; example: string }> | null = null;
+
+      if (toolCall) {
+        const interaction2 = await ai.interactions.create({
+          model: "gemini-3-flash-preview",
+          input: [
+            {
+              type: "text",
+              text: `Explain this tool output in ${data.uiLocale}. Return a JSON array where each item corresponds to a specific term or phrase from the tool output. 
+              
+              For each item, provide:
+              - "term": The specific word or phrase being explained.
+              - "note": A concise, learner-friendly explanation (max 15 words).
+              - "example": A short usage example sentence (max 10 words).
+
+              Tool: ${toolCall.name}
+              Output JSON:
+              ${JSON.stringify(toolCall.arguments)}`,
+            },
+          ],
+          response_format: {
+            type: "object",
+            properties: {
+              explanation: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    term: { type: "string" },
+                    note: { type: "string" },
+                    example: { type: "string" },
+                  },
+                  required: ["term", "note", "example"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["explanation"],
+            additionalProperties: false,
+          },
+          response_mime_type: "application/json",
+        });
+
+        const textOutput = interaction2.outputs?.find(
+          (output): output is Interactions.TextContent => {
+            if (!output || typeof output !== "object") return false;
+            const candidate = output as Partial<Interactions.TextContent>;
+            return candidate.type === "text" && typeof candidate.text === "string";
+          },
+        );
+
+        try {
+          if (textOutput?.text) {
+            const parsed = JSON.parse(textOutput.text);
+            explanation = parsed.explanation;
+
+            await logObserver({
+              type: "observer.explanation",
+              sessionId: data.sessionId,
+              tool: toolCall?.name ?? null,
+              explanation,
+            });
+          }
+        } catch (e) {
+          console.error("Failed to parse explanation JSON", e);
+        }
+      }
 
       await logObserver({
         type: "observer.result",
         sessionId: data.sessionId,
         tool: toolCall?.name ?? null,
+        explanation,
         finishReason: interaction.status,
       });
 
       return {
         toolResult,
+        explanation,
         finishReason: interaction.status,
       };
     } catch (error) {

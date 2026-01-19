@@ -1,8 +1,7 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createServerFn } from "@tanstack/react-start";
-import { stepCountIs, streamText, tool } from "ai";
 import { appendFile } from "node:fs/promises";
 import { z } from "zod";
+import { defineTool, runAgent, truncate } from "~/lib/gemini/agent";
 
 const turnSchema = z.object({
   turnId: z.string(),
@@ -30,64 +29,61 @@ export type ObserverTurn = z.infer<typeof turnSchema>;
 
 type ToolOutput =
   | {
-    toolName: "showInsight";
-    input: {
-      term: string;
-      context: string;
-      meaning: string;
-      equivalent?: string | null;
-      examples?: Array<{ text: string; explanation?: string | null }>;
-      turnId: string;
-    };
-    output: {
-      term: string;
-      context: string;
-      meaning: string;
-      equivalent?: string | null;
-      examples?: Array<{ text: string; explanation?: string | null }>;
-      turnId: string;
-    };
-  }
+      toolName: "showInsight";
+      input: {
+        term: string;
+        context: string;
+        meaning: string;
+        equivalent?: string | null;
+        examples?: Array<{ text: string; explanation?: string | null }>;
+        turnId: string;
+      };
+      output: {
+        term: string;
+        context: string;
+        meaning: string;
+        equivalent?: string | null;
+        examples?: Array<{ text: string; explanation?: string | null }>;
+        turnId: string;
+      };
+    }
   | {
-    toolName: "showGrammarFix";
-    input: {
-      original: string;
-      suggested: string;
-      reasoning: string;
-      severity: "MINOR" | "MEANING" | "POLITENESS";
-      turnId: string;
-    };
-    output: {
-      original: string;
-      suggested: string;
-      reasoning: string;
-      severity: "MINOR" | "MEANING" | "POLITENESS";
-      turnId: string;
-    };
-  }
+      toolName: "showGrammarFix";
+      input: {
+        original: string;
+        suggested: string;
+        reasoning: string;
+        severity: "MINOR" | "MEANING" | "POLITENESS";
+        turnId: string;
+      };
+      output: {
+        original: string;
+        suggested: string;
+        reasoning: string;
+        severity: "MINOR" | "MEANING" | "POLITENESS";
+        turnId: string;
+      };
+    }
   | {
-    toolName: "addTopicTerm";
-    input: {
-      term: string;
-      translation?: string | null;
-      domain?: string | null;
-      turnId: string;
+      toolName: "addTopicTerm";
+      input: {
+        term: string;
+        translation?: string | null;
+        domain?: string | null;
+        turnId: string;
+      };
+      output: {
+        term: string;
+        translation?: string | null;
+        domain?: string | null;
+        turnId: string;
+      };
     };
-    output: {
-      term: string;
-      translation?: string | null;
-      domain?: string | null;
-      turnId: string;
-    };
-  };
 
 export interface ObserverResponse {
   toolResult: ToolOutput | null;
   finishReason?: string | null;
 }
-
-const truncate = (value: string, max: number) =>
-  value.length > max ? value.slice(0, max) : value;
 
 async function logObserver(event: Record<string, unknown>) {
   const line = `${new Date().toISOString()} ${JSON.stringify(event)}\n`;
@@ -98,11 +94,12 @@ async function logObserver(event: Record<string, unknown>) {
   }
 }
 
+// Define tools using the new agent SDK
 const tools = {
-  showInsight: tool({
+  showInsight: defineTool("showInsight", {
     description:
       "Share cultural/idiom/pragmatics insight for learners. Preserve quoted text; explanations must use uiLocale.",
-    inputSchema: z.object({
+    parameters: z.object({
       term: z.string().min(1).max(80),
       context: z.string().min(1).max(200),
       meaning: z.string().min(1).max(200),
@@ -130,10 +127,11 @@ const tools = {
       })),
     }),
   }),
-  showGrammarFix: tool({
+
+  showGrammarFix: defineTool("showGrammarFix", {
     description:
       "Polish or fix a sentence. Keep suggested language aligned with source per rules. Explanations use uiLocale.",
-    inputSchema: z.object({
+    parameters: z.object({
       original: z.string().min(1).max(200),
       suggested: z.string().min(1).max(200),
       reasoning: z.string().min(1).max(200),
@@ -147,10 +145,11 @@ const tools = {
       reasoning: truncate(input.reasoning, 200),
     }),
   }),
-  addTopicTerm: tool({
+
+  addTopicTerm: defineTool("addTopicTerm", {
     description:
       "Track key topic term. Keep term as-is. Use uiLocale for translation/domain.",
-    inputSchema: z.object({
+    parameters: z.object({
       term: z.string().min(1).max(80),
       translation: z.string().max(80).optional(),
       domain: z.string().max(40).optional(),
@@ -159,9 +158,7 @@ const tools = {
     execute: async (input) => ({
       ...input,
       term: truncate(input.term, 80),
-      translation: input.translation
-        ? truncate(input.translation, 80)
-        : undefined,
+      translation: input.translation ? truncate(input.translation, 80) : undefined,
       domain: input.domain ? truncate(input.domain, 40) : undefined,
     }),
   }),
@@ -175,16 +172,14 @@ export const runObserverFn = createServerFn({ method: "POST" })
       throw new Error("Missing GOOGLE_API_KEY for observer.");
     }
 
-    const google = createGoogleGenerativeAI({ apiKey });
-    const model = google("gemini-3-flash-preview");
-
     const turns = data.turns.slice(-12);
+    // Map to Gemini's role format: "user" | "model"
     const messages = turns.map((turn) => ({
-      role: turn.speaker === "USER" ? ("user" as const) : ("assistant" as const),
+      role: turn.speaker === "USER" ? ("user" as const) : ("model" as const),
       content: turn.text,
     }));
 
-    const system = [
+    const systemInstruction = [
       "You are Observer Agent: side-channel language coach for learners.",
       "ASR text may contain recognition errors. First infer the likely intended wording before deciding on a tool.",
       "If you find ANY cultural/idiom/pragmatic note, grammar/politeness issue, or key topic term, you MUST call exactly one tool.",
@@ -205,34 +200,45 @@ export const runObserverFn = createServerFn({ method: "POST" })
         lastTurn: turns[turns.length - 1],
       });
 
-      const result = streamText({
-        model,
-        system,
+      const result = await runAgent({
+        apiKey,
+        model: "gemini-2.5-flash",
+        systemInstruction,
         messages,
         tools,
         toolChoice: "required",
-        maxRetries: 0,
-        providerOptions: {
-          google: {
-            thinkingBudget: 1024,
-          }
-        },
-        stopWhen: stepCountIs(1),
+        maxSteps: 1, // Observer only needs one tool call
+        thinkingBudget: 1024,
       });
 
-      const toolResults = await result.toolResults;
-      const first = (toolResults?.[0] ?? null) as ToolOutput | null;
+      // Map the first tool call result to the expected ToolOutput format
+      let toolResult: ToolOutput | null = null;
+
+      if (result.toolCalls.length > 0) {
+        const firstCall = result.toolCalls[0];
+        // Extract data from the new { ok, data/error } format
+        if (firstCall.result.ok) {
+          toolResult = {
+            toolName: firstCall.name as ToolOutput["toolName"],
+            input: firstCall.parsedArgs ?? firstCall.rawArgs,
+            output: firstCall.result.data,
+          } as ToolOutput;
+        } else {
+          // Tool call failed, log error but return null
+          console.error(`Tool ${firstCall.name} failed:`, firstCall.result.error);
+        }
+      }
 
       await logObserver({
         type: "observer.result",
         sessionId: data.sessionId,
-        tool: first?.toolName ?? null,
-        finishReason: await result.finishReason,
+        tool: toolResult?.toolName ?? null,
+        finishReason: result.finishReason,
       });
 
       return {
-        toolResult: first,
-        finishReason: await result.finishReason,
+        toolResult,
+        finishReason: result.finishReason,
       };
     } catch (error) {
       console.error("Observer execution failed", error);

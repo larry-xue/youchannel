@@ -14,8 +14,6 @@
     "machine-translate": "inlang machine translate --project project.inlang"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.10",
-    "@ai-sdk/react": "^3.0.41",
     "@google/genai": "^1.35.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -39,7 +37,6 @@
     "@tanstack/react-start": "^1.145.9",
     "@tanstack/react-store": "^0.8.0",
     "@vitejs/plugin-react": "^5.1.1",
-    "ai": "^6.0.39",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",

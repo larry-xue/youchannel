@@ -5,41 +5,18 @@ export const observerTools: Interactions.Tool[] = [
   {
     type: "function",
     name: "extract_linguistic_insights",
-    description:
-      "Record high-value linguistic moments from the user's dialogue turn.",
+    description: "Extracts language-learning insights from the input.",
     parameters: {
       type: "object",
       properties: {
-        turnId: {
-          type: "string",
-          description: "The originating user or model turn ID.",
-        },
-        speaker: {
-          type: "string",
-          enum: ["USER", "AI"],
-          description: "Who produced the utterance being analyzed.",
-        },
         insights: {
           type: "array",
-          items: {
-            type: "object",
-            properties: {
-              phrase: { type: "string", description: "Key phrase or term." },
-              language: {
-                type: "string",
-                description: "Language tag, if known.",
-              },
-              note: {
-                type: "string",
-                description: "Short learner-friendly explanation.",
-              },
-            },
-            required: ["phrase", "note"],
-            additionalProperties: false,
-          },
+          items: { type: "string" },
+          description:
+            "Words or phrases extracted from the input (e.g., 'c'est la vie', 'break the ice', '木漏れ日').",
         },
       },
-      required: ["turnId", "speaker", "insights"],
+      required: ["insights"],
       additionalProperties: false,
     },
   },

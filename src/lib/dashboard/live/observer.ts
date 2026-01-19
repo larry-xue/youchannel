@@ -45,12 +45,13 @@ export const runObserverFn = createServerFn({ method: "POST" })
           tool_choice: observerToolChoice,
           thinking_level: "low"
         },
-        input: messages.map(msg => msg.content).join("\n"),
+        input: messages.map(msg => msg.content).reverse().join("\n"),
         tools: observerTools,
       });
 
       const outputs = interaction.outputs ?? [];
       const toolCall = outputs.find(isFunctionCallContent) ?? null;
+
       const toolResult = buildToolResult(toolCall, {
         sessionId: data.sessionId,
         uiLocale: data.uiLocale,

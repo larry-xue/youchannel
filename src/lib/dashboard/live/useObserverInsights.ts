@@ -6,7 +6,7 @@ import type { Message } from "~/lib/gemini/useGeminiLive";
 type ObserverOutput = {
   id: string;
   createdAt: number;
-  toolName: ObserverResponse["toolResult"] extends { toolName: infer N } ? N : string;
+  toolName: string;
   payload: NonNullable<ObserverResponse["toolResult"]>;
 };
 
@@ -20,13 +20,7 @@ function asTurns(messages: Message[]): ObserverTurn[] {
 }
 
 function buildHash(payload: NonNullable<ObserverResponse["toolResult"]>) {
-  if (payload.toolName === "showInsight") {
-    return `insight:${payload.output.term}:${payload.output.context}`.slice(0, 128);
-  }
-  if (payload.toolName === "showGrammarFix") {
-    return `grammar:${payload.output.original}`.slice(0, 128);
-  }
-  return `topic:${payload.output.term}`.slice(0, 128);
+  return `tool:${payload.toolName}:${JSON.stringify(payload.output)}`.slice(0, 128);
 }
 
 export function useObserverInsights(uiLocale: string) {
@@ -40,7 +34,10 @@ export function useObserverInsights(uiLocale: string) {
       const recentOutputs = outputs.slice(-5).map((entry) => ({
         toolName: entry.payload.toolName,
         hash: buildHash(entry.payload),
-        turnId: entry.payload.output.turnId,
+        turnId:
+          typeof entry.payload.output.turnId === "string"
+            ? entry.payload.output.turnId
+            : entry.id,
         ts: entry.createdAt,
       }));
 

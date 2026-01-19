@@ -410,60 +410,24 @@ function ObserverPanel({ isRunning, outputs, error }: ObserverPanelProps) {
           <p className="text-xs text-muted-foreground">Observer will surface insights here.</p>
         )}
         {outputs.map((entry) => {
-          const { toolName, payload } = entry;
-          if (toolName === "showInsight") {
-            return (
-              <div
-                key={entry.id}
-                className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">Insight</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    Turn {payload.output.turnId}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm font-semibold">{payload.output.term}</p>
-                <p className="text-xs text-muted-foreground mt-1">{payload.output.context}</p>
-                <p className="text-sm mt-2">{payload.output.meaning}</p>
-              </div>
-            );
-          }
-          if (toolName === "showGrammarFix") {
-            return (
-              <div
-                key={entry.id}
-                className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">Grammar</Badge>
-                  <span className="text-xs text-muted-foreground">{payload.output.severity}</span>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground line-through">
-                  {payload.output.original}
-                </p>
-                <p className="text-sm font-semibold">{payload.output.suggested}</p>
-                <p className="text-xs text-muted-foreground mt-1">{payload.output.reasoning}</p>
-              </div>
-            );
-          }
+          const turnId =
+            typeof entry.payload.output.turnId === "string"
+              ? entry.payload.output.turnId
+              : null;
           return (
             <div
               key={entry.id}
               className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
             >
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">Topic</Badge>
-                <span className="text-xs text-muted-foreground">
-                  Turn {payload.output.turnId}
-                </span>
+                <Badge variant="outline">{entry.toolName}</Badge>
+                {turnId && (
+                  <span className="text-xs text-muted-foreground">Turn {turnId}</span>
+                )}
               </div>
-              <p className="mt-2 text-sm font-semibold">{payload.output.term}</p>
-              {(payload.output.translation || payload.output.domain) && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {[payload.output.translation, payload.output.domain].filter(Boolean).join(" • ")}
-                </p>
-              )}
+              <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">
+                {JSON.stringify(entry.payload.output, null, 2)}
+              </pre>
             </div>
           );
         })}

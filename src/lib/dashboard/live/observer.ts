@@ -1,7 +1,7 @@
+import { GoogleGenAI, type Interactions } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
 import { appendFile } from "node:fs/promises";
 import { z } from "zod";
-import { defineTool, runAgent, truncate } from "~/lib/gemini/agent";
 
 const turnSchema = z.object({
   turnId: z.string(),
@@ -10,75 +10,31 @@ const turnSchema = z.object({
   timestamp: z.union([z.string(), z.number(), z.date()]),
 });
 
-const recentOutputSchema = z.object({
-  toolName: z.enum(["showInsight", "showGrammarFix", "addTopicTerm"]),
-  hash: z.string(),
-  turnId: z.string(),
-  ts: z.number(),
-});
-
 const observerRequestSchema = z.object({
   sessionId: z.string().min(1),
   uiLocale: z.string().min(2),
   turns: z.array(turnSchema).min(1).max(12),
-  recentOutputs: z.array(recentOutputSchema).max(5).optional(),
+  recentOutputs: z
+    .array(
+      z.object({
+        toolName: z.string(),
+        hash: z.string(),
+        turnId: z.string(),
+        ts: z.number(),
+      }),
+    )
+    .max(5)
+    .optional(),
 });
 
 export type ObserverRequest = z.infer<typeof observerRequestSchema>;
 export type ObserverTurn = z.infer<typeof turnSchema>;
 
-type ToolOutput =
-  | {
-      toolName: "showInsight";
-      input: {
-        term: string;
-        context: string;
-        meaning: string;
-        equivalent?: string | null;
-        examples?: Array<{ text: string; explanation?: string | null }>;
-        turnId: string;
-      };
-      output: {
-        term: string;
-        context: string;
-        meaning: string;
-        equivalent?: string | null;
-        examples?: Array<{ text: string; explanation?: string | null }>;
-        turnId: string;
-      };
-    }
-  | {
-      toolName: "showGrammarFix";
-      input: {
-        original: string;
-        suggested: string;
-        reasoning: string;
-        severity: "MINOR" | "MEANING" | "POLITENESS";
-        turnId: string;
-      };
-      output: {
-        original: string;
-        suggested: string;
-        reasoning: string;
-        severity: "MINOR" | "MEANING" | "POLITENESS";
-        turnId: string;
-      };
-    }
-  | {
-      toolName: "addTopicTerm";
-      input: {
-        term: string;
-        translation?: string | null;
-        domain?: string | null;
-        turnId: string;
-      };
-      output: {
-        term: string;
-        translation?: string | null;
-        domain?: string | null;
-        turnId: string;
-      };
-    };
+export type ToolOutput = {
+  toolName: string;
+  input: Record<string, any>;
+  output: Record<string, any>;
+};
 
 export interface ObserverResponse {
   toolResult: ToolOutput | null;
@@ -94,75 +50,19 @@ async function logObserver(event: Record<string, unknown>) {
   }
 }
 
-// Define tools using the new agent SDK
-const tools = {
-  showInsight: defineTool("showInsight", {
-    description:
-      "Share cultural/idiom/pragmatics insight for learners. Preserve quoted text; explanations must use uiLocale.",
-    parameters: z.object({
-      term: z.string().min(1).max(80),
-      context: z.string().min(1).max(200),
-      meaning: z.string().min(1).max(200),
-      equivalent: z.string().max(80).optional(),
-      examples: z
-        .array(
-          z.object({
-            text: z.string().min(1).max(200),
-            explanation: z.string().max(200).optional(),
-          }),
-        )
-        .max(2)
-        .optional(),
-      turnId: z.string(),
-    }),
-    execute: async (input) => ({
-      ...input,
-      term: truncate(input.term, 80),
-      context: truncate(input.context, 200),
-      meaning: truncate(input.meaning, 200),
-      equivalent: input.equivalent ? truncate(input.equivalent, 80) : undefined,
-      examples: input.examples?.map((ex) => ({
-        text: truncate(ex.text, 200),
-        explanation: ex.explanation ? truncate(ex.explanation, 200) : undefined,
-      })),
-    }),
-  }),
-
-  showGrammarFix: defineTool("showGrammarFix", {
-    description:
-      "Polish or fix a sentence. Keep suggested language aligned with source per rules. Explanations use uiLocale.",
-    parameters: z.object({
-      original: z.string().min(1).max(200),
-      suggested: z.string().min(1).max(200),
-      reasoning: z.string().min(1).max(200),
-      severity: z.enum(["MINOR", "MEANING", "POLITENESS"]),
-      turnId: z.string(),
-    }),
-    execute: async (input) => ({
-      ...input,
-      original: truncate(input.original, 200),
-      suggested: truncate(input.suggested, 200),
-      reasoning: truncate(input.reasoning, 200),
-    }),
-  }),
-
-  addTopicTerm: defineTool("addTopicTerm", {
-    description:
-      "Track key topic term. Keep term as-is. Use uiLocale for translation/domain.",
-    parameters: z.object({
-      term: z.string().min(1).max(80),
-      translation: z.string().max(80).optional(),
-      domain: z.string().max(40).optional(),
-      turnId: z.string(),
-    }),
-    execute: async (input) => ({
-      ...input,
-      term: truncate(input.term, 80),
-      translation: input.translation ? truncate(input.translation, 80) : undefined,
-      domain: input.domain ? truncate(input.domain, 40) : undefined,
-    }),
-  }),
-};
+function isFunctionCallContent(
+  output: unknown,
+): output is Interactions.FunctionCallContent {
+  if (!output || typeof output !== "object") return false;
+  const candidate = output as Partial<Interactions.FunctionCallContent>;
+  return (
+    candidate.type === "function_call" &&
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    !!candidate.arguments &&
+    typeof candidate.arguments === "object"
+  );
+}
 
 export const runObserverFn = createServerFn({ method: "POST" })
   .inputValidator((data) => observerRequestSchema.parse(data))
@@ -173,23 +73,29 @@ export const runObserverFn = createServerFn({ method: "POST" })
     }
 
     const turns = data.turns.slice(-12);
-    // Map to Gemini's role format: "user" | "model"
     const messages = turns.map((turn) => ({
       role: turn.speaker === "USER" ? ("user" as const) : ("model" as const),
       content: turn.text,
     }));
 
-    const systemInstruction = [
-      "You are Observer Agent: side-channel language coach for learners.",
-      "ASR text may contain recognition errors. First infer the likely intended wording before deciding on a tool.",
-      "If you find ANY cultural/idiom/pragmatic note, grammar/politeness issue, or key topic term, you MUST call exactly one tool.",
-      "Only skip tools when absolutely no actionable learning value exists.",
-      "Respect input code-switching; do not force a target language.",
-      "All explanation fields must use uiLocale strictly; keep quoted originals unchanged.",
-      `uiLocale: ${data.uiLocale}`,
-      "Choose exactly one of: showInsight | showGrammarFix | addTopicTerm.",
-      "Grammar fix suggestions must follow language consistency rules from the spec (stay in the source language or maintain code-switch).",
-    ].join("\n");
+    const systemInstruction = `
+# Role
+You are an expert Polyglot Mentor and Linguistic Scout. You facilitate a seamless, multi-lingual learning environment where the user can speak any language or mix multiple languages freely.
+
+# Core Mission
+1. Engage in meaningful, empathetic, and insightful conversation.
+2. Actively monitor the dialogue for "High-Value Linguistic Moments" (nuances, idioms, advanced vocabulary).
+3. Discreetly identify grammatical or structural errors to help the user refine their expression.
+
+# Function Calling Rules
+- CALL \`extract_linguistic_insights\` whenever the user uses or encounters an expression that is idiomatic, culturally rich, or linguistically advanced. Focus on content that moves a learner from "functional" to "fluent."
+- Do not let the function calls interrupt the flow of your persona. Use them to "log" information for the user's learning journey while your text response remains conversational.
+
+# Tone & Style
+- Warm, intellectually honest, and encouraging. 
+- Like a helpful peer who happens to be a master of all languages.
+- Adaptive: mirror the user's energy and complexity level.
+`;
 
     try {
       await logObserver({
@@ -200,45 +106,29 @@ export const runObserverFn = createServerFn({ method: "POST" })
         lastTurn: turns[turns.length - 1],
       });
 
-      const result = await runAgent({
-        apiKey,
+      const ai = new GoogleGenAI({ apiKey });
+      const interaction = await ai.interactions.create({
         model: "gemini-2.5-flash",
-        systemInstruction,
-        messages,
-        tools,
-        toolChoice: "required",
-        maxSteps: 1, // Observer only needs one tool call
-        thinkingBudget: 1024,
+        system_instruction: systemInstruction,
+        input: messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
       });
 
-      // Map the first tool call result to the expected ToolOutput format
-      let toolResult: ToolOutput | null = null;
-
-      if (result.toolCalls.length > 0) {
-        const firstCall = result.toolCalls[0];
-        // Extract data from the new { ok, data/error } format
-        if (firstCall.result.ok) {
-          toolResult = {
-            toolName: firstCall.name as ToolOutput["toolName"],
-            input: firstCall.parsedArgs ?? firstCall.rawArgs,
-            output: firstCall.result.data,
-          } as ToolOutput;
-        } else {
-          // Tool call failed, log error but return null
-          console.error(`Tool ${firstCall.name} failed:`, firstCall.result.error);
-        }
-      }
+      const outputs = interaction.outputs ?? [];
+      const toolCall = outputs.find(isFunctionCallContent) ?? null;
 
       await logObserver({
         type: "observer.result",
         sessionId: data.sessionId,
-        tool: toolResult?.toolName ?? null,
-        finishReason: result.finishReason,
+        tool: toolCall?.name ?? null,
+        finishReason: interaction.status,
       });
 
       return {
-        toolResult,
-        finishReason: result.finishReason,
+        toolResult: null,
+        finishReason: interaction.status,
       };
     } catch (error) {
       console.error("Observer execution failed", error);

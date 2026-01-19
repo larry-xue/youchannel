@@ -17,7 +17,7 @@ export type { ObserverResponse, ToolOutput } from "./observer.types";
 export const runObserverFn = createServerFn({ method: "POST" })
   .inputValidator((data) => observerRequestSchema.parse(data))
   .handler(async ({ data }): Promise<ObserverResponse> => {
-    const apiKey = process.env.GOOGLE_API_KEY;
+    const apiKey = process.env.GOOGLE_LIVE_API_KEY;
     if (!apiKey) {
       throw new Error("Missing GOOGLE_API_KEY for observer.");
     }
@@ -26,7 +26,7 @@ export const runObserverFn = createServerFn({ method: "POST" })
     const messages = turns.map((turn) => ({
       role: turn.speaker === "USER" ? ("user" as const) : ("model" as const),
       content: turn.text,
-    }));
+    })).filter(msg => msg.role === "model");
 
     try {
       await logObserver({
@@ -39,10 +39,11 @@ export const runObserverFn = createServerFn({ method: "POST" })
 
       const ai = new GoogleGenAI({ apiKey });
       const interaction = await ai.interactions.create({
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         system_instruction: observerSystemInstruction,
         generation_config: {
           tool_choice: observerToolChoice,
+          thinking_level: "low"
         },
         input: messages.map((message) => ({
           role: message.role,

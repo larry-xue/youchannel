@@ -14,7 +14,7 @@
     "machine-translate": "inlang machine translate --project project.inlang"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "@google/genai": "^1.37.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",

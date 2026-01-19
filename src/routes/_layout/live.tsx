@@ -50,8 +50,6 @@ function LivePage() {
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const hasSentGreetingRef = useRef(false);
-  const lastTriggeredModelId = useRef<string | null>(null);
-  const observerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
@@ -76,6 +74,7 @@ function LivePage() {
     uiLanguage: getLocale(),
   });
   const observer = useObserverInsights(getLocale());
+  const canTriggerObserver = messages.length > 0 && !observer.isRunning;
 
   useEffect(() => {
     if (error) setSessionError(error);
@@ -152,29 +151,6 @@ function LivePage() {
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
 
-  // Trigger observer once per dialogue round: when a new model turn starts (user turn is complete)
-  useEffect(() => {
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== "model") return;
-    if (observer.isRunning) return;
-    if (last.id === lastTriggeredModelId.current) return;
-
-    // Require preceding user turn to avoid firing on initial system/model messages
-    const prev = messages[messages.length - 2];
-    if (!prev || prev.role !== "user") return;
-
-    if (observerTimerRef.current) clearTimeout(observerTimerRef.current);
-    observerTimerRef.current = setTimeout(() => {
-      lastTriggeredModelId.current = last.id;
-      observer.triggerFromMessages(messages);
-    }, 800); // small debounce to avoid double-firing on rapid chunks
-  }, [messages, observer]);
-
-  useEffect(() => {
-    return () => {
-      if (observerTimerRef.current) clearTimeout(observerTimerRef.current);
-    };
-  }, []);
 
   return (
     <div className="relative h-[calc(100vh-5rem)]">
@@ -368,6 +344,8 @@ function LivePage() {
               isRunning={observer.isRunning}
               outputs={observer.outputs}
               error={observer.error}
+              canTrigger={canTriggerObserver}
+              onTrigger={() => observer.triggerFromMessages(messages)}
             />
           </div>
         </div>
@@ -380,9 +358,17 @@ type ObserverPanelProps = {
   isRunning: boolean;
   outputs: ReturnType<typeof useObserverInsights>["outputs"];
   error: unknown;
+  canTrigger: boolean;
+  onTrigger: () => void;
 };
 
-function ObserverPanel({ isRunning, outputs, error }: ObserverPanelProps) {
+function ObserverPanel({
+  isRunning,
+  outputs,
+  error,
+  canTrigger,
+  onTrigger,
+}: ObserverPanelProps) {
   return (
     <aside className="hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col rounded-[28px] border border-border-soft bg-surface/60 backdrop-blur-md p-4 shadow-lll-md">
       <div className="flex items-center justify-between gap-3">
@@ -390,13 +376,23 @@ function ObserverPanel({ isRunning, outputs, error }: ObserverPanelProps) {
           <p className="text-sm font-semibold text-foreground">Observer Agent</p>
           <p className="text-xs text-muted-foreground">Tool-only insights per user turn</p>
         </div>
-        <span
-          className={cn(
-            "flex h-2 w-2 rounded-full",
-            isRunning ? "animate-pulse bg-primary" : "bg-muted-foreground/50",
-          )}
-          aria-label={isRunning ? "Running" : "Idle"}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onTrigger}
+            disabled={!canTrigger}
+          >
+            Run
+          </Button>
+          <span
+            className={cn(
+              "flex h-2 w-2 rounded-full",
+              isRunning ? "animate-pulse bg-primary" : "bg-muted-foreground/50",
+            )}
+            aria-label={isRunning ? "Running" : "Idle"}
+          />
+        </div>
       </div>
 
       {error instanceof Error && (

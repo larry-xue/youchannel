@@ -120,7 +120,7 @@ Internationalized via Paraglide (Inlang).
 ## Cursor / Copilot Rules
 
 - `.cursor/rules/shadcn.mdc`: for shadcn installation always use
-  `npx shadcn@canary <package-name>`.
+  `npx shadcn@latest add <package-name>`.
 - `.cursor/rules/tanstack-react-router_setup-and-architecture.mdc`:
   TanStack Router guidance applies to `package.json`, `vite.config.ts`,
   `tsconfig.json`, and `src/**/*.ts(x)`.

@@ -82,4 +82,4 @@ Make sure you have the required environment variables set:
 - TanStack Start + Router + Query
 - Supabase Auth + Postgres with RLS
 - TanStack AI + Gemini adapter
-- Tailwind CSS v4 styled for Material Design 3
+- Tailwind CSS v4

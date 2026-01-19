@@ -2,7 +2,7 @@
 
 **Generated:** 2026-01-19
 **Stack:** TanStack Start (Vite) + Supabase + TanStack Query + @google/genai
-**UI:** Shadcn UI + Tailwind CSS v4 (Material Design 3)
+**UI:** Shadcn UI + Tailwind CSS v4
 
 ## Project Overview
 
@@ -107,7 +107,7 @@ Internationalized via Paraglide (Inlang).
 
 ### CSS / UI
 
-- Tailwind v4 with Material Design 3 aesthetics.
+- Tailwind v4
 - Keep UI consistent with Shadcn component patterns.
 
 ## Repository Anti-Patterns

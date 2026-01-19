@@ -1,68 +1,18 @@
-import { GoogleGenAI, type Interactions } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
-import { appendFile } from "node:fs/promises";
-import { z } from "zod";
+import { logObserver } from "./observer.logger";
+import { observerSystemInstruction } from "./observer.prompt";
+import { observerRequestSchema } from "./observer.schemas";
+import type { ObserverResponse } from "./observer.types";
+import {
+  buildToolResult,
+  isFunctionCallContent,
+  observerToolChoice,
+  observerTools,
+} from "./observer.tools";
 
-const turnSchema = z.object({
-  turnId: z.string(),
-  speaker: z.enum(["USER", "AI"]),
-  text: z.string(),
-  timestamp: z.union([z.string(), z.number(), z.date()]),
-});
-
-const observerRequestSchema = z.object({
-  sessionId: z.string().min(1),
-  uiLocale: z.string().min(2),
-  turns: z.array(turnSchema).min(1).max(12),
-  recentOutputs: z
-    .array(
-      z.object({
-        toolName: z.string(),
-        hash: z.string(),
-        turnId: z.string(),
-        ts: z.number(),
-      }),
-    )
-    .max(5)
-    .optional(),
-});
-
-export type ObserverRequest = z.infer<typeof observerRequestSchema>;
-export type ObserverTurn = z.infer<typeof turnSchema>;
-
-export type ToolOutput = {
-  toolName: string;
-  input: Record<string, any>;
-  output: Record<string, any>;
-};
-
-export interface ObserverResponse {
-  toolResult: ToolOutput | null;
-  finishReason?: string | null;
-}
-
-async function logObserver(event: Record<string, unknown>) {
-  const line = `${new Date().toISOString()} ${JSON.stringify(event)}\n`;
-  try {
-    await appendFile("logs/observer.log", line, "utf8");
-  } catch (err) {
-    console.error("observer.log failed", err);
-  }
-}
-
-function isFunctionCallContent(
-  output: unknown,
-): output is Interactions.FunctionCallContent {
-  if (!output || typeof output !== "object") return false;
-  const candidate = output as Partial<Interactions.FunctionCallContent>;
-  return (
-    candidate.type === "function_call" &&
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    !!candidate.arguments &&
-    typeof candidate.arguments === "object"
-  );
-}
+export type { ObserverRequest, ObserverTurn } from "./observer.schemas";
+export type { ObserverResponse, ToolOutput } from "./observer.types";
 
 export const runObserverFn = createServerFn({ method: "POST" })
   .inputValidator((data) => observerRequestSchema.parse(data))
@@ -78,25 +28,6 @@ export const runObserverFn = createServerFn({ method: "POST" })
       content: turn.text,
     }));
 
-    const systemInstruction = `
-# Role
-You are an expert Polyglot Mentor and Linguistic Scout. You facilitate a seamless, multi-lingual learning environment where the user can speak any language or mix multiple languages freely.
-
-# Core Mission
-1. Engage in meaningful, empathetic, and insightful conversation.
-2. Actively monitor the dialogue for "High-Value Linguistic Moments" (nuances, idioms, advanced vocabulary).
-3. Discreetly identify grammatical or structural errors to help the user refine their expression.
-
-# Function Calling Rules
-- CALL \`extract_linguistic_insights\` whenever the user uses or encounters an expression that is idiomatic, culturally rich, or linguistically advanced. Focus on content that moves a learner from "functional" to "fluent."
-- Do not let the function calls interrupt the flow of your persona. Use them to "log" information for the user's learning journey while your text response remains conversational.
-
-# Tone & Style
-- Warm, intellectually honest, and encouraging. 
-- Like a helpful peer who happens to be a master of all languages.
-- Adaptive: mirror the user's energy and complexity level.
-`;
-
     try {
       await logObserver({
         type: "observer.request",
@@ -109,15 +40,23 @@ You are an expert Polyglot Mentor and Linguistic Scout. You facilitate a seamles
       const ai = new GoogleGenAI({ apiKey });
       const interaction = await ai.interactions.create({
         model: "gemini-2.5-flash",
-        system_instruction: systemInstruction,
+        system_instruction: observerSystemInstruction,
+        generation_config: {
+          tool_choice: observerToolChoice,
+        },
         input: messages.map((message) => ({
           role: message.role,
           content: message.content,
         })),
+        tools: observerTools,
       });
 
       const outputs = interaction.outputs ?? [];
       const toolCall = outputs.find(isFunctionCallContent) ?? null;
+      const toolResult = buildToolResult(toolCall, {
+        sessionId: data.sessionId,
+        uiLocale: data.uiLocale,
+      });
 
       await logObserver({
         type: "observer.result",
@@ -127,7 +66,7 @@ You are an expert Polyglot Mentor and Linguistic Scout. You facilitate a seamles
       });
 
       return {
-        toolResult: null,
+        toolResult,
         finishReason: interaction.status,
       };
     } catch (error) {

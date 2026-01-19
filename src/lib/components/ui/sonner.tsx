@@ -4,38 +4,17 @@ import {
   Loader2Icon,
   OctagonXIcon,
   TriangleAlertIcon,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { Toaster as Sonner, type ToasterProps } from "sonner";
-
-const getInitialTheme = () => {
-  if (typeof document === "undefined") return "system";
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-};
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const [theme, setTheme] = useState<ToasterProps["theme"]>(getInitialTheme());
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-    const updateTheme = () => {
-      setTheme(root.classList.contains("dark") ? "dark" : "light");
-    };
-    updateTheme();
-    const observer = new MutationObserver(updateTheme);
-    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
+  const { theme = "system" } = useTheme()
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      toastOptions={{
-        className: "rounded-2xl border-border shadow-md",
-      }}
-      position="top-center"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
@@ -48,12 +27,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
-          "--border-radius": "1rem",
+          "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
       {...props}
     />
-  );
-};
+  )
+}
 
-export { Toaster };
+export { Toaster }

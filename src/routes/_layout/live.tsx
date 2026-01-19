@@ -1,5 +1,5 @@
 import { createFileRoute, useBlocker } from "@tanstack/react-router";
-import { Check, ChevronDown, Loader2, Phone, PhoneOff } from "lucide-react";
+import { Check, ChevronDown, Loader2, Phone, PhoneOff, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/lib/components/ui/dropdown-menu";
+import { Input } from "~/lib/components/ui/input";
 import { AmbientGlowBackdrop } from "~/lib/dashboard/live/components/AmbientGlowBackdrop";
 import { LiveTranscript } from "~/lib/dashboard/live/components/LiveVoiceSession";
 import { PersonaSelector } from "~/lib/dashboard/live/components/PersonaSelector";
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/_layout/live")({
 });
 
 function LivePage() {
+  const [textInput, setTextInput] = useState("");
   const [selectedPersona, setSelectedPersona] = useState<Persona>(
     getPersonaById(DEFAULT_PERSONA_ID),
   );
@@ -116,6 +118,13 @@ function LivePage() {
     await connectSession();
   };
 
+  const handleSendText = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!textInput.trim() || status !== "connected") return;
+    sendText(textInput);
+    setTextInput("");
+  };
+
   useEffect(() => {
     if (status !== "connected") return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -168,15 +177,15 @@ function LivePage() {
   }, []);
 
   return (
-    <div className="relative h-[calc(100vh-5rem)] overflow-hidden">
+    <div className="relative h-[calc(100vh-5rem)]">
       <AmbientGlowBackdrop
         inputLevel={inputLevel}
         outputLevel={outputLevel}
         className="fixed inset-0 -z-10"
       />
 
-      <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
-        <div className="rounded-[32px] border border-border-soft bg-surface/60 backdrop-blur-xl shadow-lll-md p-6 lg:p-8 flex flex-col gap-6">
+      <div className="relative z-10 h-full mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-2">
               <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-foreground text-pretty">
@@ -185,16 +194,6 @@ function LivePage() {
               <p className="text-base text-muted-foreground">
                 Real-time conversation, persona guidance, and side-channel Observer insights.
               </p>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span
-                className={cn(
-                  "flex h-2.5 w-2.5 rounded-full",
-                  isActiveSession ? "bg-green-500 animate-pulse" : "bg-muted-foreground/50",
-                )}
-                aria-label={isActiveSession ? "Session active" : "Session idle"}
-              />
-              {isActiveSession ? "Live session active" : "Ready to connect"}
             </div>
           </div>
 
@@ -283,6 +282,24 @@ function LivePage() {
                   {isRecording ? "Recording" : "Paused"}
                 </span>
               </div>
+
+              <form onSubmit={handleSendText} className="flex gap-2">
+                <Input
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder="Type a message..."
+                  disabled={!isActiveSession}
+                  className="bg-background/50"
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!isActiveSession || !textInput.trim()}
+                  className="shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
 
               <div className="flex gap-3">
                 <Button

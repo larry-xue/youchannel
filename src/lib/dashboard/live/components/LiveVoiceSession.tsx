@@ -31,7 +31,7 @@ export function LiveTranscript({
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <ScrollArea className="flex-1 rounded-3xl bg-surface/5 backdrop-blur-sm p-6 overflow-hidden h-124">
+      <ScrollArea className="flex-1 rounded-3xl bg-muted/5 backdrop-blur-sm p-6 overflow-hidden h-124">
         <div className="flex flex-col gap-6 min-h-full justify-end h-full">
           {messages.length === 0 && !isActiveSession && (
             <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground/50">
@@ -59,7 +59,7 @@ export function LiveTranscript({
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-medium shadow-sm transition-transform group-hover:scale-110",
                     isModel
                       ? "bg-gradient-to-br from-primary/20 to-primary/5 text-primary"
-                      : "bg-surface-3 text-muted-foreground",
+                      : "bg-muted text-muted-foreground",
                   )}
                 >
                   {isModel ? persona.emoji : "🎤"}
@@ -68,7 +68,7 @@ export function LiveTranscript({
                   className={cn(
                     "max-w-[85%] rounded-3xl px-6 py-4 text-[0.95rem] leading-relaxed shadow-sm backdrop-blur-md relative whitespace-pre-wrap", // Added whitespace-pre-wrap for multiline support
                     isModel
-                      ? "bg-surface/60 text-foreground rounded-tl-sm"
+                      ? "bg-card/60 text-foreground rounded-tl-sm"
                       : "bg-primary/90 text-primary-foreground rounded-tr-sm shadow-primary/20",
                   )}
                 >
@@ -78,10 +78,8 @@ export function LiveTranscript({
             );
           })}
           <div ref={bottomRef} />
-        </div >
-      </ScrollArea >
-    </div >
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
-
-

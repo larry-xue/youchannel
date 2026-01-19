@@ -118,7 +118,7 @@ function DashboardLearnVideo() {
       <div className="flex flex-col h-[calc(100vh-(--spacing(20)))] space-y-4">
         {/* Fixed Video Section */}
         <div className="w-full shrink-0">
-          <div className="aspect-video w-full overflow-hidden rounded-3xl border border-border-soft bg-black/5 shadow-lll-sm">
+          <div className="aspect-video w-full overflow-hidden rounded-3xl border border-border/50 bg-black/5 shadow-sm">
             <VideoPlayerCard
               title={title}
               youtubeId={youtubeId}
@@ -133,7 +133,7 @@ function DashboardLearnVideo() {
         {/* Tabs for Content */}
         <div className="min-h-0 flex-1">
           <Tabs defaultValue="learn" className="flex h-full flex-col">
-            <TabsList className="grid w-full grid-cols-2 mb-2 p-1 bg-surface-2 rounded-full">
+            <TabsList className="grid w-full grid-cols-2 mb-2 p-1 bg-muted rounded-full">
               <TabsTrigger value="learn" className="rounded-full">
                 Learn
               </TabsTrigger>
@@ -144,7 +144,7 @@ function DashboardLearnVideo() {
 
             <TabsContent
               value="learn"
-              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border-soft bg-card shadow-lll-sm"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border/50 bg-card shadow-sm"
             >
               <LearningTabs
                 title={title}
@@ -157,7 +157,7 @@ function DashboardLearnVideo() {
 
             <TabsContent
               value="chat"
-              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border-soft bg-card shadow-lll-sm"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border/50 bg-card shadow-sm"
             >
               <ChatSidebar
                 className="h-full"
@@ -176,7 +176,7 @@ function DashboardLearnVideo() {
     <div className="space-y-6 h-[84vh] min-h-[600px]">
       <ResizablePanelGroup
         direction="horizontal"
-        className="rounded-3xl border border-border-soft shadow-lll-sm bg-card overflow-hidden"
+        className="rounded-3xl border border-border/50 shadow-sm bg-card overflow-hidden"
       >
         {/* Main content area */}
         <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>

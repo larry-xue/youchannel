@@ -36,20 +36,24 @@ export function EmptyVideoState({
 
   // Map color names to tailwind classes
   const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
-    blue: { bg: "bg-blue-500/10", text: "text-blue-500", ring: "ring-blue-500/20" },
-    red: { bg: "bg-red-500/10", text: "text-red-500", ring: "ring-red-500/20" },
-    amber: { bg: "bg-amber-500/10", text: "text-amber-500", ring: "ring-amber-500/20" },
+    blue: { bg: "bg-chart-1/10", text: "text-chart-1", ring: "ring-chart-1/20" },
+    red: {
+      bg: "bg-destructive/10",
+      text: "text-destructive",
+      ring: "ring-destructive/20",
+    },
+    amber: { bg: "bg-chart-2/10", text: "text-chart-2", ring: "ring-chart-2/20" },
     emerald: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-500",
-      ring: "ring-emerald-500/20",
+      bg: "bg-chart-3/10",
+      text: "text-chart-3",
+      ring: "ring-chart-3/20",
     },
   };
 
   const colors = colorMap[colorClass] || colorMap.blue;
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface-container/30 px-4 py-16 text-center animate-in fade-in zoom-in-95 duration-500">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card/30 px-4 py-16 text-center animate-in fade-in zoom-in-95 duration-500">
       <div className="relative mb-6">
         <div
           className={`absolute inset-0 animate-pulse rounded-full ${colors.bg} blur-2xl opacity-50`}

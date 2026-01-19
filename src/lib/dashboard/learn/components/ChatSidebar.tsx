@@ -142,19 +142,12 @@ const VOICES = [
 
 const DEFAULT_LANGUAGE: CharacterLanguage = "en-US";
 
-
-
 type CharacterSelection = {
   voice: string;
   language: CharacterLanguage;
 };
 
-
-
-function ChatSidebarContent({
-  className,
-  analysisText,
-}: ChatSidebarProps) {
+function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
   const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
@@ -200,8 +193,6 @@ function ChatSidebarContent({
     activeSelection?.language ?? activeCharacter?.language ?? DEFAULT_LANGUAGE;
   const promptLanguage =
     activeSelection?.language ?? activeCharacter?.language ?? DEFAULT_LANGUAGE;
-
-
 
   // Removed hardcoded API key dependency
   const {
@@ -398,7 +389,7 @@ function ChatSidebarContent({
                       onClick={() => handleSelectCharacter(character.name)}
                       className={cn(
                         "group w-full rounded-3xl p-4 text-left transition-[background-color,border-color,box-shadow] duration-300 motion-safe:transition-[background-color,border-color,box-shadow]",
-                        "bg-card hover:bg-surface-2 shadow-lll-sm hover:shadow-lll-md border border-transparent hover:border-primary/10",
+                        "bg-card hover:bg-muted shadow-sm hover:shadow-md border border-transparent hover:border-primary/10",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       )}
                     >
@@ -429,13 +420,13 @@ function ChatSidebarContent({
           /* ========== Chat View ========== */
           <div className="flex h-full flex-col">
             {/* Header with character info */}
-            <div className="px-6 py-5 bg-surface/50 backdrop-blur-sm border-b border-border-soft">
+            <div className="px-6 py-5 bg-card/50 backdrop-blur-sm border-b border-border/50">
               <div className="flex items-start gap-4">
                 {/* Back button */}
                 <button
                   type="button"
                   onClick={handleBackToDirectory}
-                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground transition-colors duration-200 hover:bg-surface-2/80 hover:text-foreground"
+                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors duration-200 hover:bg-muted/80 hover:text-foreground"
                   aria-label="Back to characters"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -460,7 +451,7 @@ function ChatSidebarContent({
             <ScrollArea className="min-h-0 flex-1 px-6 py-4">
               {!hasContext ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 py-12 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
                     <Sparkles className="h-7 w-7 text-muted-foreground" />
                   </div>
                   <p className="max-w-[200px] text-sm leading-relaxed text-muted-foreground">
@@ -490,7 +481,7 @@ function ChatSidebarContent({
                               "flex h-8 w-8 shrink-0 items-center justify-center rounded-full select-none overflow-hidden shadow-sm",
                               isModel
                                 ? "bg-primary/10 text-primary"
-                                : "bg-surface-2 text-muted-foreground",
+                                : "bg-muted text-muted-foreground",
                             )}
                           >
                             {isModel ? (
@@ -532,7 +523,7 @@ function ChatSidebarContent({
                               className={cn(
                                 "rounded-3xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word shadow-sm",
                                 isModel
-                                  ? "bg-surface-2 text-foreground rounded-tl-sm"
+                                  ? "bg-muted text-foreground rounded-tl-sm"
                                   : "bg-primary text-primary-foreground rounded-tr-sm",
                               )}
                             >
@@ -555,7 +546,7 @@ function ChatSidebarContent({
 
                     {!isActiveSession && messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-surface-2 shadow-inner">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted shadow-inner">
                           <Mic className="h-9 w-9 text-primary/50" />
                         </div>
                         <p className="text-sm text-muted-foreground max-w-[200px]">
@@ -570,14 +561,14 @@ function ChatSidebarContent({
             </ScrollArea>
 
             {/* Voice control footer */}
-            <div className="px-6 py-5 bg-surface/50 backdrop-blur-sm border-t border-border-soft">
+            <div className="px-6 py-5 bg-card/50 backdrop-blur-sm border-t border-border/50">
               {import.meta.env.DEV && (
                 <div className="flex gap-2 mb-4">
                   <Input
                     value={debugInput}
                     onChange={(e) => setDebugInput(e.target.value)}
                     placeholder="Debug text..."
-                    className="rounded-full bg-surface-2 border-transparent focus:border-primary"
+                    className="rounded-full bg-muted border-transparent focus:border-primary"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && debugInput.trim()) {
                         sendText(debugInput);
@@ -614,7 +605,7 @@ function ChatSidebarContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border-soft bg-surface hover:bg-surface-2 hover:border-primary/20 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-200"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border/50 bg-background hover:bg-muted hover:border-primary/20 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-200"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_voice_select()}
                         title={activeVoice}
@@ -625,13 +616,13 @@ function ChatSidebarContent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="start"
-                      className="w-[200px] max-h-[300px] overflow-y-auto rounded-xl shadow-lll-md border-border-soft"
+                      className="w-[200px] max-h-[300px] overflow-y-auto rounded-xl shadow-md border-border/50"
                     >
                       {VOICES.map((voice) => (
                         <DropdownMenuItem
                           key={voice.name}
                           onClick={() => updateCharacterSelection({ voice: voice.name })}
-                          className="flex items-center justify-between gap-4 rounded-lg focus:bg-surface-2 cursor-pointer"
+                          className="flex items-center justify-between gap-4 rounded-lg focus:bg-muted cursor-pointer"
                         >
                           <div className="flex flex-col">
                             <span className="font-medium">{voice.name}</span>
@@ -651,7 +642,7 @@ function ChatSidebarContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border-soft bg-surface hover:bg-surface-2 hover:border-primary/20 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-200"
+                        className="h-9 min-w-[120px] flex-1 justify-between rounded-full px-3 text-sm border-border/50 bg-background hover:bg-muted hover:border-primary/20 transition-[background-color,border-color,box-shadow,translate,scale,rotate] duration-200"
                         disabled={isActiveSession || isConnecting}
                         aria-label={m.chat_sidebar_language_select()}
                         title={
@@ -666,7 +657,7 @@ function ChatSidebarContent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-[200px] max-h-[300px] overflow-y-auto rounded-xl shadow-lll-md border-border-soft"
+                      className="w-[200px] max-h-[300px] overflow-y-auto rounded-xl shadow-md border-border/50"
                     >
                       {Array.from(
                         new Set([activeLanguage, ...CHARACTER_LANGUAGE_OPTIONS]),
@@ -674,7 +665,7 @@ function ChatSidebarContent({
                         <DropdownMenuItem
                           key={language}
                           onClick={() => updateCharacterSelection({ language })}
-                          className="flex items-center justify-between gap-4 rounded-lg focus:bg-surface-2 cursor-pointer"
+                          className="flex items-center justify-between gap-4 rounded-lg focus:bg-muted cursor-pointer"
                         >
                           <span className="font-medium">
                             {CHARACTER_LANGUAGE_LABELS[language] || language}
@@ -691,7 +682,7 @@ function ChatSidebarContent({
                 <Button
                   size="lg"
                   className={cn(
-                    "h-14 w-full rounded-full text-base font-medium transition-[background-color,box-shadow,transform] duration-300 shadow-lll-md active:shadow-sm active:scale-[0.98] motion-safe:transition-[background-color,box-shadow,transform]",
+                    "h-14 w-full rounded-full text-base font-medium transition-[background-color,box-shadow,transform] duration-300 shadow-md active:shadow-sm active:scale-[0.98] motion-safe:transition-[background-color,box-shadow,transform]",
                     isActiveSession
                       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -736,7 +727,7 @@ function ChatSidebarContent({
 }
 
 // SSR-safe client detection
-const emptySubscribe = () => () => { };
+const emptySubscribe = () => () => {};
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

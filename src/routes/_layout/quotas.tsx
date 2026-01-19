@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
+import { MessageSquare, RefreshCw } from "lucide-react";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/lib/components/ui/card";
@@ -86,7 +86,7 @@ function QuotaPage() {
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-full shadow-lll-sm hover:shadow-lll-md transition-shadow duration-300"
+          className="rounded-full shadow-sm hover:shadow-md transition-shadow duration-300"
           onClick={(e) => {
             e.preventDefault();
             refetch();
@@ -101,7 +101,7 @@ function QuotaPage() {
       <div className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Video Quota Card */}
-          <Card className="overflow-hidden rounded-3xl border-border-soft shadow-lll-sm transition-shadow duration-300 hover:shadow-lll-md motion-safe:transition-shadow">
+          <Card className="overflow-hidden rounded-3xl border-border/50 shadow-sm transition-shadow duration-300 hover:shadow-md motion-safe:transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-xl font-medium">
                 <span className="mr-2 text-2xl">🎬</span>
@@ -111,7 +111,7 @@ function QuotaPage() {
             <CardContent>
               <div className="flex flex-col gap-4">
                 <div className="flex items-baseline justify-between">
-                  <div className="text-7xl font-bold tracking-tighter text-indigo-600 dark:text-indigo-400">
+                  <div className="text-7xl font-bold tracking-tighter text-primary">
                     {quota.videoPercent.toFixed(0)}
                     <span className="text-4xl text-muted-foreground/50">%</span>
                   </div>
@@ -127,7 +127,7 @@ function QuotaPage() {
 
                 <Progress
                   value={quota.videoPercent}
-                  className="h-2 w-full bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500"
+                  className="h-2 w-full bg-primary/20 [&>[data-slot=progress-indicator]]:bg-primary"
                 />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -154,7 +154,7 @@ function QuotaPage() {
           </Card>
 
           {/* Chat Quota Card */}
-          <Card className="overflow-hidden rounded-3xl border-border-soft shadow-lll-sm transition-shadow duration-300 hover:shadow-lll-md motion-safe:transition-shadow">
+          <Card className="overflow-hidden rounded-3xl border-border/50 shadow-sm transition-shadow duration-300 hover:shadow-md motion-safe:transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-xl font-medium">
                 <span className="mr-2 text-2xl">💬</span>
@@ -164,7 +164,7 @@ function QuotaPage() {
             <CardContent>
               <div className="flex flex-col gap-4">
                 <div className="flex items-baseline justify-between">
-                  <div className="text-7xl font-bold tracking-tighter text-emerald-700 dark:text-emerald-400">
+                  <div className="text-7xl font-bold tracking-tighter text-chart-5">
                     {quota.chatPercent.toFixed(0)}
                     <span className="text-4xl text-muted-foreground/50">%</span>
                   </div>
@@ -180,7 +180,7 @@ function QuotaPage() {
 
                 <Progress
                   value={quota.chatPercent}
-                  className="h-2 w-full bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500"
+                  className="h-2 w-full bg-chart-5/20 [&>[data-slot=progress-indicator]]:bg-chart-5"
                 />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -224,8 +224,8 @@ function QuotaPage() {
               const expiryDate = grant.validTo ? new Date(grant.validTo) : null;
               const daysUntilExpiry = expiryDate
                 ? Math.ceil(
-                  (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-                )
+                    (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                  )
                 : null;
 
               let sourceLabel = grant.sourceType;
@@ -240,7 +240,7 @@ function QuotaPage() {
               return (
                 <Card
                   key={grant.id}
-                  className="flex flex-col rounded-3xl border-border-soft shadow-lll-sm transition-shadow duration-300 hover:shadow-lll-md motion-safe:transition-shadow"
+                  className="flex flex-col rounded-3xl border-border/50 shadow-sm transition-shadow duration-300 hover:shadow-md motion-safe:transition-shadow"
                 >
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -258,8 +258,8 @@ function QuotaPage() {
                               ? daysUntilExpiry && daysUntilExpiry <= 7
                                 ? m.quota_grant_expires_soon({ days: daysUntilExpiry })
                                 : m.quota_grant_expires({
-                                  date: expiryDate.toLocaleDateString(),
-                                })
+                                    date: expiryDate.toLocaleDateString(),
+                                  })
                               : m.quota_grant_no_expiry()}
                           </span>
                         </div>
@@ -297,7 +297,7 @@ function QuotaPage() {
                       {grant.maxVideoSeconds > 0 && (
                         <Progress
                           value={grantVideoPercent}
-                          className="h-1.5 w-full bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500"
+                          className="h-1.5 w-full bg-primary/20 [&>[data-slot=progress-indicator]]:bg-primary"
                         />
                       )}
                     </div>
@@ -320,7 +320,7 @@ function QuotaPage() {
                       </div>
                       <Progress
                         value={grantChatPercent}
-                        className="h-1.5 w-full bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500"
+                        className="h-1.5 w-full bg-chart-5/20 [&>[data-slot=progress-indicator]]:bg-chart-5"
                       />
                     </div>
                   </CardContent>

@@ -63,46 +63,39 @@ const STACK_VISIBLE_RANGE = 4;
 const EMPTY_VIDEOS: PlaylistVideo[] = [];
 const QUOTA_COLORS = [
   {
-    fill: "rgba(59, 130, 246, 0.35)",
-    fillActive: "rgba(59, 130, 246, 0.9)",
-    border: "rgba(59, 130, 246, 0.65)",
-    glow: "rgba(59, 130, 246, 0.35)",
-    glowActive: "rgba(59, 130, 246, 0.55)",
+    fill: "rgba(134, 167, 200, 0.35)",
+    fillActive: "rgba(134, 167, 200, 0.9)",
+    border: "rgba(134, 167, 200, 0.65)",
+    glow: "rgba(134, 167, 200, 0.35)",
+    glowActive: "rgba(134, 167, 200, 0.55)",
   },
   {
-    fill: "rgba(16, 185, 129, 0.35)",
-    fillActive: "rgba(16, 185, 129, 0.9)",
-    border: "rgba(16, 185, 129, 0.65)",
-    glow: "rgba(16, 185, 129, 0.35)",
-    glowActive: "rgba(16, 185, 129, 0.55)",
+    fill: "rgba(238, 165, 145, 0.35)",
+    fillActive: "rgba(238, 165, 145, 0.9)",
+    border: "rgba(238, 165, 145, 0.65)",
+    glow: "rgba(238, 165, 145, 0.35)",
+    glowActive: "rgba(238, 165, 145, 0.55)",
   },
   {
-    fill: "rgba(245, 158, 11, 0.35)",
-    fillActive: "rgba(245, 158, 11, 0.9)",
-    border: "rgba(245, 158, 11, 0.65)",
-    glow: "rgba(245, 158, 11, 0.35)",
-    glowActive: "rgba(245, 158, 11, 0.55)",
+    fill: "rgba(90, 124, 166, 0.35)",
+    fillActive: "rgba(90, 124, 166, 0.9)",
+    border: "rgba(90, 124, 166, 0.65)",
+    glow: "rgba(90, 124, 166, 0.35)",
+    glowActive: "rgba(90, 124, 166, 0.55)",
   },
   {
-    fill: "rgba(244, 63, 94, 0.35)",
-    fillActive: "rgba(244, 63, 94, 0.9)",
-    border: "rgba(244, 63, 94, 0.65)",
-    glow: "rgba(244, 63, 94, 0.35)",
-    glowActive: "rgba(244, 63, 94, 0.55)",
+    fill: "rgba(70, 100, 148, 0.35)",
+    fillActive: "rgba(70, 100, 148, 0.9)",
+    border: "rgba(70, 100, 148, 0.65)",
+    glow: "rgba(70, 100, 148, 0.35)",
+    glowActive: "rgba(70, 100, 148, 0.55)",
   },
   {
-    fill: "rgba(14, 165, 233, 0.35)",
-    fillActive: "rgba(14, 165, 233, 0.9)",
-    border: "rgba(14, 165, 233, 0.65)",
-    glow: "rgba(14, 165, 233, 0.35)",
-    glowActive: "rgba(14, 165, 233, 0.55)",
-  },
-  {
-    fill: "rgba(132, 204, 22, 0.35)",
-    fillActive: "rgba(132, 204, 22, 0.9)",
-    border: "rgba(132, 204, 22, 0.65)",
-    glow: "rgba(132, 204, 22, 0.35)",
-    glowActive: "rgba(132, 204, 22, 0.55)",
+    fill: "rgba(51, 76, 130, 0.35)",
+    fillActive: "rgba(51, 76, 130, 0.9)",
+    border: "rgba(51, 76, 130, 0.65)",
+    glow: "rgba(51, 76, 130, 0.35)",
+    glowActive: "rgba(51, 76, 130, 0.55)",
   },
 ] as const;
 
@@ -591,8 +584,8 @@ function DashboardPlaylists() {
       )}
 
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden rounded-3xl p-0 gap-0 border-none bg-surface-container shadow-2xl">
-          <DialogHeader className="px-6 py-4 border-b border-border bg-surface-container">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden rounded-3xl p-0 gap-0 border-none bg-card shadow-2xl">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-card">
             <DialogTitle className="text-xl font-display">
               {m.review_selection_title()}
             </DialogTitle>
@@ -616,15 +609,15 @@ function DashboardPlaylists() {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto px-6 py-6 bg-surface-container-lowest">
+          <div className="overflow-y-auto px-6 py-6 bg-card">
             {selectedCount === 0 ? (
-              <div className="rounded-3xl border-2 border-dashed border-outline-variant/40 bg-surface-container-low px-4 py-12 text-center text-sm text-muted-foreground">
+              <div className="rounded-3xl border-2 border-dashed border-outline-variant/40 bg-muted/30 px-4 py-12 text-center text-sm text-muted-foreground">
                 {m.review_selection_no_videos()}
               </div>
             ) : (
               <div className="space-y-6">
                 <div
-                  className="relative flex h-[280px] items-center justify-center overflow-hidden rounded-3xl bg-surface-container-high p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[320px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
+                  className="relative flex h-[280px] items-center justify-center overflow-hidden rounded-3xl bg-muted p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[320px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
                   onWheel={handleStackWheel}
                 >
                   {selectedVideos.map((video, index) => {
@@ -651,11 +644,11 @@ function DashboardPlaylists() {
                       >
                         <div
                           className={cn(
-                            "overflow-hidden rounded-3xl border-none bg-surface shadow-md transition-shadow",
+                            "overflow-hidden rounded-3xl border-none bg-background shadow-md transition-shadow",
                           )}
                           style={{ boxShadow: cardShadow }}
                         >
-                          <div className="relative w-full overflow-hidden bg-surface-container pb-[56.25%]">
+                          <div className="relative w-full overflow-hidden bg-card pb-[56.25%]">
                             {video.thumbnail_url ? (
                               <img
                                 src={video.thumbnail_url}
@@ -687,7 +680,7 @@ function DashboardPlaylists() {
                     );
                   })}
                 </div>
-                <div className="flex flex-wrap items-start justify-between gap-4 rounded-3xl bg-surface-container-low px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-4 rounded-3xl bg-muted/30 px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">
                       {activeSelectedVideo?.title || m.default_video_title()}
@@ -703,7 +696,7 @@ function DashboardPlaylists() {
                         : ""}
                       {activeDurationLabel ? ` • ${activeDurationLabel}` : ""}
                       {activeSelectedVideo ? (
-                        <span className="ml-1 inline-block rounded-full bg-surface-container-highest px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                        <span className="ml-1 inline-block rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-foreground">
                           {m.review_quota_label({ quota: activeQuotaLabel })}
                         </span>
                       ) : (
@@ -712,7 +705,7 @@ function DashboardPlaylists() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="font-medium bg-surface-container px-2 py-1 rounded-full">
+                    <span className="font-medium bg-card px-2 py-1 rounded-full">
                       {carouselIndex + 1} / {selectedCount}
                     </span>
                     <Button
@@ -727,7 +720,7 @@ function DashboardPlaylists() {
                     </Button>
                   </div>
                 </div>
-                <div className="rounded-3xl bg-surface-container-low px-5 py-4">
+                <div className="rounded-3xl bg-muted/30 px-5 py-4">
                   <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                     <span>{m.review_quota_split()}</span>
                     <span>
@@ -774,12 +767,12 @@ function DashboardPlaylists() {
               </div>
             )}
           </div>
-          <DialogFooter className="border-t border-border bg-surface-container-low px-6 py-4">
+          <DialogFooter className="border-t border-border bg-muted/30 px-6 py-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowReviewDialog(false)}
-              className="rounded-full border-outline hover:bg-surface-container-high"
+              className="rounded-full border-outline hover:bg-muted"
             >
               {m.review_selection_cancel()}
             </Button>
@@ -808,7 +801,7 @@ function DashboardPlaylists() {
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row">
           <aside className="lg:w-80 lg:shrink-0">
-            <div className="flex max-h-[70vh] flex-col rounded-3xl bg-surface-container-low border border-border/50 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
+            <div className="flex max-h-[70vh] flex-col rounded-3xl bg-muted/30 border border-border/50 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
                 <h2 className="text-sm font-semibold text-foreground">
                   {m.playlists_your_playlists()}
@@ -840,14 +833,14 @@ function DashboardPlaylists() {
                           className={cn(
                             "group flex w-full items-center gap-4 rounded-full px-4 py-3 text-left transition-[background-color,transform] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             isActive
-                              ? "bg-secondary-container text-on-secondary-container shadow-sm"
-                              : "text-muted-foreground hover:bg-surface-container-high hover:text-foreground",
+                              ? "bg-secondary text-secondary-foreground shadow-sm"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
                           )}
                         >
                           <div
                             className={cn(
                               "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full transition-transform group-hover:scale-105",
-                              isActive ? "bg-primary/10" : "bg-surface-container-highest",
+                              isActive ? "bg-primary/10" : "bg-secondary",
                             )}
                           >
                             {playlist.thumbnailUrl ? (
@@ -885,11 +878,11 @@ function DashboardPlaylists() {
 
           <div className="min-w-0 flex-1 space-y-6">
             {isLoadingPlaylists ? (
-              <div className="flex h-40 items-center justify-center rounded-3xl bg-surface-container-low">
+              <div className="flex h-40 items-center justify-center rounded-3xl bg-muted/30">
                 <Loading text={m.playlist_loading_single()} size="sm" />
               </div>
             ) : activePlaylist ? (
-              <div className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface-container-low p-6 transition-[background-color,border-color] border border-border/50">
+              <div className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-muted/30 p-6 transition-[background-color,border-color] border border-border/50">
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate type-h2 text-foreground">
                     {activePlaylist.title || m.playlist_untitled()}
@@ -899,11 +892,9 @@ function DashboardPlaylists() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground">
-                  <span className="rounded-full bg-surface-container-high px-3 py-1">
-                    {pageLabel}
-                  </span>
+                  <span className="rounded-full bg-muted px-3 py-1">{pageLabel}</span>
                   {typeof totalResults === "number" && (
-                    <span className="rounded-full bg-surface-container-high px-3 py-1">
+                    <span className="rounded-full bg-muted px-3 py-1">
                       {m.playlist_count_videos({ count: totalResults })}
                     </span>
                   )}
@@ -938,13 +929,13 @@ function DashboardPlaylists() {
             {activePlaylist && (
               <>
                 {selectedCount > 0 && (
-                  <div className="sticky top-6 z-20 flex flex-wrap items-center justify-between gap-4 rounded-full bg-secondary-container px-6 py-3 shadow-lg shadow-black/5 ring-1 ring-black/5 transition-[opacity,transform,top] animate-in fade-in slide-in-from-top-4">
+                  <div className="sticky top-6 z-20 flex flex-wrap items-center justify-between gap-4 rounded-full bg-secondary px-6 py-3 shadow-lg shadow-black/5 ring-1 ring-black/5 transition-[opacity,transform,top] animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center gap-4">
                       <div className="flex -space-x-3">
                         {selectionPreview.map((video) => (
                           <div
                             key={video.id}
-                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-secondary-container bg-surface-container shadow-sm"
+                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-secondary-container bg-card shadow-sm"
                           >
                             {video.thumbnail_url ? (
                               <img
@@ -967,10 +958,10 @@ function DashboardPlaylists() {
                         )}
                       </div>
                       <div className="flex flex-col">
-                        <p className="text-sm font-bold text-on-secondary-container">
+                        <p className="text-sm font-bold text-secondary-foreground">
                           {selectedCount} {selectionLabel}
                         </p>
-                        <p className="text-[10px] font-medium opacity-80 text-on-secondary-container">
+                        <p className="text-[10px] font-medium opacity-80 text-secondary-foreground">
                           {selectedPlaylistCount} {playlistLabel}
                         </p>
                       </div>
@@ -981,7 +972,7 @@ function DashboardPlaylists() {
                         size="sm"
                         onClick={handleClearSelection}
                         disabled={submitSelectionMutation.isPending}
-                        className="rounded-full text-on-secondary-container hover:bg-on-secondary-container/10"
+                        className="rounded-full text-secondary-foreground hover:bg-on-secondary-container/10"
                       >
                         {m.action_clear()}
                       </Button>
@@ -999,7 +990,7 @@ function DashboardPlaylists() {
                 {isLoadingItems ? (
                   <Loading text={m.library_loading()} size="md" />
                 ) : itemsQuery.isError ? (
-                  <div className="rounded-3xl bg-error-container px-6 py-4 text-sm text-on-error-container">
+                  <div className="rounded-3xl bg-destructive/10 px-6 py-4 text-sm text-destructive">
                     {m.playlist_items_error()}
                   </div>
                 ) : videos.length === 0 ? (

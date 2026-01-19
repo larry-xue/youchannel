@@ -1,7 +1,6 @@
 import { createFileRoute, useBlocker } from "@tanstack/react-router";
 import { Check, ChevronDown, Loader2, Phone, PhoneOff, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import {
   DropdownMenu,
@@ -151,7 +150,6 @@ function LivePage() {
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
 
-
   return (
     <div className="relative h-[calc(100vh-5rem)]">
       <AmbientGlowBackdrop
@@ -185,7 +183,7 @@ function LivePage() {
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-12 w-full justify-between rounded-2xl px-4 text-base font-medium bg-surface-2/80 backdrop-blur-sm shadow-sm hover:bg-surface-2 transition-colors"
+                        className="h-12 w-full justify-between rounded-2xl px-4 text-base font-medium bg-muted/80 backdrop-blur-sm shadow-sm hover:bg-surface-2 transition-colors"
                         disabled={isActiveSession || isConnecting}
                       >
                         <span className="flex items-center gap-2 min-w-0">
@@ -224,7 +222,7 @@ function LivePage() {
               </div>
             </div>
 
-            <div className="col-span-1 flex flex-col justify-between gap-3 rounded-2xl border border-border-soft bg-surface/70 px-4 py-4 shadow-lll-sm">
+            <div className="col-span-1 flex flex-col justify-between gap-3 rounded-2xl border border-border/50 bg-card/70 px-4 py-4 shadow-sm">
               {sessionError && (
                 <div className="rounded-2xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
                   {sessionError}
@@ -314,7 +312,6 @@ function LivePage() {
                 )}
               </div>
             </div>
-
           </div>
         </div>
 
@@ -326,7 +323,7 @@ function LivePage() {
                 status={status}
                 persona={selectedPersona}
                 isRecording={isRecording}
-                className="h-full w-full rounded-[28px] border border-border-soft bg-surface/60 backdrop-blur-md shadow-lll-md min-w-0"
+                className="h-full w-full rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md shadow-md min-w-0"
               />
             </div>
             <ObserverPanel
@@ -359,19 +356,16 @@ function ObserverPanel({
   onTrigger,
 }: ObserverPanelProps) {
   return (
-    <aside className="hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col rounded-[28px] border border-border-soft bg-surface/60 backdrop-blur-md p-4 shadow-lll-md">
+    <aside className="hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md p-4 shadow-md">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Observer Agent</p>
-          <p className="text-xs text-muted-foreground">Tool-only insights per user turn</p>
+          <p className="text-xs text-muted-foreground">
+            Tool-only insights per user turn
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onTrigger}
-            disabled={!canTrigger}
-          >
+          <Button size="sm" variant="outline" onClick={onTrigger} disabled={!canTrigger}>
             Run
           </Button>
           <span
@@ -392,7 +386,9 @@ function ObserverPanel({
 
       <div className="mt-3 space-y-2 overflow-y-auto pr-1">
         {outputs.length === 0 && (
-          <p className="text-xs text-muted-foreground">Observer will surface insights here.</p>
+          <p className="text-xs text-muted-foreground">
+            Observer will surface insights here.
+          </p>
         )}
         {outputs.map((entry) => {
           const turnId =
@@ -402,7 +398,7 @@ function ObserverPanel({
           return (
             <div
               key={entry.id}
-              className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm overflow-auto"
+              className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm overflow-auto"
             >
               {entry.explanation && entry.explanation.length > 0 && (
                 <div className="mt-3 space-y-2">

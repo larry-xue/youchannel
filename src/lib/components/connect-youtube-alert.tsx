@@ -78,7 +78,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
           <EmptyMedia>
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-emerald-500/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-surface shadow-sm ring-1 ring-emerald-500/20">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-background shadow-sm ring-1 ring-emerald-500/20">
                 <span className="text-4xl">✅</span>
               </div>
             </div>
@@ -99,12 +99,12 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "processing") {
     return (
-      <Empty className="rounded-3xl border-none bg-surface-container px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-3xl border-none bg-card px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
         <EmptyHeader>
           <EmptyMedia>
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-surface shadow-sm ring-1 ring-primary/20">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-background shadow-sm ring-1 ring-primary/20">
                 <span className="text-4xl">⏳</span>
               </div>
             </div>
@@ -127,7 +127,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
           <EmptyMedia>
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-destructive/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-surface shadow-sm ring-1 ring-destructive/20">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-background shadow-sm ring-1 ring-destructive/20">
                 <span className="text-4xl">❌</span>
               </div>
             </div>
@@ -145,7 +145,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
             variant="outline"
             onClick={() => connectMutation.mutate()}
             disabled={connectMutation.isPending}
-            className="h-12 rounded-full border-destructive/20 bg-surface px-8 text-destructive hover:bg-destructive/10 hover:text-destructive shadow-sm"
+            className="h-12 rounded-full border-destructive/20 bg-background px-8 text-destructive hover:bg-destructive/10 hover:text-destructive shadow-sm"
           >
             {connectMutation.isPending ? (
               <>
@@ -162,7 +162,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
   }
 
   return (
-    <Empty className="group relative overflow-hidden rounded-3xl border border-border/40 bg-surface-container px-6 py-16 shadow-md transition-shadow hover:shadow-lg animate-in fade-in zoom-in-95 duration-500">
+    <Empty className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card px-6 py-16 shadow-md transition-shadow hover:shadow-lg animate-in fade-in zoom-in-95 duration-500">
       {/* Decorative gradient blob */}
       <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl transition-colors group-hover:bg-primary/10" />
       <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-secondary/5 blur-3xl transition-colors group-hover:bg-secondary/10" />
@@ -171,7 +171,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
         <EmptyMedia>
           <div className="relative mb-4">
             <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-2xl" />
-            <div className="relative flex h-24 w-24 items-center justify-center rounded-[32px] bg-linear-to-br from-surface to-surface-container-high shadow-lg ring-1 ring-border/50">
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-[32px] bg-linear-to-br from-background to-muted shadow-lg ring-1 ring-border/50">
               <span className="text-5xl drop-shadow-md">▶️</span>
             </div>
           </div>

@@ -30,7 +30,7 @@ export function PersonaSelector({
         <Button
           variant="ghost"
           className={cn(
-            "h-20 w-full justify-between rounded-[2rem] px-6 text-left bg-surface/30 backdrop-blur-md hover:bg-surface/50 transition-all duration-300 shadow-lg shadow-black/5 hover:shadow-xl hover:shadow-black/10",
+            "h-20 w-full justify-between rounded-[2rem] px-6 text-left bg-card/30 backdrop-blur-md hover:bg-surface/50 transition-all duration-300 shadow-lg shadow-black/5 hover:shadow-xl hover:shadow-black/10",
             className,
           )}
           disabled={disabled}
@@ -53,7 +53,7 @@ export function PersonaSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-[--radix-dropdown-menu-trigger-width] rounded-[2rem] p-3 shadow-2xl bg-surface/80 backdrop-blur-2xl"
+        className="w-[--radix-dropdown-menu-trigger-width] rounded-[2rem] p-3 shadow-2xl bg-card/80 backdrop-blur-2xl"
         sideOffset={8}
       >
         {PERSONAS.map((persona) => (

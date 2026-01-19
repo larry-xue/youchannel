@@ -99,7 +99,7 @@ function AuthPage() {
       <div className="flex min-h-screen flex-col">
         <Header onSignOut={handleSignOut} />
         <main className="flex flex-1 items-center justify-center px-6 py-12">
-          <Card className="w-full max-w-md rounded-3xl border-none bg-card shadow-xl shadow-black/5 dark:shadow-black/20 ring-1 ring-border/5">
+          <Card className="w-full max-w-md rounded-3xl border border-border bg-card shadow-lg">
             <CardHeader className="space-y-1 pb-6 pt-8 text-center">
               <CardTitle className="text-3xl font-medium tracking-tight text-card-foreground">
                 {m.signin_welcome()}

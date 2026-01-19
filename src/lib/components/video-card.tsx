@@ -95,7 +95,7 @@ export function VideoCard({
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-surface-container-high text-xs text-muted-foreground">
+          <div className="absolute inset-0 flex items-center justify-center bg-muted text-xs text-muted-foreground">
             {m.video_no_thumbnail()}
           </div>
         )}
@@ -112,7 +112,7 @@ export function VideoCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <label
-                    className={`flex items-center gap-2 rounded-full bg-surface-container/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-surface-container ${
+                    className={`flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-card ${
                       isSelectable ? "" : "opacity-80"
                     }`}
                   >
@@ -135,7 +135,7 @@ export function VideoCard({
               </Tooltip>
             ) : (
               <label
-                className={`flex items-center gap-2 rounded-full bg-surface-container/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-surface-container ${
+                className={`flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-card ${
                   isSelectable ? "" : "opacity-80"
                 }`}
               >

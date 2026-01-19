@@ -45,10 +45,7 @@ export const runObserverFn = createServerFn({ method: "POST" })
           tool_choice: observerToolChoice,
           thinking_level: "low"
         },
-        input: messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
+        input: messages.map(msg => msg.content).join("\n"),
         tools: observerTools,
       });
 

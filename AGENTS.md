@@ -1,20 +1,20 @@
-# PROJECT KNOWLEDGE BASE
+# AGENTS GUIDE
 
-**Generated:** 2026-01-14
-**Framework:** TanStack Start (Vite) + Supabase + TanStack Query
-**Style:** Shadcn UI + Tailwind CSS v4 (Material Design 3)
+**Generated:** 2026-01-19
+**Stack:** TanStack Start (Vite) + Supabase + TanStack Query + @google/genai
+**UI:** Shadcn UI + Tailwind CSS v4 (Material Design 3)
 
-## OVERVIEW
+## Project Overview
 
 Full-stack workspace for YouTube video analysis and language learning.
-Integrates **Supabase Auth/DB**, **TanStack Router** (file-based), and **Gemini AI** for video processing.
-Fully internationalized via **Paraglide** (Inlang).
+Integrates Supabase Auth/DB, TanStack Router (file-based), and Gemini AI.
+Internationalized via Paraglide (Inlang).
 
-## STRUCTURE
+## Repo Layout
 
 ```
 .
-├── messages/                 # Source i18n JSON files (en, ja, de, etc.)
+├── messages/                 # i18n source JSON files
 ├── src/
 │   ├── lib/
 │   │   ├── components/ui/    # Shadcn components (Material 3 styled)
@@ -22,56 +22,112 @@ Fully internationalized via **Paraglide** (Inlang).
 │   │   ├── gemini/           # Feature: Client-side AI (Live/Audio)
 │   │   └── server/           # Backend: Auth, DB, quotas, external APIs
 │   ├── paraglide/            # Generated i18n code (DO NOT EDIT JS FILES)
-│   └── routes/               # TanStack Router (File-based)
-└── supabase/                 # Migrations & Config
+│   └── routes/               # TanStack Router (file-based)
+└── supabase/                 # Migrations & config
 ```
 
-## WHERE TO LOOK
+## Commands (Build / Lint / Test)
 
-| Task                | Location                   | Notes                             |
-| ------------------- | -------------------------- | --------------------------------- |
-| **Routing**         | `src/routes`               | `__root`, `_layout`, `$` patterns |
-| **Backend Logic**   | `src/lib/server`           | pure logic, auth, external APIs   |
-| **RPC Functions**   | `src/lib/dashboard`        | `createServerFn` wrappers         |
-| **UI Components**   | `src/lib/components/ui`    | Shadcn + custom `loading`/`empty` |
-| **Database Schema** | `supabase/migrations`      | Timestamped SQL files             |
-| **Translations**    | `messages/*.json`          | `snake_case` keys                 |
-| **AI Integration**  | `src/lib/server/gemini.ts` | Server-side generation            |
+**Package manager:** `pnpm` only.
 
-## CONVENTIONS
+### Build & Run
 
-### core
+- `pnpm dev` — local dev server
+- `pnpm build` — production build
+- `pnpm start` — run built server
 
-- **Package Manager**: `pnpm` exclusively.
-- **Formatting**: Prettier + EditorConfig (2 spaces, 90 chars).
-- **Linting**: ESLint Flat Config (Strict TS, React Compiler).
+### Lint & Format
 
-### architecture
+- `pnpm lint` — run ESLint
+- `pnpm lint -- <path>` — lint a single file (ESLint passes args)
+- `pnpm format` — run Prettier
+- `pnpm format -- <path>` — format a single file
 
-- **Data Fetching**: **Client-side TanStack Query** (No Router Loaders).
-- **Auth**: SSR-aware via `src/lib/server/auth.server.ts` (Cookies).
-- **API**: RPC pattern using `createServerFn` (in `src/lib/dashboard` & `src/lib/server`).
-- **Styling**: Tailwind v4. **Material Design 3** aesthetics (rounded-3xl, etc).
+### Tests
 
-### i18n (Paraglide)
+- No test runner is configured in `package.json`.
+- If adding tests, document a single-test command here.
+
+### Data / i18n / UI
+
+- `pnpm supabase db reset` — reset local DB + seed
+- `pnpm db:migrate` — push migrations
+- `pnpm db:seed` — push seed data
+- `pnpm machine-translate` — fill missing i18n keys
+- `pnpm ui <comp>` — add Shadcn component (canary)
+
+## Architecture Conventions
+
+- **Routing:** TanStack Router file-based routes in `src/routes`.
+- **Data fetching:** Use client-side TanStack Query. Avoid Router Loaders.
+- **Auth:** SSR-aware logic in `src/lib/server/auth.server.ts`.
+- **Server calls:** Use `createServerFn` wrappers (dashboard/server).
+- **Supabase:** Use `getSupabaseServerClient()` in server fns.
+- **AI:** Server logic in `src/lib/server/gemini.ts`; client realtime in `src/lib/gemini`.
+
+## i18n (Paraglide)
 
 - Edit `messages/{locale}.json` only.
-- Keys: `snake_case` (e.g., `hero_title_start`).
+- Keys must be `snake_case` (build fails otherwise).
 - Usage: `import * as m from "~/paraglide/messages"`.
 
-## COMMANDS
+## Code Style Guidelines
 
-```bash
-pnpm dev              # Dev server
-pnpm build            # Production build
-pnpm ui <comp>        # Add Shadcn component (canary)
-pnpm machine-translate # Auto-translate missing keys
-pnpm supabase db reset # Reset local DB + Seed
-```
+### Formatting & Imports
 
-## ANTI-PATTERNS
+- Prettier + EditorConfig: 2 spaces, 90-char line length.
+- Prefer absolute imports via `~` alias where used.
+- Keep imports grouped: external → internal → relative.
+- Avoid unused imports; prefer named imports for clarity.
 
-- **NO Router Loaders**: Use `beforeLoad` for auth only. Use Query for data.
-- **NO Direct DB Clients**: Use `getSupabaseServerClient()` in server fns.
-- **NO `camelCase` i18n keys**: Build will fail/warn.
-- **NO `as any`**: Strict type safety required.
+### Types & Safety
+
+- TypeScript is strict; do not use `as any` or `@ts-ignore`.
+- Prefer explicit types for public APIs and data models.
+- Validate external input with Zod or runtime guards.
+
+### Naming
+
+- `camelCase` for variables/functions.
+- `PascalCase` for components/classes/types.
+- `snake_case` only for i18n keys.
+- Route files follow TanStack Router conventions (`_layout`, `$param`).
+
+### Error Handling
+
+- Never use empty `catch` blocks.
+- Return structured errors from server fns; log with context.
+- For user-facing errors, map to UI-safe messages.
+
+### React / TanStack Query
+
+- Prefer hooks over class components.
+- Keep hooks side-effect safe (use `useEffect` sparingly).
+- Use Query for data; avoid direct fetch in components.
+
+### CSS / UI
+
+- Tailwind v4 with Material Design 3 aesthetics.
+- Keep UI consistent with Shadcn component patterns.
+
+## Repository Anti-Patterns
+
+- **No Router Loaders**: use `beforeLoad` for auth only.
+- **No direct DB clients**: use server helpers.
+- **No camelCase i18n keys**.
+- **No `as any` / type suppression**.
+
+## Cursor / Copilot Rules
+
+- `.cursor/rules/shadcn.mdc`: for shadcn installation always use
+  `npx shadcn@canary <package-name>`.
+- `.cursor/rules/tanstack-react-router_setup-and-architecture.mdc`:
+  TanStack Router guidance applies to `package.json`, `vite.config.ts`,
+  `tsconfig.json`, and `src/**/*.ts(x)`.
+- No `.cursorrules` or `.github/copilot-instructions.md` detected.
+
+## Notes for Agents
+
+- Prefer minimal, focused changes aligned with existing patterns.
+- Update docs only when behavior changes.
+- Keep migrations explicit and timestamped if DB changes are required.

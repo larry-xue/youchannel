@@ -162,17 +162,6 @@ function LivePage() {
 
       <div className="relative z-10 h-full mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-2">
-              <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-foreground text-pretty">
-                Live Voice Studio
-              </h1>
-              <p className="text-base text-muted-foreground">
-                Real-time conversation, persona guidance, and side-channel Observer insights.
-              </p>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-6">
             <div className="col-span-1 flex flex-col gap-4">
               <div>

@@ -1,6 +1,7 @@
 import { createFileRoute, useBlocker } from "@tanstack/react-router";
 import { Check, ChevronDown, Loader2, Phone, PhoneOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +18,7 @@ import {
   type Persona,
   VOICES,
 } from "~/lib/dashboard/live/constants";
+import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
@@ -41,17 +43,17 @@ function LivePage() {
   const [selectedPersona, setSelectedPersona] = useState<Persona>(
     getPersonaById(DEFAULT_PERSONA_ID),
   );
-
   const [selectedVoice, setSelectedVoice] = useState(selectedPersona.defaultVoice);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isFetchingToken, setIsFetchingToken] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const hasSentGreetingRef = useRef(false);
+  const lastTriggeredModelId = useRef<string | null>(null);
+  const observerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Update voice when persona changes
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
   }, [selectedPersona.id, selectedPersona.defaultVoice]);
-
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [isFetchingToken, setIsFetchingToken] = useState(false);
-  const hasSentGreetingRef = useRef(false);
 
   const {
     connect,
@@ -71,28 +73,24 @@ function LivePage() {
     voiceName: selectedVoice,
     uiLanguage: getLocale(),
   });
+  const observer = useObserverInsights(getLocale());
 
-  // Sync error state
   useEffect(() => {
     if (error) setSessionError(error);
   }, [error]);
 
-  const [isPaused, setIsPaused] = useState(false);
-
-  // Auto-start recording when connected
   useEffect(() => {
     if (status === "connected") {
       if (!isRecording && !isPaused) {
         startRecording();
       }
-      // Send initial greeting to trigger AI response
       if (!hasSentGreetingRef.current) {
         sendText("Hello!", true);
         hasSentGreetingRef.current = true;
       }
     } else {
       hasSentGreetingRef.current = false;
-      setIsPaused(false); // Reset pause state on disconnect
+      setIsPaused(false);
     }
   }, [status, isRecording, isPaused, startRecording, sendText]);
 
@@ -118,7 +116,6 @@ function LivePage() {
     await connectSession();
   };
 
-  // Prevent accidental navigation during active session
   useEffect(() => {
     if (status !== "connected") return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -132,7 +129,6 @@ function LivePage() {
   useBlocker({
     shouldBlockFn: () => {
       if (status !== "connected") return false;
-      // eslint-disable-next-line no-alert
       const shouldLeave = window.confirm(
         "You have an active call. Do you want to end it?",
       );
@@ -147,6 +143,30 @@ function LivePage() {
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
 
+  // Trigger observer once per dialogue round: when a new model turn starts (user turn is complete)
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "model") return;
+    if (observer.isRunning) return;
+    if (last.id === lastTriggeredModelId.current) return;
+
+    // Require preceding user turn to avoid firing on initial system/model messages
+    const prev = messages[messages.length - 2];
+    if (!prev || prev.role !== "user") return;
+
+    if (observerTimerRef.current) clearTimeout(observerTimerRef.current);
+    observerTimerRef.current = setTimeout(() => {
+      lastTriggeredModelId.current = last.id;
+      observer.triggerFromMessages(messages);
+    }, 800); // small debounce to avoid double-firing on rapid chunks
+  }, [messages, observer]);
+
+  useEffect(() => {
+    return () => {
+      if (observerTimerRef.current) clearTimeout(observerTimerRef.current);
+    };
+  }, []);
+
   return (
     <div className="relative h-[calc(100vh-5rem)] overflow-hidden">
       <AmbientGlowBackdrop
@@ -155,193 +175,282 @@ function LivePage() {
         className="fixed inset-0 -z-10"
       />
 
-      {/* NO outer card wrapper - content floats on background */}
-      <div className="relative z-10 flex flex-col lg:flex-row h-full gap-8 p-6 lg:p-12 max-w-7xl mx-auto">
-        {/* Left Panel - Controls */}
-        <div className="lg:w-[40%] flex flex-col justify-center gap-8 lg:pr-8 shrink-0">
-          {/* Title - LEFT aligned */}
-          <div>
-            <h1 className="font-display text-5xl lg:text-6xl font-bold text-foreground tracking-tight">
-              Live
-            </h1>
-            <p className="text-xl text-muted-foreground mt-3 font-light">
-              Voice conversation with AI
-            </p>
+      <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
+        <div className="rounded-[32px] border border-border-soft bg-surface/60 backdrop-blur-xl shadow-lll-md p-6 lg:p-8 flex flex-col gap-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-foreground text-pretty">
+                Live Voice Studio
+              </h1>
+              <p className="text-base text-muted-foreground">
+                Real-time conversation, persona guidance, and side-channel Observer insights.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span
+                className={cn(
+                  "flex h-2.5 w-2.5 rounded-full",
+                  isActiveSession ? "bg-green-500 animate-pulse" : "bg-muted-foreground/50",
+                )}
+                aria-label={isActiveSession ? "Session active" : "Session idle"}
+              />
+              {isActiveSession ? "Live session active" : "Ready to connect"}
+            </div>
           </div>
 
-          {/* Persona selector */}
-          <div className="w-full">
-            <label className="text-sm font-medium text-muted-foreground ml-1 mb-2 block uppercase tracking-wider">
-              Persona
-            </label>
-            <PersonaSelector
-              selectedId={selectedPersona.id}
-              onSelect={setSelectedPersona}
-            />
-          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-6">
+            <div className="col-span-1 flex flex-col gap-4">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Persona
+                </label>
+                <div className="mt-2">
+                  <PersonaSelector
+                    selectedId={selectedPersona.id}
+                    onSelect={setSelectedPersona}
+                  />
+                </div>
+              </div>
 
-          {/* Voice selector + Call button */}
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-muted-foreground ml-1 block uppercase tracking-wider">
-                Voice
-              </label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-12 w-full justify-between rounded-xl px-4 text-base font-normal bg-surface-2/80 backdrop-blur-sm shadow-sm hover:bg-surface-2 transition-all"
-                    disabled={isActiveSession || isConnecting}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="font-medium">{selectedVoice}</span>
-                      <span className="text-muted-foreground/60 text-sm">
-                        — {VOICES.find((v) => v.name === selectedVoice)?.style}
-                      </span>
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-[300px] max-h-[300px] overflow-y-auto rounded-2xl shadow-2xl bg-popover/95 backdrop-blur-xl p-2"
-                >
-                  {VOICES.map((voice) => (
-                    <DropdownMenuItem
-                      key={voice.name}
-                      onClick={() => setSelectedVoice(voice.name)}
-                      className="flex items-center justify-between gap-3 rounded-xl p-3 cursor-pointer hover:bg-accent focus:bg-accent"
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{voice.name}</span>
-                        <span className="text-xs text-muted-foreground/80">
-                          {voice.style}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Voice
+                </label>
+                <div className="mt-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="h-12 w-full justify-between rounded-2xl px-4 text-base font-medium bg-surface-2/80 backdrop-blur-sm shadow-sm hover:bg-surface-2 transition-colors"
+                        disabled={isActiveSession || isConnecting}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="font-semibold truncate">{selectedVoice}</span>
+                          <span className="text-muted-foreground/60 text-sm truncate">
+                            {VOICES.find((v) => v.name === selectedVoice)?.style}
+                          </span>
                         </span>
-                      </div>
-                      {selectedVoice === voice.name && (
-                        <Check className="h-4 w-4 text-primary" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                        <ChevronDown className="h-4 w-4 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-[320px] max-h-[320px] overflow-y-auto rounded-2xl shadow-2xl bg-popover/95 backdrop-blur-xl p-2"
+                    >
+                      {VOICES.map((voice) => (
+                        <DropdownMenuItem
+                          key={voice.name}
+                          onClick={() => setSelectedVoice(voice.name)}
+                          className="flex items-center justify-between gap-3 rounded-xl p-3 cursor-pointer hover:bg-accent focus:bg-accent"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{voice.name}</span>
+                            <span className="text-xs text-muted-foreground/80">
+                              {voice.style}
+                            </span>
+                          </div>
+                          {selectedVoice === voice.name && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             </div>
 
-            {/* Error message */}
-            {sessionError && (
-              <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-                {sessionError}
-              </div>
-            )}
-
-            {/* Big call button + Pause Control */}
-            <div className="flex gap-4 w-full">
-              <Button
-                size="lg"
-                className={cn(
-                  "h-20 flex-1 rounded-[2rem] text-xl font-medium tracking-wide transition-all duration-500 shadow-xl hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]",
-                  isActiveSession
-                    ? "bg-destructive/90 text-destructive-foreground hover:bg-destructive shadow-destructive/20"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25",
-                )}
-                onClick={handleToggleSession}
-                disabled={isConnecting}
-              >
-                {isActiveSession ? (
-                  <>
-                    <PhoneOff className="mr-3 h-7 w-7" />
-                    End Session
-                  </>
-                ) : (
-                  <>
-                    {isConnecting ? (
-                      <Loader2 className="mr-3 h-7 w-7 animate-spin" />
-                    ) : (
-                      <Phone className="mr-3 h-7 w-7" />
+            <div className="col-span-1 flex flex-col justify-between gap-3 rounded-2xl border border-border-soft bg-surface/70 px-4 py-4 shadow-lll-sm">
+              {sessionError && (
+                <div className="rounded-2xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                  {sessionError}
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Mic status</span>
+                <span
+                  className={cn(
+                    "flex items-center gap-2",
+                    isRecording ? "text-green-500" : "text-amber-500",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full animate-pulse",
+                      isRecording ? "bg-green-500" : "bg-amber-500",
                     )}
-                    {isConnecting ? "Connecting..." : "Start Call"}
-                  </>
-                )}
-              </Button>
+                  />
+                  {isRecording ? "Recording" : "Paused"}
+                </span>
+              </div>
 
-              {isActiveSession && (
+              <div className="flex gap-3">
                 <Button
                   size="lg"
                   className={cn(
-                    "h-20 w-24 rounded-[2rem] text-xl font-medium transition-all duration-500 shadow-xl hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]",
-                    !isRecording
-                      ? "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
-                      : "bg-surface-2 text-foreground hover:bg-surface-3"
+                    "h-16 flex-1 rounded-2xl text-lg font-semibold tracking-tight transition-transform duration-300 shadow-lg hover:shadow-xl",
+                    isActiveSession
+                      ? "bg-destructive/90 text-destructive-foreground hover:bg-destructive"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90",
                   )}
-                  onClick={() => {
-                    if (isRecording) {
-                      setIsPaused(true);
-                      pause();
-                    } else {
-                      setIsPaused(false);
-                      resume();
-                    }
-                  }}
+                  onClick={handleToggleSession}
+                  disabled={isConnecting}
                 >
-                  {!isRecording ? (
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider mb-1">Resume</span>
-                      {/* Play icon */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-6 h-6"
-                      >
-                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                      </svg>
-                    </div>
+                  {isActiveSession ? (
+                    <>
+                      <PhoneOff className="mr-2 h-6 w-6" />
+                      End Session
+                    </>
                   ) : (
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Pause</span>
-                      {/* Pause icon */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-6 h-6"
-                      >
-                        <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
-                      </svg>
-                    </div>
+                    <>
+                      {isConnecting ? (
+                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                      ) : (
+                        <Phone className="mr-2 h-6 w-6" />
+                      )}
+                      {isConnecting ? "Connecting..." : "Start Call"}
+                    </>
                   )}
                 </Button>
-              )}
+                {isActiveSession && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-16 w-32 rounded-2xl text-sm font-semibold shadow-sm hover:shadow-md"
+                    onClick={() => {
+                      if (isRecording) {
+                        setIsPaused(true);
+                        pause();
+                      } else {
+                        setIsPaused(false);
+                        resume();
+                      }
+                    }}
+                  >
+                    {isRecording ? "Pause Mic" : "Resume Mic"}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Status Text */}
-            <div className="flex justify-center">
-              {isConnecting && (
-                <span className="text-sm text-primary font-medium animate-pulse">
-                  Establishing connection...
-                </span>
-              )}
-              {isActiveSession && (
-                <span className={cn("text-sm font-medium flex items-center gap-2", !isRecording ? "text-amber-500" : "text-green-500")}>
-                  <span className={cn("block h-2 w-2 rounded-full animate-pulse", !isRecording ? "bg-amber-500" : "bg-green-500")} />
-                  {!isRecording ? "Session Paused" : "Live Session Active"}
-                </span>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* Right Panel - Transcript */}
-        <div className="lg:w-[60%] flex flex-col min-h-0 flex-1 overflow-hidden">
-          <LiveTranscript
-            messages={messages}
-            status={status}
-            persona={selectedPersona}
-            isRecording={isRecording}
-            className="h-full w-full"
-          />
+        <div className="flex-1 min-h-0">
+          <div className="grid h-full min-h-[460px] grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
+            <div className="col-span-1 xl:col-span-2 min-h-0">
+              <LiveTranscript
+                messages={messages}
+                status={status}
+                persona={selectedPersona}
+                isRecording={isRecording}
+                className="h-full w-full rounded-[28px] border border-border-soft bg-surface/60 backdrop-blur-md shadow-lll-md min-w-0"
+              />
+            </div>
+            <ObserverPanel
+              isRunning={observer.isRunning}
+              outputs={observer.outputs}
+              error={observer.error}
+            />
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+type ObserverPanelProps = {
+  isRunning: boolean;
+  outputs: ReturnType<typeof useObserverInsights>["outputs"];
+  error: unknown;
+};
+
+function ObserverPanel({ isRunning, outputs, error }: ObserverPanelProps) {
+  return (
+    <aside className="hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col rounded-[28px] border border-border-soft bg-surface/60 backdrop-blur-md p-4 shadow-lll-md">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Observer Agent</p>
+          <p className="text-xs text-muted-foreground">Tool-only insights per user turn</p>
+        </div>
+        <span
+          className={cn(
+            "flex h-2 w-2 rounded-full",
+            isRunning ? "animate-pulse bg-primary" : "bg-muted-foreground/50",
+          )}
+          aria-label={isRunning ? "Running" : "Idle"}
+        />
+      </div>
+
+      {error instanceof Error && (
+        <div className="mt-3 rounded-2xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error.message}
+        </div>
+      )}
+
+      <div className="mt-3 space-y-2 overflow-y-auto pr-1">
+        {outputs.length === 0 && (
+          <p className="text-xs text-muted-foreground">Observer will surface insights here.</p>
+        )}
+        {outputs.map((entry) => {
+          const { toolName, payload } = entry;
+          if (toolName === "showInsight") {
+            return (
+              <div
+                key={entry.id}
+                className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Insight</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Turn {payload.output.turnId}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-semibold">{payload.output.term}</p>
+                <p className="text-xs text-muted-foreground mt-1">{payload.output.context}</p>
+                <p className="text-sm mt-2">{payload.output.meaning}</p>
+              </div>
+            );
+          }
+          if (toolName === "showGrammarFix") {
+            return (
+              <div
+                key={entry.id}
+                className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Grammar</Badge>
+                  <span className="text-xs text-muted-foreground">{payload.output.severity}</span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground line-through">
+                  {payload.output.original}
+                </p>
+                <p className="text-sm font-semibold">{payload.output.suggested}</p>
+                <p className="text-xs text-muted-foreground mt-1">{payload.output.reasoning}</p>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={entry.id}
+              className="rounded-2xl border border-border-soft bg-card/70 p-3 shadow-lll-sm"
+            >
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">Topic</Badge>
+                <span className="text-xs text-muted-foreground">
+                  Turn {payload.output.turnId}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-semibold">{payload.output.term}</p>
+              {(payload.output.translation || payload.output.domain) && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {[payload.output.translation, payload.output.domain].filter(Boolean).join(" • ")}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
 }

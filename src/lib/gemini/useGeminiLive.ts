@@ -20,10 +20,10 @@ interface UseGeminiLiveOptions {
   voiceName?: string;
   uiLanguage?: string;
 }
-
+/*  */
 export function useGeminiLive({
   apiKey,
-  model = "gemini-2.5-flash-native-audio-preview-09-2025",
+  model = "gemini-2.5-flash-native-audio-preview-12-2025",
   voiceName = "Orus",
   uiLanguage = "en",
 }: UseGeminiLiveOptions) {

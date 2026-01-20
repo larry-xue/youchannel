@@ -10,6 +10,7 @@ import { Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Card } from "~/lib/components/ui/card";
+import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { Textarea } from "~/lib/components/ui/textarea";
 import { AmbientGlowBackdrop } from "~/lib/dashboard/live/components/AmbientGlowBackdrop";
 import { LiveHistorySidebar } from "~/lib/dashboard/live/components/LiveHistorySidebar";
@@ -106,6 +107,7 @@ export function LivePage({ sessionId }: LivePageProps) {
     disconnect,
     startRecording,
     sendText,
+    sendTurns,
     status,
     error,
     isRecording,
@@ -332,17 +334,6 @@ System Context:
       setIsResuming(true);
       const { token } = await getGeminiToken();
 
-      const historyContext =
-        historyMessages.length > 0
-          ? `Conversation history:\n${historyMessages
-            .map((message) =>
-              message.role === "user"
-                ? `User: ${message.content}`
-                : `AI: ${message.content}`,
-            )
-            .join("\n")}\n`
-          : "";
-
       const now = new Date();
       const deviceContext = `
 System Context:
@@ -355,8 +346,17 @@ System Context:
 - User Agent: ${navigator.userAgent}
 `;
 
-      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n${historyContext}`;
+      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}`;
       await connect(fullSystemPrompt, token);
+      if (historyMessages.length > 0) {
+        await sendTurns(
+          historyMessages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          true,
+        );
+      }
     } catch (err) {
       console.error("Resume connection error:", err);
       setSessionError(err instanceof Error ? err.message : "Failed to resume");
@@ -368,6 +368,7 @@ System Context:
   }, [
     buildSessionMeta,
     connect,
+    sendTurns,
     historyMessages,
     historyQuery.data,
     resolvedSessionId,
@@ -491,7 +492,6 @@ System Context:
                   />
                 </div>
                 <ObserverPanel
-                  isRunning={observer.isRunning}
                   outputs={observer.outputs}
                   error={observer.error}
                   canTrigger={canTriggerObserver}
@@ -644,7 +644,6 @@ System Context:
 }
 
 type ObserverPanelProps = {
-  isRunning: boolean;
   outputs: ReturnType<typeof useObserverInsights>["outputs"];
   error: unknown;
   canTrigger: boolean;
@@ -652,7 +651,6 @@ type ObserverPanelProps = {
 };
 
 function ObserverPanel({
-  isRunning,
   outputs,
   error,
   canTrigger,
@@ -677,37 +675,39 @@ function ObserverPanel({
         </div>
       )}
 
-      <div className="mt-3 space-y-2 overflow-y-auto pr-1">
-        {outputs.map((entry) => {
-          const turnId =
-            typeof entry.payload.output.turnId === "string"
-              ? entry.payload.output.turnId
-              : null;
-          return (
-            <div
-              key={entry.id}
-              className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm overflow-auto"
-            >
-              {entry.explanation && entry.explanation.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {entry.explanation.map((item, idx) => (
-                    <div key={idx} className="bg-background/40 rounded-lg p-2 text-xs">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="font-semibold text-primary">{item.term}</span>
-                        <span className="text-muted-foreground">-</span>
-                        <span className="text-foreground/90">{item.note}</span>
+      <ScrollArea className="flex-1 mt-3 -mr-3 pr-3">
+        <div className="space-y-2 pb-2">
+          {outputs.map((entry) => {
+            const turnId =
+              typeof entry.payload.output.turnId === "string"
+                ? entry.payload.output.turnId
+                : null;
+            return (
+              <div
+                key={entry.id}
+                className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm overflow-auto"
+              >
+                {entry.explanation && entry.explanation.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {entry.explanation.map((item, idx) => (
+                      <div key={idx} className="bg-background/40 rounded-lg p-2 text-xs">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-semibold text-primary">{item.term}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span className="text-foreground/90">{item.note}</span>
+                        </div>
+                        <div className="mt-1 text-muted-foreground/80 italic">
+                          "{item.example}"
+                        </div>
                       </div>
-                      <div className="mt-1 text-muted-foreground/80 italic">
-                        "{item.example}"
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </aside>
   );
 }

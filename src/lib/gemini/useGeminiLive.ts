@@ -391,12 +391,47 @@ export function useGeminiLive({
     }
   }, []);
 
+  const sendTurns = useCallback(
+    (
+      turns: Array<{ role: "user" | "model"; content: string }>,
+      hideFromUI: boolean = false,
+    ) => {
+      if (!sessionRef.current || turns.length === 0) return;
+
+      if (!hideFromUI) {
+        setMessages((prev) => [
+          ...prev,
+          ...turns.map((turn) => ({
+            id: crypto.randomUUID(),
+            role: turn.role,
+            content: turn.content,
+            timestamp: new Date(),
+          } as Message)),
+        ]);
+      }
+
+      if (typeof (sessionRef.current as any).sendClientContent === "function") {
+        (sessionRef.current as any).sendClientContent({
+          turns: turns.map((turn) => ({
+            role: turn.role,
+            parts: [{ text: turn.content }],
+          })),
+          turnComplete: true,
+        });
+      } else {
+        console.error("sendClientContent not found on session");
+      }
+    },
+    [],
+  );
+
   return {
     connect,
     disconnect,
     startRecording,
     stopRecording,
     sendText,
+    sendTurns,
     status,
     error,
     isRecording,

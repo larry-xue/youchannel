@@ -1,9 +1,16 @@
-import { Mic } from "lucide-react";
+import { Check, Mic } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/lib/components/ui/select";
 import type { GeminiLiveStatus, Message } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
-import type { Persona } from "../constants";
+import { type Persona, VOICES } from "../constants";
 
 interface LiveTranscriptProps {
   messages: Message[];
@@ -81,5 +88,51 @@ export function LiveTranscript({
         </div>
       </ScrollArea>
     </div>
+  );
+}
+
+interface VoiceSelectorProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function VoiceSelector({
+  value,
+  onValueChange,
+  disabled,
+  className,
+}: VoiceSelectorProps) {
+  return (
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger
+        className={cn(
+          "h-12 w-[160px] rounded-2xl border-border/30 bg-background/30 px-3 text-sm font-medium hover:bg-muted/50 transition-colors [&_.voice-desc]:hidden",
+          className,
+        )}
+      >
+        <SelectValue placeholder="Select Voice" />
+      </SelectTrigger>
+      <SelectContent
+        align="start"
+        className="max-h-[320px] rounded-2xl bg-popover/95 backdrop-blur-xl p-2"
+      >
+        {VOICES.map((voice) => (
+          <SelectItem
+            key={voice.name}
+            value={voice.name}
+            className="rounded-xl p-2 cursor-pointer focus:bg-accent focus:text-accent-foreground"
+          >
+            <div className="flex flex-col text-left">
+              <span className="font-medium">{voice.name}</span>
+              <span className="voice-desc text-xs text-muted-foreground/80 font-normal">
+                {voice.style}
+              </span>
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

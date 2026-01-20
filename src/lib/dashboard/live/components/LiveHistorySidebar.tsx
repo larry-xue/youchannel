@@ -44,10 +44,8 @@ export function LiveHistorySidebar({
 }: LiveHistorySidebarProps) {
   const matchRoute = useMatchRoute();
   const matchedSession = matchRoute({ to: "/live/$sessionId" });
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const pathMatch = pathname.match(/^\/live\/([^/]+)$/);
   const resolvedActiveSessionId =
-    activeSessionId ?? (matchedSession ? matchedSession.sessionId : null) ?? pathMatch?.[1] ?? null;
+    activeSessionId ?? (matchedSession ? matchedSession.sessionId : null);
   const [query, setQuery] = useState("");
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({

@@ -13,13 +13,12 @@ export const PERSONAS: Persona[] = [
     id: "friend",
     name: "Casual Friend",
     description: "Relaxed chat partner for everyday conversation",
-    systemPrompt: `You are a friendly conversation partner. Your role is to:
-1. Have casual, natural conversations
-2. Be encouraging and supportive
-3. Share opinions and ask follow-up questions
-4. Keep the mood light and fun
+    systemPrompt: `You are a multilingual conversation trainer. Your role is to:
+1. Proactively find and introduce engaging topics
+2. Be patient, encouraging, and supportive
+3. Ask clear follow-up questions that help the user practice
 
-Keep responses brief and conversational. Be genuinely interested in what the user says.`,
+Keep responses brief, friendly, and natural. Adapt to the user's language level.`,
     defaultVoice: "Kore",
     defaultLanguage: "en",
     emoji: "😊",

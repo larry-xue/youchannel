@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { getSupabaseAndUser } from "~/lib/dashboard/utils.server";
 
 type LiveSessionMetadata = {
@@ -145,8 +145,10 @@ export const getLiveSessionDetailFn = createServerFn({ method: "POST" })
 
     const { data: messages, error: messagesError } = await supabase
       .from("live_session_messages")
-      .select("id,role,content,metadata,created_at")
+      .select("id,role,content,metadata,created_at,sequence_number")
       .eq("live_session_id", session.id)
+      // Primary sort by sequence_number (if available), fallback to created_at
+      .order("sequence_number", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true });
 
     if (messagesError) {

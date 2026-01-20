@@ -4,7 +4,6 @@ import {
   useBlocker,
   useMatchRoute,
   useNavigate,
-  useRouterState,
 } from "@tanstack/react-router";
 import { Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,8 +23,11 @@ import {
   getPersonaById,
   type Persona,
 } from "~/lib/dashboard/live/constants";
+import {
+  getLiveSessionDetailFn,
+  type LiveSessionDetailResponse,
+} from "~/lib/dashboard/live/history";
 import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
-import { getLiveSessionDetailFn, type LiveSessionDetailResponse } from "~/lib/dashboard/live/history";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
@@ -56,21 +58,14 @@ export const Route = createFileRoute("/_layout/live")({
   }),
 });
 
-type LivePageProps = {
-  sessionId?: string;
-};
-
 function LiveRoute() {
   return <LivePage />;
 }
 
-export function LivePage({ sessionId }: LivePageProps) {
+export function LivePage() {
   const matchRoute = useMatchRoute();
   const matchedSession = matchRoute({ to: "/live/$sessionId" });
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const pathMatch = pathname.match(/^\/live\/([^/]+)$/);
-  const resolvedSessionId =
-    sessionId ?? (matchedSession ? matchedSession.sessionId : null) ?? pathMatch?.[1] ?? null;
+  const resolvedSessionId = matchedSession ? matchedSession.sessionId : null;
   const [textInput, setTextInput] = useState("");
   const [isResuming, setIsResuming] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(
@@ -86,6 +81,42 @@ export function LivePage({ sessionId }: LivePageProps) {
   const lastPersistedSessionIdRef = useRef<string | null>(null);
   const syncedMessageIdsRef = useRef<Set<string>>(new Set());
   const isCreatingSessionRef = useRef(false);
+
+  // Persist syncedMessageIds to sessionStorage to prevent re-sync after page refresh
+  const saveSyncedIds = useCallback((sessionId: string, ids: Set<string>) => {
+    try {
+      const key = `syncedMessageIds-${sessionId}`;
+      sessionStorage.setItem(key, JSON.stringify([...ids]));
+    } catch (err) {
+      console.warn("Failed to save syncedMessageIds to sessionStorage:", err);
+    }
+  }, []);
+
+  const loadSyncedIds = useCallback((sessionId: string): Set<string> => {
+    try {
+      const key = `syncedMessageIds-${sessionId}`;
+      const stored = sessionStorage.getItem(key);
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+    } catch (err) {
+      console.warn("Failed to load syncedMessageIds from sessionStorage:", err);
+    }
+    return new Set();
+  }, []);
+
+  const clearSyncedIds = useCallback((sessionId: string) => {
+    try {
+      const key = `syncedMessageIds-${sessionId}`;
+      sessionStorage.removeItem(key);
+    } catch (err) {
+      console.warn("Failed to clear syncedMessageIds from sessionStorage:", err);
+    }
+  }, []);
+  // Debounce timer for batch message sync
+  const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track last synced message count to detect new messages
+  const lastSyncedCountRef = useRef<number>(0);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -132,11 +163,14 @@ export function LivePage({ sessionId }: LivePageProps) {
   });
   const historyMessages = useMemo(() => {
     if (!historyQuery.data) return [];
-    return historyQuery.data.messages.map((message) => ({
+    return historyQuery.data.messages.map((message, index) => ({
       id: message.id,
       role: (message.role === "user" ? "user" : "model") as "user" | "model",
       content: message.content,
       timestamp: new Date(message.createdAt),
+      // Assign sequence numbers based on order from database
+      sequenceNumber: index + 1,
+      isStreaming: false,
     }));
   }, [historyQuery.data]);
   const historyPersona = useMemo(() => {
@@ -203,11 +237,15 @@ export function LivePage({ sessionId }: LivePageProps) {
     if (status !== "connected" || !pendingSessionRef.current) return;
     activeSessionRef.current = pendingSessionRef.current;
     pendingSessionRef.current = null;
-    syncedMessageIdsRef.current = new Set();
+    // Note: syncedMessageIdsRef is already set in connectSession/connectResumeSession
     isCreatingSessionRef.current = false;
   }, [status]);
 
   const syncPreviousSession = useCallback(async () => {
+    console.log("[LiveSync] syncPreviousSession triggered", {
+      sessionId: activeSessionRef.current?.sessionId,
+      liveSessionId: activeSessionRef.current?.liveSessionId,
+    });
     const session = activeSessionRef.current;
     if (!session || messages.length === 0) return;
     if (lastPersistedSessionIdRef.current === session.sessionId) return;
@@ -216,7 +254,41 @@ export function LivePage({ sessionId }: LivePageProps) {
       return;
     }
 
+    // Cancel any pending debounced sync
+    if (syncDebounceRef.current) {
+      clearTimeout(syncDebounceRef.current);
+      syncDebounceRef.current = null;
+    }
+
     try {
+      // First, sync all remaining unsynced non-streaming messages
+      const unsyncedMessages = messages.filter(
+        (m) => !m.isStreaming && !syncedMessageIdsRef.current.has(m.id),
+      );
+
+      if (unsyncedMessages.length > 0) {
+        const { appendLiveSessionMessagesFn } =
+          await import("~/lib/dashboard/live/session");
+        await appendLiveSessionMessagesFn({
+          data: {
+            liveSessionId: session.liveSessionId,
+            messages: unsyncedMessages.map((message) => ({
+              id: message.id,
+              role: message.role,
+              content: message.content,
+              timestamp: message.timestamp.toISOString(),
+              sequenceNumber: message.sequenceNumber,
+            })),
+          },
+        });
+        unsyncedMessages.forEach((message) => {
+          syncedMessageIdsRef.current.add(message.id);
+        });
+        // Persist to sessionStorage before closing session
+        saveSyncedIds(session.sessionId, syncedMessageIdsRef.current);
+      }
+
+      // Then close the session
       const { closeLiveSessionFn } = await import("~/lib/dashboard/live/session");
       await closeLiveSessionFn({
         data: {
@@ -229,21 +301,32 @@ export function LivePage({ sessionId }: LivePageProps) {
     } catch (err) {
       console.error("Failed to store previous live session", err);
     }
-  }, [messages, queryClient]);
+  }, [messages, queryClient, saveSyncedIds]);
 
   const appendTurnMessages = useCallback(
     async (turnMessages: Message[]) => {
+      console.log("[LiveSync] appendTurnMessages called", {
+        count: turnMessages.length,
+        messages: turnMessages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          isStreaming: m.isStreaming,
+          sequenceNumber: m.sequenceNumber,
+          contentLength: m.content.length,
+        })),
+      });
       const session = activeSessionRef.current;
       if (!session?.liveSessionId) return;
+
+      // Filter out streaming messages (incomplete) and already synced ones
       const unsynced = turnMessages.filter(
-        (message) => !syncedMessageIdsRef.current.has(message.id),
+        (message) => !message.isStreaming && !syncedMessageIdsRef.current.has(message.id),
       );
       if (unsynced.length === 0) return;
 
       try {
-        const { appendLiveSessionMessagesFn } = await import(
-          "~/lib/dashboard/live/session"
-        );
+        const { appendLiveSessionMessagesFn } =
+          await import("~/lib/dashboard/live/session");
         await appendLiveSessionMessagesFn({
           data: {
             liveSessionId: session.liveSessionId,
@@ -252,23 +335,28 @@ export function LivePage({ sessionId }: LivePageProps) {
               role: message.role,
               content: message.content,
               timestamp: message.timestamp.toISOString(),
+              sequenceNumber: message.sequenceNumber,
             })),
           },
         });
         unsynced.forEach((message) => {
           syncedMessageIdsRef.current.add(message.id);
         });
+        // Persist to sessionStorage
+        saveSyncedIds(session.sessionId, syncedMessageIdsRef.current);
+        lastSyncedCountRef.current = syncedMessageIdsRef.current.size;
         queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
       } catch (err) {
         console.error("Failed to append live messages", err);
       }
     },
-    [queryClient],
+    [queryClient, saveSyncedIds],
   );
 
   const ensureLiveSessionId = useCallback(async () => {
     const session = activeSessionRef.current;
     if (!session || session.liveSessionId || isCreatingSessionRef.current) return;
+    console.log("[LiveSync] ensureLiveSessionId: creating new live session record");
     isCreatingSessionRef.current = true;
     try {
       const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
@@ -291,6 +379,13 @@ export function LivePage({ sessionId }: LivePageProps) {
       await syncPreviousSession();
       const session = buildSessionMeta();
       pendingSessionRef.current = session;
+      // Clear syncedMessageIds for the previous active session (if any)
+      const previousSession = activeSessionRef.current;
+      if (previousSession) {
+        clearSyncedIds(previousSession.sessionId);
+      }
+      // Load syncedMessageIds for the new session (if resuming)
+      syncedMessageIdsRef.current = loadSyncedIds(session.sessionId);
       const { token } = await getGeminiToken();
 
       // Gather device context
@@ -332,6 +427,13 @@ System Context:
       const session = buildSessionMeta();
       pendingSessionRef.current = { ...session, liveSessionId: resolvedSessionId };
       setIsResuming(true);
+      // Clear syncedMessageIds for the previous active session (if any)
+      const previousSession = activeSessionRef.current;
+      if (previousSession) {
+        clearSyncedIds(previousSession.sessionId);
+      }
+      // Load syncedMessageIds for the resuming session
+      syncedMessageIdsRef.current = loadSyncedIds(session.sessionId);
       const { token } = await getGeminiToken();
 
       const now = new Date();
@@ -395,28 +497,49 @@ System Context:
     [isReadOnlyHistory, sendText, status, textInput],
   );
 
+  // Debounced batch sync effect - syncs all unsynced non-streaming messages
+  // after 1.5 seconds of no new messages (conversation turn complete)
   useEffect(() => {
     if (!isActiveSession || isReadOnlyHistory) return;
     const session = activeSessionRef.current;
     if (!session) return;
-    const lastIndex = messages.length - 1;
-    if (lastIndex < 0) return;
-    const lastMessage = messages[lastIndex];
-    const previousMessage = messages[lastIndex - 1];
-    const previousModel = messages[lastIndex - 2];
 
-    if (lastMessage?.role === "model" && !session.liveSessionId) {
+    // Ensure session exists in DB when first model response arrives
+    const hasModelMessage = messages.some((m) => m.role === "model");
+    if (hasModelMessage && !session.liveSessionId) {
       void ensureLiveSessionId();
       return;
     }
 
-    if (
-      lastMessage?.role === "model" &&
-      previousMessage?.role === "user" &&
-      previousModel?.role === "model"
-    ) {
-      void appendTurnMessages([previousModel, previousMessage]);
+    // Cancel any pending sync
+    if (syncDebounceRef.current) {
+      clearTimeout(syncDebounceRef.current);
+      syncDebounceRef.current = null;
     }
+
+    // Get non-streaming messages that haven't been synced yet
+    const syncableMessages = messages.filter(
+      (m) => !m.isStreaming && !syncedMessageIdsRef.current.has(m.id),
+    );
+
+    if (syncableMessages.length === 0 || !session.liveSessionId) return;
+
+    // Schedule batch sync after 1.5s of no new messages
+    console.log(
+      "[LiveSync] Scheduling batch sync in 1.5s for messages:",
+      syncableMessages.length,
+    );
+    syncDebounceRef.current = setTimeout(() => {
+      console.log("[LiveSync] Executing scheduled batch sync");
+      void appendTurnMessages(syncableMessages);
+    }, 1500);
+
+    return () => {
+      if (syncDebounceRef.current) {
+        clearTimeout(syncDebounceRef.current);
+        syncDebounceRef.current = null;
+      }
+    };
   }, [
     appendTurnMessages,
     ensureLiveSessionId,
@@ -424,6 +547,15 @@ System Context:
     isReadOnlyHistory,
     messages,
   ]);
+
+  // Cleanup: sync remaining messages on disconnect
+  useEffect(() => {
+    return () => {
+      if (syncDebounceRef.current) {
+        clearTimeout(syncDebounceRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="relative h-[calc(100vh-10rem)]">
@@ -530,7 +662,9 @@ System Context:
                       variant="outline"
                       className={cn(
                         "h-9 px-3 text-xs font-medium",
-                        isRecording ? "bg-background" : "bg-amber-50 text-amber-600 border-amber-200"
+                        isRecording
+                          ? "bg-background"
+                          : "bg-amber-50 text-amber-600 border-amber-200",
                       )}
                       onClick={() => {
                         if (isRecording) {
@@ -619,7 +753,7 @@ System Context:
                     disabled={!isActiveSession || isReadOnlyHistory}
                     className={cn(
                       "min-h-[36px] max-h-[120px] py-1.5 px-3 rounded-lg resize-none text-sm",
-                      isRecording && "pl-8"
+                      isRecording && "pl-8",
                     )}
                   />
                 </div>
@@ -650,12 +784,7 @@ type ObserverPanelProps = {
   onTrigger: () => void;
 };
 
-function ObserverPanel({
-  outputs,
-  error,
-  canTrigger,
-  onTrigger,
-}: ObserverPanelProps) {
+function ObserverPanel({ outputs, error, canTrigger, onTrigger }: ObserverPanelProps) {
   return (
     <aside className="hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md p-4 shadow-md">
       <div className="flex items-center justify-between gap-3">

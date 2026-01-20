@@ -12,6 +12,10 @@ export interface Message {
   role: "user" | "model";
   content: string;
   timestamp: Date;
+  /** Monotonically increasing sequence number for ordering */
+  sequenceNumber: number;
+  /** Whether this message is still being streamed (content may change) */
+  isStreaming?: boolean;
 }
 
 interface UseGeminiLiveOptions {
@@ -51,7 +55,16 @@ export function useGeminiLive({
 
   const processorRef = useRef<AudioWorkletNode | null>(null);
 
+  // Sequence counter for message ordering - monotonically increasing
+  const sequenceCounterRef = useRef<number>(0);
+  // Track current streaming message IDs to properly handle incremental updates
+  const currentUserMessageIdRef = useRef<string | null>(null);
+  const currentModelMessageIdRef = useRef<string | null>(null);
 
+  const getNextSequenceNumber = useCallback(() => {
+    sequenceCounterRef.current += 1;
+    return sequenceCounterRef.current;
+  }, []);
 
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
@@ -91,7 +104,9 @@ export function useGeminiLive({
         });
 
         const config: any = {
-          responseModalities: [Modality.AUDIO],
+          // Request BOTH audio + text to ensure we always have a persistable transcript.
+          // Relying solely on outputAudioTranscription is not always reliable.
+          responseModalities: [Modality.AUDIO, Modality.TEXT],
           thinkingConfig: {
             thinkingBudget: 1024,
           },
@@ -115,6 +130,10 @@ export function useGeminiLive({
             onopen: () => {
               setStatus("connected");
               setMessages([]); // Clear previous messages on new session
+              // Reset sequence counter and streaming message refs for new session
+              sequenceCounterRef.current = 0;
+              currentUserMessageIdRef.current = null;
+              currentModelMessageIdRef.current = null;
             },
             onmessage: async (message: LiveServerMessage) => {
               // Log modelTurn parts
@@ -172,23 +191,64 @@ export function useGeminiLive({
               }
 
               // Handle output transcription (model's audio -> text)
-              const outputText = message.serverContent?.outputTranscription?.text;
+              // Note: outputTranscription is not guaranteed to arrive in lockstep with turnComplete.
+              // Keep `isStreaming` sticky-false once finalized.
+              const outputText =
+                message.serverContent?.outputTranscription?.text ??
+                (typeof message.text === "string" ? message.text : undefined);
               if (outputText) {
+                const isFinalChunk = Boolean(message.serverContent?.turnComplete);
+
                 setMessages((prev) => {
-                  const last = prev[prev.length - 1];
-                  if (last && last.role === "model") {
-                    const updated = { ...last, content: last.content + outputText };
-                    return [...prev.slice(0, -1), updated];
+                  // Find if we have a current streaming model message
+                  const currentModelId = currentModelMessageIdRef.current;
+                  const existingIdx = currentModelId
+                    ? prev.findIndex((m) => m.id === currentModelId)
+                    : -1;
+
+                  if (existingIdx >= 0) {
+                    // Append to existing model message
+                    const existing = prev[existingIdx];
+                    const updated: Message = {
+                      ...existing,
+                      content: existing.content + outputText,
+                      isStreaming:
+                        isFinalChunk || existing.isStreaming === false ? false : true,
+                    };
+                    const newArr = [...prev];
+                    newArr[existingIdx] = updated;
+                    return newArr;
                   } else {
-                    return [
-                      ...prev,
-                      {
-                        id: crypto.randomUUID(),
-                        role: "model",
-                        content: outputText,
-                        timestamp: new Date(),
-                      },
-                    ];
+                    // Create new model message
+                    const newId = crypto.randomUUID();
+                    currentModelMessageIdRef.current = newId;
+
+                    // When model starts speaking, finalize any streaming user message
+                    const prevUserMsgId = currentUserMessageIdRef.current;
+                    currentUserMessageIdRef.current = null;
+
+                    // Mark the previous user message as non-streaming
+                    let updatedPrev = prev;
+                    if (prevUserMsgId) {
+                      const prevUserIdx = prev.findIndex((m) => m.id === prevUserMsgId);
+                      if (prevUserIdx >= 0 && prev[prevUserIdx].isStreaming) {
+                        updatedPrev = [...prev];
+                        updatedPrev[prevUserIdx] = {
+                          ...updatedPrev[prevUserIdx],
+                          isStreaming: false,
+                        };
+                      }
+                    }
+
+                    const newMessage: Message = {
+                      id: newId,
+                      role: "model",
+                      content: outputText,
+                      timestamp: new Date(),
+                      sequenceNumber: getNextSequenceNumber(),
+                      isStreaming: isFinalChunk ? false : true,
+                    };
+                    return [...updatedPrev, newMessage];
                   }
                 });
               }
@@ -196,22 +256,62 @@ export function useGeminiLive({
               // Handle input transcription (user's audio -> text)
               const inputText = message.serverContent?.inputTranscription?.text;
               if (inputText) {
-                // Update user message
                 setMessages((prev) => {
-                  const last = prev[prev.length - 1];
-                  if (last && last.role === "user") {
-                    const updated = { ...last, content: last.content + inputText };
-                    return [...prev.slice(0, -1), updated];
+                  // Find if we have a current streaming user message
+                  const currentUserId = currentUserMessageIdRef.current;
+
+                  // Ignore empty/whitespace-only input if it's the start of a new message
+                  // This prevents spurious "user turns" (noise/echo) from cutting off the model
+                  if (!currentUserId && !inputText.trim()) {
+                    return prev;
+                  }
+
+                  const existingIdx = currentUserId
+                    ? prev.findIndex((m) => m.id === currentUserId)
+                    : -1;
+
+                  if (existingIdx >= 0) {
+                    // Append to existing streaming message
+                    const existing = prev[existingIdx];
+                    const updated: Message = {
+                      ...existing,
+                      content: existing.content + inputText,
+                      isStreaming: true,
+                    };
+                    const newArr = [...prev];
+                    newArr[existingIdx] = updated;
+                    return newArr;
                   } else {
-                    return [
-                      ...prev,
-                      {
-                        id: crypto.randomUUID(),
-                        role: "user",
-                        content: inputText,
-                        timestamp: new Date(),
-                      },
-                    ];
+                    // Create new user message
+                    const newId = crypto.randomUUID();
+                    currentUserMessageIdRef.current = newId;
+
+                    // When user starts speaking, finalize any streaming model message
+                    const prevModelMsgId = currentModelMessageIdRef.current;
+                    currentModelMessageIdRef.current = null;
+
+                    // Mark the previous model message as non-streaming
+                    let updatedPrev = prev;
+                    if (prevModelMsgId) {
+                      const prevModelIdx = prev.findIndex((m) => m.id === prevModelMsgId);
+                      if (prevModelIdx >= 0 && prev[prevModelIdx].isStreaming) {
+                        updatedPrev = [...prev];
+                        updatedPrev[prevModelIdx] = {
+                          ...updatedPrev[prevModelIdx],
+                          isStreaming: false,
+                        };
+                      }
+                    }
+
+                    const newMessage: Message = {
+                      id: newId,
+                      role: "user",
+                      content: inputText,
+                      timestamp: new Date(),
+                      sequenceNumber: getNextSequenceNumber(),
+                      isStreaming: true,
+                    };
+                    return [...updatedPrev, newMessage];
                   }
                 });
               }
@@ -221,6 +321,37 @@ export function useGeminiLive({
                 audioSourcesRef.current.forEach((s) => s.stop());
                 audioSourcesRef.current.clear();
                 nextStartTimeRef.current = 0;
+              }
+
+              // Mark end-of-turn so downstream sync can persist the final transcript.
+              // Gemini Live indicates completion with serverContent.turnComplete.
+              const turnComplete = message.serverContent?.turnComplete;
+              if (turnComplete) {
+                const currentModelId = currentModelMessageIdRef.current;
+
+                if (import.meta.env.DEV) {
+                  console.log("[GeminiLive] turnComplete", {
+                    currentModelId,
+                    hasOutputTranscription: Boolean(
+                      message.serverContent?.outputTranscription?.text,
+                    ),
+                    hasModelTurnText: typeof message.text === "string",
+                  });
+                }
+
+                if (currentModelId) {
+                  setMessages((prev) => {
+                    const idx = prev.findIndex((m) => m.id === currentModelId);
+                    if (idx < 0) return prev;
+                    if (prev[idx].isStreaming === false) return prev;
+
+                    const updated = [...prev];
+                    updated[idx] = { ...updated[idx], isStreaming: false };
+                    return updated;
+                  });
+                }
+                // Keep currentModelMessageIdRef until the next user activity starts.
+                // This avoids splitting the model transcript if late chunks arrive.
               }
             },
 
@@ -239,7 +370,7 @@ export function useGeminiLive({
         setStatus("error");
       }
     },
-    [apiKey, model, voiceName, ensureAudioContexts],
+    [apiKey, model, voiceName, ensureAudioContexts, getNextSequenceNumber],
   );
 
   const startRecording = useCallback(async () => {
@@ -351,45 +482,41 @@ export function useGeminiLive({
     };
   }, [disconnect]);
 
-  const sendText = useCallback((text: string, hideFromUI: boolean = false) => {
-    if (sessionRef.current) {
-      // Append user text to messages immediately
-      if (!hideFromUI) {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (last && last.role === "user") {
-            // If last was user, we probably want a NEW message for a distinct text action,
-            // OR append if it feels like continuation. Use new message for sendText to be safe/clear.
-            // Actually, discord merges if same user.
-            // But for manual text send, let's just properly append or new.
-            // Let's force new message for sendText to distinguish from audio stream chunks?
-            // No, consistency is key.
-            const updated = { ...last, content: last.content + " " + text };
-            return [...prev.slice(0, -1), updated];
-          } else {
-            return [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                role: "user",
-                content: text,
-                timestamp: new Date(),
-              },
-            ];
-          }
-        });
-      }
+  const sendText = useCallback(
+    (text: string, hideFromUI: boolean = false) => {
+      if (sessionRef.current) {
+        // Append user text to messages immediately
+        if (!hideFromUI) {
+          setMessages((prev) => {
+            // For manual text input, always create a new message (distinct from audio streaming)
+            const newId = crypto.randomUUID();
+            currentUserMessageIdRef.current = newId;
+            currentModelMessageIdRef.current = null;
 
-      if (typeof (sessionRef.current as any).sendClientContent === "function") {
-        (sessionRef.current as any).sendClientContent({
-          turns: [{ role: "user", parts: [{ text }] }],
-          turnComplete: true,
-        });
-      } else {
-        console.error("sendClientContent not found on session");
+            const newMessage: Message = {
+              id: newId,
+              role: "user",
+              content: text,
+              timestamp: new Date(),
+              sequenceNumber: getNextSequenceNumber(),
+              isStreaming: false,
+            };
+            return [...prev, newMessage];
+          });
+        }
+
+        if (typeof (sessionRef.current as any).sendClientContent === "function") {
+          (sessionRef.current as any).sendClientContent({
+            turns: [{ role: "user", parts: [{ text }] }],
+            turnComplete: true,
+          });
+        } else {
+          console.error("sendClientContent not found on session");
+        }
       }
-    }
-  }, []);
+    },
+    [getNextSequenceNumber],
+  );
 
   const sendTurns = useCallback(
     (
@@ -401,12 +528,16 @@ export function useGeminiLive({
       if (!hideFromUI) {
         setMessages((prev) => [
           ...prev,
-          ...turns.map((turn) => ({
-            id: crypto.randomUUID(),
-            role: turn.role,
-            content: turn.content,
-            timestamp: new Date(),
-          } as Message)),
+          ...turns.map(
+            (turn): Message => ({
+              id: crypto.randomUUID(),
+              role: turn.role,
+              content: turn.content,
+              timestamp: new Date(),
+              sequenceNumber: getNextSequenceNumber(),
+              isStreaming: false,
+            }),
+          ),
         ]);
       }
 
@@ -422,7 +553,7 @@ export function useGeminiLive({
         console.error("sendClientContent not found on session");
       }
     },
-    [],
+    [getNextSequenceNumber],
   );
 
   return {

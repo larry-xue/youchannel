@@ -108,7 +108,7 @@ export function VoiceSelector({
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger
         className={cn(
-          "h-12 w-[160px] rounded-2xl border-border/30 bg-background/30 px-3 text-sm font-medium hover:bg-muted/50 transition-colors [&_.voice-desc]:hidden",
+          "h-9 w-[160px] rounded-2xl border-border/30 bg-background/30 px-3 text-sm font-medium hover:bg-muted/50 transition-colors [&_.voice-desc]:hidden",
           className,
         )}
       >

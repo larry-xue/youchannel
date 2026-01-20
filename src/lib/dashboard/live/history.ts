@@ -107,7 +107,7 @@ export type LiveSessionDetailMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
-  metadata: Record<string, unknown> | null;
+  metadata: Record<string, any> | null;
 };
 
 export type LiveSessionDetail = {
@@ -115,6 +115,16 @@ export type LiveSessionDetail = {
   title: string;
   createdAt: string;
   metadata: LiveSessionMetadata | null;
+  messages: LiveSessionDetailMessage[];
+};
+
+export type LiveSessionDetailResponse = {
+  session: {
+    id: string;
+    title: string;
+    createdAt: string;
+    metadata: LiveSessionMetadata | null;
+  };
   messages: LiveSessionDetailMessage[];
 };
 
@@ -155,7 +165,28 @@ export const getLiveSessionDetailFn = createServerFn({ method: "POST" })
         role: message.role as "user" | "assistant" | "system",
         content: message.content,
         createdAt: message.created_at,
-        metadata: (message.metadata as Record<string, unknown> | null) ?? null,
+        metadata: (message.metadata as Record<string, any> | null) ?? null,
       })),
     };
+  });
+
+const deleteLiveSessionSchema = z.object({
+  sessionId: z.string().uuid(),
+});
+
+export const deleteLiveSessionFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => deleteLiveSessionSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabase } = await getSupabaseAndUser();
+
+    const { error } = await supabase
+      .from("live_sessions")
+      .delete()
+      .eq("id", data.sessionId);
+
+    if (error) {
+      throw new Error(error.message || "Failed to delete live session");
+    }
+
+    return { success: true };
   });

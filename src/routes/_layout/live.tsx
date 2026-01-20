@@ -1,10 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useBlocker, useNavigate } from "@tanstack/react-router";
-import { Loader2, Phone, PhoneOff, Send } from "lucide-react";
+import {
+  createFileRoute,
+  useBlocker,
+  useMatchRoute,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import { Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Card } from "~/lib/components/ui/card";
-import { Input } from "~/lib/components/ui/input";
+import { Textarea } from "~/lib/components/ui/textarea";
 import { AmbientGlowBackdrop } from "~/lib/dashboard/live/components/AmbientGlowBackdrop";
 import { LiveHistorySidebar } from "~/lib/dashboard/live/components/LiveHistorySidebar";
 import {
@@ -18,14 +24,15 @@ import {
   type Persona,
 } from "~/lib/dashboard/live/constants";
 import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
-import { getLiveSessionDetailFn } from "~/lib/dashboard/live/history";
+import { getLiveSessionDetailFn, type LiveSessionDetailResponse } from "~/lib/dashboard/live/history";
 import { getGeminiToken } from "~/lib/gemini/actions";
-import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
+import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
 import { getLocale } from "~/paraglide/runtime";
 
 type LiveSessionMeta = {
   sessionId: string;
+  liveSessionId?: string;
   personaId: string;
   personaName: string;
   voice: string;
@@ -57,7 +64,14 @@ function LiveRoute() {
 }
 
 export function LivePage({ sessionId }: LivePageProps) {
+  const matchRoute = useMatchRoute();
+  const matchedSession = matchRoute({ to: "/live/$sessionId" });
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const pathMatch = pathname.match(/^\/live\/([^/]+)$/);
+  const resolvedSessionId =
+    sessionId ?? (matchedSession ? matchedSession.sessionId : null) ?? pathMatch?.[1] ?? null;
   const [textInput, setTextInput] = useState("");
+  const [isResuming, setIsResuming] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(
     getPersonaById(DEFAULT_PERSONA_ID),
   );
@@ -69,14 +83,23 @@ export function LivePage({ sessionId }: LivePageProps) {
   const activeSessionRef = useRef<LiveSessionMeta | null>(null);
   const pendingSessionRef = useRef<LiveSessionMeta | null>(null);
   const lastPersistedSessionIdRef = useRef<string | null>(null);
+  const syncedMessageIdsRef = useRef<Set<string>>(new Set());
+  const isCreatingSessionRef = useRef(false);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const isViewingHistory = Boolean(sessionId);
+  const isViewingHistory = Boolean(resolvedSessionId);
+  const isReadOnlyHistory = isViewingHistory && !isResuming;
 
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
   }, [selectedPersona.id, selectedPersona.defaultVoice]);
+
+  useEffect(() => {
+    if (!isViewingHistory) {
+      setIsResuming(false);
+    }
+  }, [isViewingHistory]);
 
   const {
     connect,
@@ -97,16 +120,19 @@ export function LivePage({ sessionId }: LivePageProps) {
     uiLanguage: uiLocale,
   });
   const observer = useObserverInsights(uiLocale);
-  const historyQuery = useQuery({
-    queryKey: ["live-session-detail", sessionId],
-    queryFn: () => getLiveSessionDetailFn({ data: { sessionId: sessionId! } }),
-    enabled: Boolean(sessionId),
+  const historyQuery = useQuery<LiveSessionDetailResponse>({
+    queryKey: ["live-session-detail", resolvedSessionId],
+    queryFn: () =>
+      getLiveSessionDetailFn({
+        data: { sessionId: resolvedSessionId! },
+      }) as Promise<LiveSessionDetailResponse>,
+    enabled: Boolean(resolvedSessionId),
   });
   const historyMessages = useMemo(() => {
     if (!historyQuery.data) return [];
     return historyQuery.data.messages.map((message) => ({
       id: message.id,
-      role: message.role === "user" ? "user" : "model",
+      role: (message.role === "user" ? "user" : "model") as "user" | "model",
       content: message.content,
       timestamp: new Date(message.createdAt),
     }));
@@ -115,9 +141,18 @@ export function LivePage({ sessionId }: LivePageProps) {
     const personaId = historyQuery.data?.session.metadata?.personaId;
     return personaId ? getPersonaById(personaId) : selectedPersona;
   }, [historyQuery.data?.session.metadata?.personaId, selectedPersona]);
-  const displayMessages = isViewingHistory ? historyMessages : messages;
+  const displayMessages = isViewingHistory
+    ? isResuming
+      ? [...historyMessages, ...messages]
+      : historyMessages
+    : messages;
   const observerMessages = displayMessages;
   const canTriggerObserver = observerMessages.length > 0 && !observer.isRunning;
+
+  const isActiveSession = status === "connected";
+  const isConnecting = status === "connecting" || isFetchingToken;
+  const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
+  const historyError = isViewingHistory ? historyQuery.error : null;
 
   const buildSessionMeta = useCallback(
     (): LiveSessionMeta => ({
@@ -136,11 +171,23 @@ export function LivePage({ sessionId }: LivePageProps) {
   }, [error]);
 
   useEffect(() => {
+    if (!isViewingHistory || !historyQuery.data) return;
+    const personaId = historyQuery.data.session.metadata?.personaId;
+    const voice = historyQuery.data.session.metadata?.voice;
+    if (personaId) {
+      setSelectedPersona(getPersonaById(personaId));
+    }
+    if (voice) {
+      setSelectedVoice(voice);
+    }
+  }, [historyQuery.data, isViewingHistory]);
+
+  useEffect(() => {
     if (status === "connected") {
       if (!isRecording && !isPaused) {
         startRecording();
       }
-      if (!hasSentGreetingRef.current) {
+      if (!hasSentGreetingRef.current && !isResuming) {
         sendText("Hello!", true);
         hasSentGreetingRef.current = true;
       }
@@ -148,30 +195,31 @@ export function LivePage({ sessionId }: LivePageProps) {
       hasSentGreetingRef.current = false;
       setIsPaused(false);
     }
-  }, [status, isRecording, isPaused, startRecording, sendText]);
+  }, [status, isRecording, isPaused, isResuming, startRecording, sendText]);
 
   useEffect(() => {
     if (status !== "connected" || !pendingSessionRef.current) return;
     activeSessionRef.current = pendingSessionRef.current;
     pendingSessionRef.current = null;
+    syncedMessageIdsRef.current = new Set();
+    isCreatingSessionRef.current = false;
   }, [status]);
 
   const syncPreviousSession = useCallback(async () => {
     const session = activeSessionRef.current;
     if (!session || messages.length === 0) return;
     if (lastPersistedSessionIdRef.current === session.sessionId) return;
+    if (!session.liveSessionId) {
+      console.warn("Live session id missing; skipping sync.");
+      return;
+    }
 
     try {
-      const { storeLiveSessionFn } = await import("~/lib/dashboard/live/session");
-      await storeLiveSessionFn({
+      const { closeLiveSessionFn } = await import("~/lib/dashboard/live/session");
+      await closeLiveSessionFn({
         data: {
+          liveSessionId: session.liveSessionId,
           session: { ...session, endedAt: new Date().toISOString() },
-          messages: messages.map((message) => ({
-            id: message.id,
-            role: message.role,
-            content: message.content,
-            timestamp: message.timestamp.toISOString(),
-          })),
         },
       });
       lastPersistedSessionIdRef.current = session.sessionId;
@@ -181,24 +229,155 @@ export function LivePage({ sessionId }: LivePageProps) {
     }
   }, [messages, queryClient]);
 
+  const appendTurnMessages = useCallback(
+    async (turnMessages: Message[]) => {
+      const session = activeSessionRef.current;
+      if (!session?.liveSessionId) return;
+      const unsynced = turnMessages.filter(
+        (message) => !syncedMessageIdsRef.current.has(message.id),
+      );
+      if (unsynced.length === 0) return;
+
+      try {
+        const { appendLiveSessionMessagesFn } = await import(
+          "~/lib/dashboard/live/session"
+        );
+        await appendLiveSessionMessagesFn({
+          data: {
+            liveSessionId: session.liveSessionId,
+            messages: unsynced.map((message) => ({
+              id: message.id,
+              role: message.role,
+              content: message.content,
+              timestamp: message.timestamp.toISOString(),
+            })),
+          },
+        });
+        unsynced.forEach((message) => {
+          syncedMessageIdsRef.current.add(message.id);
+        });
+        queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+      } catch (err) {
+        console.error("Failed to append live messages", err);
+      }
+    },
+    [queryClient],
+  );
+
+  const ensureLiveSessionId = useCallback(async () => {
+    const session = activeSessionRef.current;
+    if (!session || session.liveSessionId || isCreatingSessionRef.current) return;
+    isCreatingSessionRef.current = true;
+    try {
+      const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
+      const { liveSessionId } = await createLiveSessionFn({
+        data: { session },
+      });
+      activeSessionRef.current = { ...session, liveSessionId };
+      queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+    } catch (err) {
+      console.error("Failed to create live session", err);
+    } finally {
+      isCreatingSessionRef.current = false;
+    }
+  }, [queryClient]);
+
   const connectSession = useCallback(async () => {
     setSessionError(null);
     setIsFetchingToken(true);
     try {
       await syncPreviousSession();
-      pendingSessionRef.current = buildSessionMeta();
+      const session = buildSessionMeta();
+      pendingSessionRef.current = session;
       const { token } = await getGeminiToken();
-      await connect(selectedPersona.systemPrompt, token);
+
+      // Gather device context
+      const now = new Date();
+      const deviceContext = `
+System Context:
+- User Time: ${now.toLocaleString(undefined, {
+        dateStyle: "full",
+        timeStyle: "medium",
+      })}
+- TimeZone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+- Language: ${getLocale()}
+- User Agent: ${navigator.userAgent}
+`;
+      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}`;
+
+      await connect(fullSystemPrompt, token);
     } catch (err) {
       console.error("Connection error:", err);
       setSessionError(err instanceof Error ? err.message : "Failed to connect");
+      pendingSessionRef.current = null;
     } finally {
       setIsFetchingToken(false);
     }
-  }, [buildSessionMeta, connect, selectedPersona.systemPrompt, syncPreviousSession]);
+  }, [
+    buildSessionMeta,
+    connect,
+    queryClient,
+    selectedPersona.systemPrompt,
+    syncPreviousSession,
+  ]);
+
+  const connectResumeSession = useCallback(async () => {
+    if (!resolvedSessionId || !historyQuery.data) return;
+    setSessionError(null);
+    setIsFetchingToken(true);
+    try {
+      await syncPreviousSession();
+      const session = buildSessionMeta();
+      pendingSessionRef.current = { ...session, liveSessionId: resolvedSessionId };
+      setIsResuming(true);
+      const { token } = await getGeminiToken();
+
+      const historyContext =
+        historyMessages.length > 0
+          ? `Conversation history:\n${historyMessages
+            .map((message) =>
+              message.role === "user"
+                ? `User: ${message.content}`
+                : `AI: ${message.content}`,
+            )
+            .join("\n")}\n`
+          : "";
+
+      const now = new Date();
+      const deviceContext = `
+System Context:
+- User Time: ${now.toLocaleString(undefined, {
+        dateStyle: "full",
+        timeStyle: "medium",
+      })}
+- TimeZone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+- Language: ${getLocale()}
+- User Agent: ${navigator.userAgent}
+`;
+
+      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n${historyContext}`;
+      await connect(fullSystemPrompt, token);
+    } catch (err) {
+      console.error("Resume connection error:", err);
+      setSessionError(err instanceof Error ? err.message : "Failed to resume");
+      pendingSessionRef.current = null;
+      setIsResuming(false);
+    } finally {
+      setIsFetchingToken(false);
+    }
+  }, [
+    buildSessionMeta,
+    connect,
+    historyMessages,
+    historyQuery.data,
+    resolvedSessionId,
+    selectedPersona.systemPrompt,
+    syncPreviousSession,
+  ]);
 
   const handleToggleSession = async () => {
     if (status === "connected" || status === "connecting") {
+      await syncPreviousSession();
       disconnect();
       return;
     }
@@ -208,44 +387,46 @@ export function LivePage({ sessionId }: LivePageProps) {
   const handleSendText = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (isViewingHistory || !textInput.trim() || status !== "connected") return;
+      if (isReadOnlyHistory || !textInput.trim() || status !== "connected") return;
       sendText(textInput);
       setTextInput("");
     },
-    [isViewingHistory, sendText, status, textInput],
+    [isReadOnlyHistory, sendText, status, textInput],
   );
 
   useEffect(() => {
-    if (status !== "connected") return;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [status]);
+    if (!isActiveSession || isReadOnlyHistory) return;
+    const session = activeSessionRef.current;
+    if (!session) return;
+    const lastIndex = messages.length - 1;
+    if (lastIndex < 0) return;
+    const lastMessage = messages[lastIndex];
+    const previousMessage = messages[lastIndex - 1];
+    const previousModel = messages[lastIndex - 2];
 
-  useBlocker({
-    shouldBlockFn: () => {
-      if (status !== "connected") return false;
-      const shouldLeave = window.confirm(
-        "You have an active call. Do you want to end it?",
-      );
-      if (shouldLeave) {
-        disconnect();
-        return false;
-      }
-      return true;
-    },
-  });
+    if (lastMessage?.role === "model" && !session.liveSessionId) {
+      void ensureLiveSessionId();
+      return;
+    }
 
-  const isActiveSession = status === "connected";
-  const isConnecting = status === "connecting" || isFetchingToken;
-  const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
-  const historyError = isViewingHistory ? historyQuery.error : null;
+    if (
+      lastMessage?.role === "model" &&
+      previousMessage?.role === "user" &&
+      previousModel?.role === "model"
+    ) {
+      void appendTurnMessages([previousModel, previousMessage]);
+    }
+  }, [
+    appendTurnMessages,
+    ensureLiveSessionId,
+    isActiveSession,
+    isReadOnlyHistory,
+    messages,
+  ]);
 
   return (
     <div className="relative h-[calc(100vh-10rem)]">
+      {isActiveSession && <SessionBlocker disconnect={disconnect} />}
       <AmbientGlowBackdrop
         inputLevel={inputLevel}
         outputLevel={outputLevel}
@@ -254,7 +435,7 @@ export function LivePage({ sessionId }: LivePageProps) {
 
       <div className="relative z-10 h-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
         <div className="flex h-full gap-4">
-          <LiveHistorySidebar activeSessionId={sessionId ?? null} />
+          <LiveHistorySidebar activeSessionId={resolvedSessionId} />
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             {isViewingHistory && (
@@ -264,15 +445,25 @@ export function LivePage({ sessionId }: LivePageProps) {
                     Viewing saved session
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Start a new session to continue chatting live.
+                    Resume to continue this conversation or start fresh.
                   </p>
                 </div>
-                <Button
-                  onClick={() => navigate({ to: "/live" })}
-                  className="rounded-full px-5"
-                >
-                  Start New Session
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => navigate({ to: "/live" })}
+                    className="rounded-full px-5"
+                    variant="outline"
+                  >
+                    New Session
+                  </Button>
+                  <Button
+                    onClick={connectResumeSession}
+                    className="rounded-full px-5"
+                    disabled={isConnecting}
+                  >
+                    Resume
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -315,111 +506,134 @@ export function LivePage({ sessionId }: LivePageProps) {
               </div>
             )}
 
-            <Card className="shrink-0 p-3 sm:p-4 rounded-[28px] bg-card/80 backdrop-blur-xl border-border/50 shadow-xl z-20">
-              <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 justify-between">
-                <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto pb-1 xl:pb-0 scrollbar-none">
+            <Card className="shrink-0 p-3 rounded-xl bg-card/80 backdrop-blur-xl border-border/50 shadow-sm z-20 flex flex-col gap-3">
+              {/* Top Row: Selectors + Controls */}
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
                   <PersonaSelector
                     selectedId={selectedPersona.id}
                     onSelect={setSelectedPersona}
+                    className="w-[180px] h-9"
                   />
-                  <div className="h-10 w-px bg-border/50 hidden sm:block" />
-
                   <VoiceSelector
                     value={selectedVoice}
                     onValueChange={setSelectedVoice}
-                    disabled={isActiveSession || isConnecting || isViewingHistory}
+                    disabled={isActiveSession || isConnecting || isReadOnlyHistory}
+                    className="w-[140px] h-9"
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 xl:justify-end min-w-0">
-                  <div className="flex items-center gap-3 w-full sm:w-auto sm:flex-1 max-w-2xl bg-muted/30 p-1 rounded-[20px] border border-border/30">
-                    <div className="pl-3 pr-2 py-2 flex items-center gap-3 shrink-0 border-r border-border/30">
-                      <span
-                        className={cn(
-                          "h-2.5 w-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.4)]",
-                          isRecording ? "bg-green-500" : "bg-amber-500"
-                        )}
-                      />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:inline-block">
-                        {isRecording ? "Live" : "Paused"}
-                      </span>
-                    </div>
-
-                    <form onSubmit={handleSendText} className="flex-1 flex gap-2 w-full min-w-0">
-                      <Input
-                        value={textInput}
-                        onChange={(e) => setTextInput(e.target.value)}
-                        placeholder="Type a message..."
-                        disabled={!isActiveSession || isViewingHistory}
-                        className="h-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-2 shadow-none placeholder:text-muted-foreground/50"
-                      />
-                      <Button
-                        type="submit"
-                        size="icon"
-                        variant="ghost"
-                        disabled={!isActiveSession || !textInput.trim() || isViewingHistory}
-                        className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10 rounded-xl shrink-0 transition-all"
-                      >
-                        <Send className="h-5 w-5" />
-                      </Button>
-                    </form>
-                  </div>
-
-                  <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
-                    {isActiveSession && !isViewingHistory && (
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="h-14 w-14 p-0 rounded-2xl border-border/50 bg-background/50 hover:bg-background/80 shadow-sm"
-                        onClick={() => {
-                          if (isRecording) {
-                            setIsPaused(true);
-                            pause();
-                          } else {
-                            setIsPaused(false);
-                            resume();
-                          }
-                        }}
-                      >
-                        <span className="text-xs font-bold uppercase tracking-wider">
-                          {isRecording ? "Mute" : "Speak"}
-                        </span>
-                      </Button>
-                    )}
-
+                <div className="flex items-center gap-2">
+                  {isActiveSession && !isReadOnlyHistory && (
                     <Button
-                      size="lg"
+                      size="sm"
+                      variant="outline"
                       className={cn(
-                        "h-14 px-8 rounded-2xl text-lg font-bold tracking-tight shadow-lg hover:shadow-xl transition-all w-full sm:w-auto min-w-[160px]",
-                        isActiveSession
-                          ? "bg-red-500/90 hover:bg-red-500 text-white shadow-red-500/20"
-                          : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20",
+                        "h-9 px-3 text-xs font-medium",
+                        isRecording ? "bg-background" : "bg-amber-50 text-amber-600 border-amber-200"
                       )}
-                      onClick={
-                        isViewingHistory
-                          ? () => navigate({ to: "/live" })
-                          : handleToggleSession
-                      }
-                      disabled={isConnecting || isViewingHistory}
+                      onClick={() => {
+                        if (isRecording) {
+                          pause();
+                          setIsPaused(true);
+                        } else {
+                          resume();
+                          setIsPaused(false);
+                        }
+                      }}
                     >
-                      {isActiveSession ? (
+                      {isRecording ? (
                         <>
-                          <PhoneOff className="mr-2 h-5 w-5" />
-                          End Call
+                          <Mic className="mr-2 h-3.5 w-3.5" />
+                          Mute
                         </>
                       ) : (
                         <>
-                          {isConnecting ? (
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          ) : (
-                            <Phone className="mr-2 h-5 w-5" />
-                          )}
-                          {isConnecting ? "Connecting..." : "Start Call"}
+                          <MicOff className="mr-2 h-3.5 w-3.5" />
+                          Unmute
                         </>
                       )}
                     </Button>
-                  </div>
+                  )}
+
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "h-9 px-4 text-sm font-medium transition-all shadow-sm",
+                      isActiveSession
+                        ? "bg-red-500 hover:bg-red-600 text-white"
+                        : "bg-primary hover:bg-primary/90",
+                    )}
+                    onClick={
+                      isReadOnlyHistory
+                        ? () => navigate({ to: "/live" })
+                        : handleToggleSession
+                    }
+                    disabled={isConnecting || isReadOnlyHistory}
+                  >
+                    {isActiveSession ? (
+                      <>
+                        <PhoneOff className="mr-2 h-3.5 w-3.5" />
+                        End
+                      </>
+                    ) : (
+                      <>
+                        {isConnecting ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Phone className="mr-2 h-3.5 w-3.5" />
+                        )}
+                        {isConnecting ? "Connecting..." : "Start Call"}
+                      </>
+                    )}
+                  </Button>
                 </div>
+              </div>
+
+              {/* Bottom Row: Input + Send */}
+              <div className="flex items-end gap-2">
+                <div className="relative flex-1">
+                  {isRecording && (
+                    <span className="absolute top-3 left-3 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                  )}
+                  <Textarea
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (isActiveSession && !isReadOnlyHistory && textInput.trim()) {
+                          sendText(textInput);
+                          setTextInput("");
+                        }
+                      }
+                    }}
+                    placeholder={
+                      isActiveSession
+                        ? "Type a message..."
+                        : "Connect to start chatting..."
+                    }
+                    disabled={!isActiveSession || isReadOnlyHistory}
+                    className={cn(
+                      "min-h-[36px] max-h-[120px] py-1.5 px-3 rounded-lg resize-none text-sm",
+                      isRecording && "pl-8"
+                    )}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  disabled={!isActiveSession || !textInput.trim() || isReadOnlyHistory}
+                  onClick={() => {
+                    sendText(textInput);
+                    setTextInput("");
+                  }}
+                  className="h-9 w-9 p-0 shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
             </Card>
           </div>
@@ -449,21 +663,11 @@ function ObserverPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Observer Agent</p>
-          <p className="text-xs text-muted-foreground">
-            Tool-only insights per user turn
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={onTrigger} disabled={!canTrigger}>
             Run
           </Button>
-          <span
-            className={cn(
-              "flex h-2 w-2 rounded-full",
-              isRunning ? "animate-pulse bg-primary" : "bg-muted-foreground/50",
-            )}
-            aria-label={isRunning ? "Running" : "Idle"}
-          />
         </div>
       </div>
 
@@ -474,11 +678,6 @@ function ObserverPanel({
       )}
 
       <div className="mt-3 space-y-2 overflow-y-auto pr-1">
-        {outputs.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            Observer will surface insights here.
-          </p>
-        )}
         {outputs.map((entry) => {
           const turnId =
             typeof entry.payload.output.turnId === "string"
@@ -511,4 +710,30 @@ function ObserverPanel({
       </div>
     </aside>
   );
+}
+
+function SessionBlocker({ disconnect }: { disconnect: () => void }) {
+  useBlocker({
+    shouldBlockFn: () => {
+      const shouldLeave = window.confirm(
+        "You have an active call. Do you want to end it?",
+      );
+      if (shouldLeave) {
+        disconnect();
+        return false;
+      }
+      return true;
+    },
+  });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  return null;
 }

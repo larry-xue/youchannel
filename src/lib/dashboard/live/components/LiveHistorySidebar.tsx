@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Clock, Loader2, Plus, Search } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useMatchRoute, useRouterState } from "@tanstack/react-router";
+import { Clock, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { Input } from "~/lib/components/ui/input";
 import { Button } from "~/lib/components/ui/button";
-import { getLiveSessionHistoryFn, type LiveSessionHistoryEntry } from "../history";
+import {
+  deleteLiveSessionFn,
+  getLiveSessionHistoryFn,
+  type LiveSessionHistoryEntry,
+} from "../history";
 
 type LiveHistorySidebarProps = {
   activeSessionId?: string | null;
@@ -38,12 +42,26 @@ export function LiveHistorySidebar({
   activeSessionId,
   className,
 }: LiveHistorySidebarProps) {
+  const matchRoute = useMatchRoute();
+  const matchedSession = matchRoute({ to: "/live/$sessionId" });
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const pathMatch = pathname.match(/^\/live\/([^/]+)$/);
+  const resolvedActiveSessionId =
+    activeSessionId ?? (matchedSession ? matchedSession.sessionId : null) ?? pathMatch?.[1] ?? null;
   const [query, setQuery] = useState("");
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ["live-session-history"],
     queryFn: () => getLiveSessionHistoryFn(),
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
+  });
+  const deleteMutation = useMutation({
+    mutationFn: async (sessionId: string) =>
+      deleteLiveSessionFn({ data: { sessionId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+    },
   });
 
   const sessions = data?.sessions ?? [];
@@ -124,29 +142,57 @@ export function LiveHistorySidebar({
             const label = extractMetadataLabel(entry);
             const lastMessage = entry.lastMessage?.content ?? "No transcript saved.";
             const timeLabel = formatTimeLabel(entry.createdAt);
-            const isActive = activeSessionId === entry.id;
+            const isActive = resolvedActiveSessionId === entry.id;
             return (
               <Link
                 key={entry.id}
                 to="/live/$sessionId"
                 params={{ sessionId: entry.id }}
                 className={cn(
-                  "group rounded-2xl border border-border/40 bg-card/70 p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/90",
-                  isActive && "border-primary/40 bg-card/90 shadow-md",
+                  "group relative rounded-2xl border border-border/40 bg-card/70 p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/90",
+                  isActive && "border-primary/50 bg-card/95 shadow-md ring-1 ring-primary/10",
                 )}
               >
+                {isActive && (
+                  <span className="absolute left-0 top-3 h-8 w-1 rounded-full bg-primary/70" />
+                )}
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-foreground line-clamp-1">
+                    <p
+                      className={cn(
+                        "text-sm font-semibold text-foreground line-clamp-1",
+                        isActive && "text-primary",
+                      )}
+                    >
                       {label}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
                       {entry.messageCount} messages
                     </p>
                   </div>
-                  <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/80">
-                    {timeLabel}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/80">
+                      {timeLabel}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-label="Delete session"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const confirmed = window.confirm(
+                          "Delete this session? This cannot be undone.",
+                        );
+                        if (!confirmed) return;
+                        deleteMutation.mutate(entry.id);
+                      }}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </div>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                   {lastMessage}

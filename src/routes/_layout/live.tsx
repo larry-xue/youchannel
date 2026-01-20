@@ -2,6 +2,7 @@ import { createFileRoute, useBlocker } from "@tanstack/react-router";
 import { Check, ChevronDown, Loader2, Phone, PhoneOff, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
+import { Card } from "~/lib/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,15 @@ import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
 import { getLocale } from "~/paraglide/runtime";
+
+type LiveSessionMeta = {
+  sessionId: string;
+  personaId: string;
+  personaName: string;
+  voice: string;
+  uiLocale: string;
+  startedAt: string;
+};
 
 export const Route = createFileRoute("/_layout/live")({
   component: LivePage,
@@ -49,6 +59,10 @@ function LivePage() {
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const hasSentGreetingRef = useRef(false);
+  const activeSessionRef = useRef<LiveSessionMeta | null>(null);
+  const pendingSessionRef = useRef<LiveSessionMeta | null>(null);
+  const lastPersistedSessionIdRef = useRef<string | null>(null);
+  const uiLocale = getLocale();
 
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
@@ -70,10 +84,22 @@ function LivePage() {
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
-    uiLanguage: getLocale(),
+    uiLanguage: uiLocale,
   });
-  const observer = useObserverInsights(getLocale());
+  const observer = useObserverInsights(uiLocale);
   const canTriggerObserver = messages.length > 0 && !observer.isRunning;
+
+  const buildSessionMeta = useCallback(
+    (): LiveSessionMeta => ({
+      sessionId: crypto.randomUUID(),
+      personaId: selectedPersona.id,
+      personaName: selectedPersona.name,
+      voice: selectedVoice,
+      uiLocale,
+      startedAt: new Date().toISOString(),
+    }),
+    [selectedPersona.id, selectedPersona.name, selectedVoice, uiLocale],
+  );
 
   useEffect(() => {
     if (error) setSessionError(error);
@@ -94,10 +120,40 @@ function LivePage() {
     }
   }, [status, isRecording, isPaused, startRecording, sendText]);
 
+  useEffect(() => {
+    if (status !== "connected" || !pendingSessionRef.current) return;
+    activeSessionRef.current = pendingSessionRef.current;
+    pendingSessionRef.current = null;
+  }, [status]);
+
+  const syncPreviousSession = useCallback(async () => {
+    const session = activeSessionRef.current;
+    if (!session || messages.length === 0) return;
+    if (lastPersistedSessionIdRef.current === session.sessionId) return;
+
+    try {
+      const { storeLiveSessionFn } = await import("~/lib/dashboard/live/session");
+      await storeLiveSessionFn({
+        session: { ...session, endedAt: new Date().toISOString() },
+        messages: messages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          timestamp: message.timestamp.toISOString(),
+        })),
+      });
+      lastPersistedSessionIdRef.current = session.sessionId;
+    } catch (err) {
+      console.error("Failed to store previous live session", err);
+    }
+  }, [messages]);
+
   const connectSession = useCallback(async () => {
     setSessionError(null);
     setIsFetchingToken(true);
     try {
+      await syncPreviousSession();
+      pendingSessionRef.current = buildSessionMeta();
       const { token } = await getGeminiToken();
       await connect(selectedPersona.systemPrompt, token);
     } catch (err) {
@@ -106,7 +162,7 @@ function LivePage() {
     } finally {
       setIsFetchingToken(false);
     }
-  }, [connect, selectedPersona.systemPrompt]);
+  }, [buildSessionMeta, connect, selectedPersona.systemPrompt, syncPreviousSession]);
 
   const handleToggleSession = async () => {
     if (status === "connected" || status === "connecting") {
@@ -158,172 +214,16 @@ function LivePage() {
         className="fixed inset-0 -z-10"
       />
 
-      <div className="relative z-10 h-full mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-6">
-            <div className="col-span-1 flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Persona
-                </label>
-                <div className="mt-2">
-                  <PersonaSelector
-                    selectedId={selectedPersona.id}
-                    onSelect={setSelectedPersona}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Voice
-                </label>
-                <div className="mt-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="h-12 w-full justify-between rounded-2xl px-4 text-base font-medium bg-muted/80 backdrop-blur-sm shadow-sm hover:bg-surface-2 transition-colors"
-                        disabled={isActiveSession || isConnecting}
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="font-semibold truncate">{selectedVoice}</span>
-                          <span className="text-muted-foreground/60 text-sm truncate">
-                            {VOICES.find((v) => v.name === selectedVoice)?.style}
-                          </span>
-                        </span>
-                        <ChevronDown className="h-4 w-4 opacity-60" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      className="w-[320px] max-h-[320px] overflow-y-auto rounded-2xl shadow-2xl bg-popover/95 backdrop-blur-xl p-2"
-                    >
-                      {VOICES.map((voice) => (
-                        <DropdownMenuItem
-                          key={voice.name}
-                          onClick={() => setSelectedVoice(voice.name)}
-                          className="flex items-center justify-between gap-3 rounded-xl p-3 cursor-pointer hover:bg-accent focus:bg-accent"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{voice.name}</span>
-                            <span className="text-xs text-muted-foreground/80">
-                              {voice.style}
-                            </span>
-                          </div>
-                          {selectedVoice === voice.name && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-1 flex flex-col justify-between gap-3 rounded-2xl border border-border/50 bg-card/70 px-4 py-4 shadow-sm">
-              {sessionError && (
-                <div className="rounded-2xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
-                  {sessionError}
-                </div>
-              )}
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Mic status</span>
-                <span
-                  className={cn(
-                    "flex items-center gap-2",
-                    isRecording ? "text-green-500" : "text-amber-500",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "h-2 w-2 rounded-full animate-pulse",
-                      isRecording ? "bg-green-500" : "bg-amber-500",
-                    )}
-                  />
-                  {isRecording ? "Recording" : "Paused"}
-                </span>
-              </div>
-
-              <form onSubmit={handleSendText} className="flex gap-2">
-                <Input
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  placeholder="Type a message..."
-                  disabled={!isActiveSession}
-                  className="bg-background/50"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!isActiveSession || !textInput.trim()}
-                  className="shrink-0"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
-
-              <div className="flex gap-3">
-                <Button
-                  size="lg"
-                  className={cn(
-                    "h-16 flex-1 rounded-2xl text-lg font-semibold tracking-tight transition-transform duration-300 shadow-lg hover:shadow-xl",
-                    isActiveSession
-                      ? "bg-destructive/90 text-destructive-foreground hover:bg-destructive"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90",
-                  )}
-                  onClick={handleToggleSession}
-                  disabled={isConnecting}
-                >
-                  {isActiveSession ? (
-                    <>
-                      <PhoneOff className="mr-2 h-6 w-6" />
-                      End Session
-                    </>
-                  ) : (
-                    <>
-                      {isConnecting ? (
-                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                      ) : (
-                        <Phone className="mr-2 h-6 w-6" />
-                      )}
-                      {isConnecting ? "Connecting..." : "Start Call"}
-                    </>
-                  )}
-                </Button>
-                {isActiveSession && (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-16 w-32 rounded-2xl text-sm font-semibold shadow-sm hover:shadow-md"
-                    onClick={() => {
-                      if (isRecording) {
-                        setIsPaused(true);
-                        pause();
-                      } else {
-                        setIsPaused(false);
-                        resume();
-                      }
-                    }}
-                  >
-                    {isRecording ? "Pause Mic" : "Resume Mic"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="relative z-10 h-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
         <div className="flex-1 min-h-0">
-          <div className="grid h-full min-h-[460px] grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
-            <div className="col-span-1 xl:col-span-2 min-h-0">
+          <div className="grid h-full grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+            <div className="col-span-1 lg:col-span-2 h-full min-h-0">
               <LiveTranscript
                 messages={messages}
                 status={status}
                 persona={selectedPersona}
                 isRecording={isRecording}
-                className="h-full w-full rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md shadow-md min-w-0"
+                className="h-full w-full rounded-[24px] border border-border/50 bg-card/60 backdrop-blur-md shadow-md"
               />
             </div>
             <ObserverPanel
@@ -335,6 +235,152 @@ function LivePage() {
             />
           </div>
         </div>
+
+        {sessionError && (
+          <div className="mx-auto rounded-full bg-destructive/10 px-4 py-1.5 text-sm font-medium text-destructive backdrop-blur-sm border border-destructive/20 animate-in fade-in slide-in-from-bottom-4">
+            {sessionError}
+          </div>
+        )}
+
+        <Card className="shrink-0 p-3 sm:p-4 rounded-[28px] bg-card/80 backdrop-blur-xl border-border/50 shadow-xl z-20">
+          <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 justify-between">
+            <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto pb-1 xl:pb-0 scrollbar-none">
+              <PersonaSelector
+                selectedId={selectedPersona.id}
+                onSelect={setSelectedPersona}
+              />
+              <div className="h-10 w-px bg-border/50 hidden sm:block" />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-12 justify-between rounded-2xl px-3 text-base font-medium hover:bg-muted/50 transition-colors gap-3 border border-border/30 bg-background/30"
+                    disabled={isActiveSession || isConnecting}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold truncate max-w-[100px] sm:max-w-none">
+                        {selectedVoice}
+                      </span>
+                      <span className="text-muted-foreground/60 text-xs truncate hidden sm:inline-block">
+                        {VOICES.find((v) => v.name === selectedVoice)?.style}
+                      </span>
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[280px] max-h-[320px] overflow-y-auto rounded-2xl shadow-2xl bg-popover/95 backdrop-blur-xl p-2"
+                >
+                  {VOICES.map((voice) => (
+                    <DropdownMenuItem
+                      key={voice.name}
+                      onClick={() => setSelectedVoice(voice.name)}
+                      className="flex items-center justify-between gap-3 rounded-xl p-3 cursor-pointer"
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">{voice.name}</span>
+                        <span className="text-xs text-muted-foreground/80">
+                          {voice.style}
+                        </span>
+                      </div>
+                      {selectedVoice === voice.name && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 xl:justify-end min-w-0">
+              <div className="flex items-center gap-3 w-full sm:w-auto sm:flex-1 max-w-2xl bg-muted/30 p-1 rounded-[20px] border border-border/30">
+                <div className="pl-3 pr-2 py-2 flex items-center gap-3 shrink-0 border-r border-border/30">
+                  <span
+                    className={cn(
+                      "h-2.5 w-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.4)]",
+                      isRecording ? "bg-green-500" : "bg-amber-500"
+                    )}
+                  />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:inline-block">
+                    {isRecording ? "Live" : "Paused"}
+                  </span>
+                </div>
+
+                <form onSubmit={handleSendText} className="flex-1 flex gap-2 w-full min-w-0">
+                  <Input
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="Type a message..."
+                    disabled={!isActiveSession}
+                    className="h-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-2 shadow-none placeholder:text-muted-foreground/50"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    variant="ghost"
+                    disabled={!isActiveSession || !textInput.trim()}
+                    className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10 rounded-xl shrink-0 transition-all"
+                  >
+                    <Send className="h-5 w-5" />
+                  </Button>
+                </form>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+                {isActiveSession && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-14 w-14 p-0 rounded-2xl border-border/50 bg-background/50 hover:bg-background/80 shadow-sm"
+                    onClick={() => {
+                      if (isRecording) {
+                        setIsPaused(true);
+                        pause();
+                      } else {
+                        setIsPaused(false);
+                        resume();
+                      }
+                    }}
+                  >
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      {isRecording ? "Mute" : "Speak"}
+                    </span>
+                  </Button>
+                )}
+
+                <Button
+                  size="lg"
+                  className={cn(
+                    "h-14 px-8 rounded-2xl text-lg font-bold tracking-tight shadow-lg hover:shadow-xl transition-all w-full sm:w-auto min-w-[160px]",
+                    isActiveSession
+                      ? "bg-red-500/90 hover:bg-red-500 text-white shadow-red-500/20"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20",
+                  )}
+                  onClick={handleToggleSession}
+                  disabled={isConnecting}
+                >
+                  {isActiveSession ? (
+                    <>
+                      <PhoneOff className="mr-2 h-5 w-5" />
+                      End Call
+                    </>
+                  ) : (
+                    <>
+                      {isConnecting ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <Phone className="mr-2 h-5 w-5" />
+                      )}
+                      {isConnecting ? "Connecting..." : "Start Call"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Loader2, Search } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Clock, Loader2, Plus, Search } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { Input } from "~/lib/components/ui/input";
+import { Button } from "~/lib/components/ui/button";
 import { getLiveSessionHistoryFn, type LiveSessionHistoryEntry } from "../history";
 
 type LiveHistorySidebarProps = {
+  activeSessionId?: string | null;
   className?: string;
 };
 
@@ -31,7 +34,10 @@ function formatTimeLabel(iso: string) {
   }).format(date);
 }
 
-export function LiveHistorySidebar({ className }: LiveHistorySidebarProps) {
+export function LiveHistorySidebar({
+  activeSessionId,
+  className,
+}: LiveHistorySidebarProps) {
   const [query, setQuery] = useState("");
   const { data, isLoading, error } = useQuery({
     queryKey: ["live-session-history"],
@@ -70,9 +76,16 @@ export function LiveHistorySidebar({ className }: LiveHistorySidebarProps) {
           </p>
           <p className="text-lg font-semibold text-foreground">Live Sessions</p>
         </div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" />
-          <span>{sessions.length}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>{sessions.length}</span>
+          </div>
+          <Button asChild size="icon" variant="outline" className="h-8 w-8">
+            <Link to="/live" aria-label="Start new session">
+              <Plus className="h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -111,10 +124,16 @@ export function LiveHistorySidebar({ className }: LiveHistorySidebarProps) {
             const label = extractMetadataLabel(entry);
             const lastMessage = entry.lastMessage?.content ?? "No transcript saved.";
             const timeLabel = formatTimeLabel(entry.createdAt);
+            const isActive = activeSessionId === entry.id;
             return (
-              <div
+              <Link
                 key={entry.id}
-                className="group rounded-2xl border border-border/40 bg-card/70 p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/90"
+                to="/live/$sessionId"
+                params={{ sessionId: entry.id }}
+                className={cn(
+                  "group rounded-2xl border border-border/40 bg-card/70 p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/90",
+                  isActive && "border-primary/40 bg-card/90 shadow-md",
+                )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -132,7 +151,7 @@ export function LiveHistorySidebar({ className }: LiveHistorySidebarProps) {
                 <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                   {lastMessage}
                 </p>
-              </div>
+              </Link>
             );
           })}
         </div>

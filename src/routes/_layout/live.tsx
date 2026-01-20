@@ -1,7 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useBlocker } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useBlocker, useNavigate } from "@tanstack/react-router";
 import { Loader2, Phone, PhoneOff, Send } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Card } from "~/lib/components/ui/card";
 import { Input } from "~/lib/components/ui/input";
@@ -18,6 +18,7 @@ import {
   type Persona,
 } from "~/lib/dashboard/live/constants";
 import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
+import { getLiveSessionDetailFn } from "~/lib/dashboard/live/history";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
@@ -33,7 +34,7 @@ type LiveSessionMeta = {
 };
 
 export const Route = createFileRoute("/_layout/live")({
-  component: LivePage,
+  component: LiveRoute,
   head: () => ({
     meta: [
       {
@@ -47,7 +48,15 @@ export const Route = createFileRoute("/_layout/live")({
   }),
 });
 
-function LivePage() {
+type LivePageProps = {
+  sessionId?: string;
+};
+
+function LiveRoute() {
+  return <LivePage />;
+}
+
+export function LivePage({ sessionId }: LivePageProps) {
   const [textInput, setTextInput] = useState("");
   const [selectedPersona, setSelectedPersona] = useState<Persona>(
     getPersonaById(DEFAULT_PERSONA_ID),
@@ -62,6 +71,8 @@ function LivePage() {
   const lastPersistedSessionIdRef = useRef<string | null>(null);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const isViewingHistory = Boolean(sessionId);
 
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
@@ -86,7 +97,27 @@ function LivePage() {
     uiLanguage: uiLocale,
   });
   const observer = useObserverInsights(uiLocale);
-  const canTriggerObserver = messages.length > 0 && !observer.isRunning;
+  const historyQuery = useQuery({
+    queryKey: ["live-session-detail", sessionId],
+    queryFn: () => getLiveSessionDetailFn({ data: { sessionId: sessionId! } }),
+    enabled: Boolean(sessionId),
+  });
+  const historyMessages = useMemo(() => {
+    if (!historyQuery.data) return [];
+    return historyQuery.data.messages.map((message) => ({
+      id: message.id,
+      role: message.role === "user" ? "user" : "model",
+      content: message.content,
+      timestamp: new Date(message.createdAt),
+    }));
+  }, [historyQuery.data]);
+  const historyPersona = useMemo(() => {
+    const personaId = historyQuery.data?.session.metadata?.personaId;
+    return personaId ? getPersonaById(personaId) : selectedPersona;
+  }, [historyQuery.data?.session.metadata?.personaId, selectedPersona]);
+  const displayMessages = isViewingHistory ? historyMessages : messages;
+  const observerMessages = displayMessages;
+  const canTriggerObserver = observerMessages.length > 0 && !observer.isRunning;
 
   const buildSessionMeta = useCallback(
     (): LiveSessionMeta => ({
@@ -174,12 +205,15 @@ function LivePage() {
     await connectSession();
   };
 
-  const handleSendText = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!textInput.trim() || status !== "connected") return;
-    sendText(textInput);
-    setTextInput("");
-  };
+  const handleSendText = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (isViewingHistory || !textInput.trim() || status !== "connected") return;
+      sendText(textInput);
+      setTextInput("");
+    },
+    [isViewingHistory, sendText, status, textInput],
+  );
 
   useEffect(() => {
     if (status !== "connected") return;
@@ -207,6 +241,8 @@ function LivePage() {
 
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
+  const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
+  const historyError = isViewingHistory ? historyQuery.error : null;
 
   return (
     <div className="relative h-[calc(100vh-10rem)]">
@@ -218,16 +254,47 @@ function LivePage() {
 
       <div className="relative z-10 h-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
         <div className="flex h-full gap-4">
-          <LiveHistorySidebar />
+          <LiveHistorySidebar activeSessionId={sessionId ?? null} />
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {isViewingHistory && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/70 px-4 py-3 shadow-sm">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    Viewing saved session
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Start a new session to continue chatting live.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => navigate({ to: "/live" })}
+                  className="rounded-full px-5"
+                >
+                  Start New Session
+                </Button>
+              </div>
+            )}
+
+            {isHistoryLoading && (
+              <div className="rounded-full bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground">
+                Loading session history...
+              </div>
+            )}
+
+            {historyError instanceof Error && (
+              <div className="rounded-full bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
+                {historyError.message}
+              </div>
+            )}
+
             <div className="flex-1 min-h-0">
               <div className="grid h-full grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
                 <div className="col-span-1 lg:col-span-2 h-full min-h-0">
                   <LiveTranscript
-                    messages={messages}
+                    messages={displayMessages}
                     status={status}
-                    persona={selectedPersona}
+                    persona={isViewingHistory ? historyPersona : selectedPersona}
                     isRecording={isRecording}
                     className="h-full w-full rounded-[24px] border border-border/50 bg-card/60 backdrop-blur-md shadow-md"
                   />
@@ -237,7 +304,7 @@ function LivePage() {
                   outputs={observer.outputs}
                   error={observer.error}
                   canTrigger={canTriggerObserver}
-                  onTrigger={() => observer.triggerFromMessages(messages)}
+                  onTrigger={() => observer.triggerFromMessages(observerMessages)}
                 />
               </div>
             </div>
@@ -260,7 +327,7 @@ function LivePage() {
                   <VoiceSelector
                     value={selectedVoice}
                     onValueChange={setSelectedVoice}
-                    disabled={isActiveSession || isConnecting}
+                    disabled={isActiveSession || isConnecting || isViewingHistory}
                   />
                 </div>
 
@@ -283,14 +350,14 @@ function LivePage() {
                         value={textInput}
                         onChange={(e) => setTextInput(e.target.value)}
                         placeholder="Type a message..."
-                        disabled={!isActiveSession}
+                        disabled={!isActiveSession || isViewingHistory}
                         className="h-10 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-2 shadow-none placeholder:text-muted-foreground/50"
                       />
                       <Button
                         type="submit"
                         size="icon"
                         variant="ghost"
-                        disabled={!isActiveSession || !textInput.trim()}
+                        disabled={!isActiveSession || !textInput.trim() || isViewingHistory}
                         className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10 rounded-xl shrink-0 transition-all"
                       >
                         <Send className="h-5 w-5" />
@@ -299,7 +366,7 @@ function LivePage() {
                   </div>
 
                   <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
-                    {isActiveSession && (
+                    {isActiveSession && !isViewingHistory && (
                       <Button
                         size="lg"
                         variant="outline"
@@ -328,8 +395,12 @@ function LivePage() {
                           ? "bg-red-500/90 hover:bg-red-500 text-white shadow-red-500/20"
                           : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20",
                       )}
-                      onClick={handleToggleSession}
-                      disabled={isConnecting}
+                      onClick={
+                        isViewingHistory
+                          ? () => navigate({ to: "/live" })
+                          : handleToggleSession
+                      }
+                      disabled={isConnecting || isViewingHistory}
                     >
                       {isActiveSession ? (
                         <>

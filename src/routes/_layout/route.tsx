@@ -37,10 +37,8 @@ function DashboardLayout() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Header onSignOut={handleSignOut} className="md:hidden" showMenu />
 
-          <main id="main-content" className="flex-1">
-            <div className="mx-auto w-full px-6 py-10">
-              <Outlet />
-            </div>
+          <main id="main-content" className="flex-1 min-w-0">
+            <Outlet />
           </main>
         </div>
       </div>

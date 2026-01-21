@@ -21,7 +21,7 @@ export const ObserverPanel = memo(function ObserverPanel({
   const hasOutputs = outputs.length > 0;
 
   return (
-    <aside className={cn("hidden xl:flex flex-col gap-4 text-sm", className)}>
+    <aside className={cn("hidden xl:flex flex-col gap-4 text-sm w-80 shrink-0 border-l border-border/60 bg-background sticky top-0 h-screen py-4 px-2", className)}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Observer

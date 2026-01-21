@@ -212,8 +212,6 @@ export function LivePage() {
     return [...historyMessages, ...messages];
   }, [historyMessages, isResuming, isViewingHistory, messages]);
   const canTriggerObserver = displayMessages.length > 0 && !observer.isRunning;
-  const isEmptyState =
-    displayMessages.length === 0 && !isActiveSession && !isViewingHistory;
   const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
   const historyError = isViewingHistory ? historyQuery.error : null;
   const historyErrorMessage =
@@ -756,7 +754,7 @@ System Context:
       </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
 
-      <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-[1680px] px-6 py-6 lg:px-8">
+      <div className="flex min-h-[calc(100vh-10rem)]">
         <main
           id="live-main"
           aria-labelledby="live-title"
@@ -766,92 +764,86 @@ System Context:
             Live Voice Session
           </h1>
 
-          <div className="flex min-h-0 flex-1 gap-8">
-            <section className="flex min-h-0 flex-1 flex-col">
-              <div className="mx-auto flex w-full max-w-[900px] flex-1 flex-col gap-6">
-                <div className="space-y-3">
-                  <HistoryBanner
-                    isVisible={isViewingHistory}
-                    isConnecting={isConnecting}
-                    isLoading={isHistoryLoading}
-                    errorMessage={historyErrorMessage}
-                    onNewSession={handleStartNewSession}
-                    onResume={connectResumeSession}
-                    onRetry={handleRetryHistory}
+          <div className="flex flex-1 flex-col">
+            <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
+              <div className="space-y-3">
+                <HistoryBanner
+                  isVisible={isViewingHistory}
+                  isConnecting={isConnecting}
+                  isLoading={isHistoryLoading}
+                  errorMessage={historyErrorMessage}
+                  onNewSession={handleStartNewSession}
+                  onResume={connectResumeSession}
+                  onRetry={handleRetryHistory}
+                />
+
+                {(isHistoryLoading || historyError instanceof Error) && (
+                  <div className="space-y-2">
+                    {isHistoryLoading && (
+                      <StatusPill className="border border-border/60 text-xs text-muted-foreground">
+                        Loading session history...
+                      </StatusPill>
+                    )}
+                    {historyError instanceof Error && (
+                      <StatusPill className="border border-destructive/30 text-xs text-destructive">
+                        {historyError.message}
+                      </StatusPill>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-h-0 flex-1">
+                <LiveTranscript
+                  messages={displayMessages}
+                  status={status}
+                  persona={isViewingHistory ? historyPersona : selectedPersona}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="sticky bottom-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-6 -mx-6 px-6 lg:-mx-8 lg:px-8 mt-auto border-t border-border/40">
+                <div className="flex flex-col gap-3">
+                  <LiveStatusSection
+                    isRestoringHistory={isRestoringHistory}
+                    sessionError={sessionError}
+                    failedSyncCount={failedSyncCount}
+                    onRetryFailedMessages={handleRetryFailedMessages}
                   />
 
-                  {(isHistoryLoading || historyError instanceof Error) && (
-                    <div className="space-y-2">
-                      {isHistoryLoading && (
-                        <StatusPill className="border border-border/60 text-xs text-muted-foreground">
-                          Loading session history...
-                        </StatusPill>
-                      )}
-                      {historyError instanceof Error && (
-                        <StatusPill className="border border-destructive/30 text-xs text-destructive">
-                          {historyError.message}
-                        </StatusPill>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="min-h-0 flex-1">
-                  <LiveTranscript
-                    messages={displayMessages}
-                    status={status}
-                    persona={isViewingHistory ? historyPersona : selectedPersona}
-                    className="h-full w-full"
+                  <LiveControls
+                    selectedPersonaId={selectedPersona.id}
+                    onSelectPersona={setSelectedPersona}
+                    selectedVoice={selectedVoice}
+                    onVoiceChange={setSelectedVoice}
+                    isActiveSession={isActiveSession}
+                    isConnecting={isConnecting}
+                    isReadOnlyHistory={isReadOnlyHistory}
+                    isRecording={isRecording}
+                    isPaused={isPaused}
+                    onToggleMute={handleToggleMute}
+                    onToggleSession={handleToggleSession}
+                    textInput={textInput}
+                    onTextInputChange={setTextInput}
+                    onSendMessage={handleSendMessage}
+                    canSendText={canSendText}
+                    className="w-full"
                   />
                 </div>
               </div>
-            </section>
-
-            <ObserverPanel
-              outputs={observer.outputs}
-              error={observer.error}
-              canTrigger={canTriggerObserver}
-              onTrigger={handleTriggerObserver}
-              className="w-[320px]"
-            />
+            </div>
           </div>
         </main>
+
+        <ObserverPanel
+          outputs={observer.outputs}
+          error={observer.error}
+          canTrigger={canTriggerObserver}
+          onTrigger={handleTriggerObserver}
+          className=""
+        />
       </div>
 
-      <div
-        className={cn(
-          "pointer-events-none fixed left-1/2 z-40 w-full max-w-[900px] -translate-x-1/2 px-6",
-          isEmptyState ? "top-1/2 -translate-y-1/2" : "bottom-6",
-        )}
-      >
-        <div className="pointer-events-auto flex flex-col items-center gap-3">
-          <LiveStatusSection
-            isRestoringHistory={isRestoringHistory}
-            sessionError={sessionError}
-            failedSyncCount={failedSyncCount}
-            onRetryFailedMessages={handleRetryFailedMessages}
-          />
-
-          <LiveControls
-            selectedPersonaId={selectedPersona.id}
-            onSelectPersona={setSelectedPersona}
-            selectedVoice={selectedVoice}
-            onVoiceChange={setSelectedVoice}
-            isActiveSession={isActiveSession}
-            isConnecting={isConnecting}
-            isReadOnlyHistory={isReadOnlyHistory}
-            isRecording={isRecording}
-            isPaused={isPaused}
-            onToggleMute={handleToggleMute}
-            onToggleSession={handleToggleSession}
-            textInput={textInput}
-            onTextInputChange={setTextInput}
-            onSendMessage={handleSendMessage}
-            canSendText={canSendText}
-            className="w-full"
-          />
-        </div>
-      </div>
     </div>
   );
 }

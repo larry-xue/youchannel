@@ -556,472 +556,474 @@ function DashboardPlaylists() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="type-h1 text-foreground">{m.playlists_title()}</h1>
-          <p className="type-body text-muted-foreground">{m.playlists_description()}</p>
-        </div>
-        {hasAccount && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="rounded-full text-muted-foreground hover:bg-muted"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            <span className="sr-only">Refresh</span>
-          </Button>
-        )}
-      </div>
-
-      {actionError && (
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-          {actionError}
-        </div>
-      )}
-
-      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl p-0 gap-0 border-none bg-card shadow-md">
-          <DialogHeader className="px-6 py-4 border-b border-border bg-card">
-            <DialogTitle className="text-xl font-display">
-              {m.review_selection_title()}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              {selectedCount === 0 ? (
-                m.review_selection_empty()
-              ) : (
-                <>
-                  <span className="block font-medium text-foreground">
-                    {m.review_selection_count({
-                      count: selectedCount,
-                      label: selectionLabel,
-                      playlistCount: selectedPlaylistCount,
-                      playlistLabel: playlistLabel,
-                    })}
-                  </span>
-                  <span className="block text-xs text-muted-foreground/80">
-                    {m.review_selection_quota({ quota: totalQuotaLabel })}
-                  </span>
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-y-auto px-6 py-6 bg-card">
-            {selectedCount === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-outline-variant/40 bg-muted/30 px-4 py-12 text-center text-sm text-muted-foreground">
-                {m.review_selection_no_videos()}
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div
-                  className="relative flex h-[280px] items-center justify-center overflow-hidden rounded-2xl bg-muted p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[320px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
-                  onWheel={handleStackWheel}
-                >
-                  {selectedVideos.map((video, index) => {
-                    const offset = index - carouselIndex;
-                    const absOffset = Math.abs(offset);
-                    if (absOffset > STACK_VISIBLE_RANGE) return null;
-                    const isActive = offset === 0;
-                    const durationLabel = formatVideoDuration(video.duration);
-                    const accent = QUOTA_COLORS[index % QUOTA_COLORS.length];
-                    const cardShadow = isActive
-                      ? `0 0 0 1px ${accent.border}, 0 12px 30px ${accent.glowActive}`
-                      : `0 0 0 1px ${accent.border}, 0 8px 22px ${accent.glow}`;
-                    return (
-                      <button
-                        key={video.id}
-                        type="button"
-                        onClick={() => setCarouselIndex(index)}
-                        aria-current={isActive}
-                        className={cn(
-                          "absolute left-1/2 top-1/2 w-[220px] transition-[transform,opacity,box-shadow] duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[260px]",
-                          isActive ? "cursor-default" : "cursor-pointer",
-                        )}
-                        style={getStackStyle(offset)}
-                      >
-                        <div
-                          className={cn(
-                            "overflow-hidden rounded-2xl border-none bg-background shadow-md transition-shadow",
-                          )}
-                          style={{ boxShadow: cardShadow }}
-                        >
-                          <div className="relative w-full overflow-hidden bg-card pb-[56.25%]">
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title || "Video thumbnail"}
-                                className="absolute inset-0 h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-                                {m.video_no_thumbnail()}
-                              </div>
-                            )}
-                            {durationLabel && (
-                              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
-                                {durationLabel}
-                              </div>
-                            )}
-                          </div>
-                          <div className="space-y-1 px-4 py-3 text-left">
-                            <p className="text-sm font-semibold text-foreground font-display leading-tight">
-                              {truncate(video.title || "Video", 40)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {video.source_playlist_title || m.review_source_selected()}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-muted/30 px-5 py-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {activeSelectedVideo?.title || m.default_video_title()}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activeSelectedVideo?.source_playlist_title
-                        ? m.review_source_from({
-                          source: activeSelectedVideo.source_playlist_title,
-                        })
-                        : m.review_source_selected()}
-                      {activeSelectedVideo?.published_at
-                        ? ` �?${formatDate(activeSelectedVideo.published_at)}`
-                        : ""}
-                      {activeDurationLabel ? ` �?${activeDurationLabel}` : ""}
-                      {activeSelectedVideo ? (
-                        <span className="ml-1 inline-block rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-foreground">
-                          {m.review_quota_label({ quota: activeQuotaLabel })}
-                        </span>
-                      ) : (
-                        ""
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="font-medium bg-card px-2 py-1 rounded-full">
-                      {carouselIndex + 1} / {selectedCount}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveSelected(activeSelectedVideo?.id)}
-                      disabled={!activeSelectedVideo}
-                      className="rounded-full h-8 px-3 text-error hover:bg-error/10 hover:text-error"
-                    >
-                      {m.review_remove()}
-                    </Button>
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-muted/30 px-5 py-4">
-                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                    <span>{m.review_quota_split()}</span>
-                    <span>
-                      {m.review_total_quota()}
-                      <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary">
-                        {totalQuotaLabel}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="mt-3 w-full overflow-x-auto pb-1">
-                    <div
-                      className="flex h-4 items-stretch overflow-hidden rounded-full ring-1 ring-inset ring-black/5"
-                      style={{ minWidth: `${progressMinWidth}px` }}
-                    >
-                      {quotaSegments.map((segment, index) => {
-                        const isActive = segment.id === activeSelectedVideo?.id;
-                        const segmentFill = isActive
-                          ? segment.color.fillActive
-                          : segment.color.fill;
-                        return (
-                          <button
-                            key={segment.id}
-                            type="button"
-                            title={segment.title}
-                            aria-label={`Select ${segment.title}`}
-                            onClick={() => setCarouselIndex(index)}
-                            className={cn(
-                              "h-full transition-[width,background-color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                              isActive ? "opacity-100" : "opacity-80 hover:opacity-100",
-                            )}
-                            style={{
-                              width: `${segment.percent}%`,
-                              backgroundColor: segmentFill,
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-[10px] text-muted-foreground/70 text-center">
-                    {m.review_click_segment_hint()}
-                  </p>
-                </div>
-              </div>
-            )}
+    <div className="mx-auto w-full px-6 py-10">
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="type-h1 text-foreground">{m.playlists_title()}</h1>
+            <p className="type-body text-muted-foreground">{m.playlists_description()}</p>
           </div>
-          <DialogFooter className="border-t border-border bg-muted/30 px-6 py-4">
+          {hasAccount && (
             <Button
               type="button"
-              variant="outline"
-              onClick={() => setShowReviewDialog(false)}
-              className="rounded-lg"
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="rounded-full text-muted-foreground hover:bg-muted"
             >
-              {m.review_selection_cancel()}
+              <RefreshCcw className="h-4 w-4" />
+              <span className="sr-only">Refresh</span>
             </Button>
-            <Button
-              type="button"
-              onClick={handleSubmitSelection}
-              disabled={selectedCount === 0 || submitSelectionMutation.isPending}
-              className="rounded-lg"
-            >
-              {submitSelectionMutation.isPending
-                ? m.review_selection_submitting()
-                : m.review_selection_submit()}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+        </div>
 
-      {accountQuery.isLoading ? (
-        <Loading text={m.loading_checking_account()} size="md" />
-      ) : !hasAccount || search.code ? (
-        <ConnectYouTubeAlert
-          code={search.code}
-          state={search.state}
-          error={search.error}
-        />
-      ) : (
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <aside className="lg:w-80 lg:shrink-0">
-            <div className="flex max-h-[70vh] flex-col rounded-2xl bg-muted/30 border border-border/50 lg:sticky top-2 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {m.playlists_your_playlists()}
-                </h2>
-                <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs font-medium text-secondary">
-                  {playlists.length}
-                </span>
-              </div>
-              <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
-                {isLoadingPlaylists ? (
-                  <Loading size="sm" text={m.playlists_loading()} />
-                ) : playlistsQuery.isError ? (
-                  <p className="px-2 text-sm text-destructive">
-                    {m.playlists_error_load()}
-                  </p>
-                ) : playlists.length === 0 ? (
-                  <p className="px-2 text-sm text-muted-foreground">
-                    {m.playlists_empty()}
-                  </p>
+        {actionError && (
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+            {actionError}
+          </div>
+        )}
+
+        <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+          <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl p-0 gap-0 border-none bg-card shadow-md">
+            <DialogHeader className="px-6 py-4 border-b border-border bg-card">
+              <DialogTitle className="text-xl font-display">
+                {m.review_selection_title()}
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                {selectedCount === 0 ? (
+                  m.review_selection_empty()
                 ) : (
-                  <div className="flex flex-col gap-1">
-                    {playlists.map((playlist) => {
-                      const isActive = playlist.playlistId === activePlaylistId;
+                  <>
+                    <span className="block font-medium text-foreground">
+                      {m.review_selection_count({
+                        count: selectedCount,
+                        label: selectionLabel,
+                        playlistCount: selectedPlaylistCount,
+                        playlistLabel: playlistLabel,
+                      })}
+                    </span>
+                    <span className="block text-xs text-muted-foreground/80">
+                      {m.review_selection_quota({ quota: totalQuotaLabel })}
+                    </span>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto px-6 py-6 bg-card">
+              {selectedCount === 0 ? (
+                <div className="rounded-2xl border-2 border-dashed border-outline-variant/40 bg-muted/30 px-4 py-12 text-center text-sm text-muted-foreground">
+                  {m.review_selection_no_videos()}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div
+                    className="relative flex h-[280px] items-center justify-center overflow-hidden rounded-2xl bg-muted p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[320px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
+                    onWheel={handleStackWheel}
+                  >
+                    {selectedVideos.map((video, index) => {
+                      const offset = index - carouselIndex;
+                      const absOffset = Math.abs(offset);
+                      if (absOffset > STACK_VISIBLE_RANGE) return null;
+                      const isActive = offset === 0;
+                      const durationLabel = formatVideoDuration(video.duration);
+                      const accent = QUOTA_COLORS[index % QUOTA_COLORS.length];
+                      const cardShadow = isActive
+                        ? `0 0 0 1px ${accent.border}, 0 12px 30px ${accent.glowActive}`
+                        : `0 0 0 1px ${accent.border}, 0 8px 22px ${accent.glow}`;
                       return (
                         <button
-                          key={playlist.playlistId}
+                          key={video.id}
                           type="button"
-                          onClick={() => handleSelectPlaylist(playlist.playlistId)}
+                          onClick={() => setCarouselIndex(index)}
+                          aria-current={isActive}
                           className={cn(
-                            "group flex w-full items-center gap-4 rounded-full px-4 py-3 text-left transition-[background-color,transform] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            isActive
-                              ? "bg-secondary text-secondary-foreground shadow-sm"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                            "absolute left-1/2 top-1/2 w-[220px] transition-[transform,opacity,box-shadow] duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[260px]",
+                            isActive ? "cursor-default" : "cursor-pointer",
                           )}
+                          style={getStackStyle(offset)}
                         >
                           <div
                             className={cn(
-                              "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full transition-transform group-hover:scale-105",
-                              isActive ? "bg-primary/10" : "bg-secondary",
+                              "overflow-hidden rounded-2xl border-none bg-background shadow-md transition-shadow",
                             )}
+                            style={{ boxShadow: cardShadow }}
                           >
-                            {playlist.thumbnailUrl ? (
-                              <img
-                                src={playlist.thumbnailUrl}
-                                alt={playlist.title || m.aria_playlist_thumbnail()}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span className="text-xs font-semibold">PL</span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className={cn(
-                                "truncate text-sm font-medium",
-                                isActive ? "font-semibold" : "",
+                            <div className="relative w-full overflow-hidden bg-card pb-[56.25%]">
+                              {video.thumbnail_url ? (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title || "Video thumbnail"}
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+                                  {m.video_no_thumbnail()}
+                                </div>
                               )}
-                            >
-                              {playlist.title || m.playlist_untitled()}
-                            </p>
-                            <p className="truncate text-xs opacity-70">
-                              {playlist.description || m.playlist_no_description()}
-                            </p>
+                              {durationLabel && (
+                                <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+                                  {durationLabel}
+                                </div>
+                              )}
+                            </div>
+                            <div className="space-y-1 px-4 py-3 text-left">
+                              <p className="text-sm font-semibold text-foreground font-display leading-tight">
+                                {truncate(video.title || "Video", 40)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {video.source_playlist_title || m.review_source_selected()}
+                              </p>
+                            </div>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                )}
-              </ScrollArea>
-            </div>
-          </aside>
-
-          <div className="min-w-0 flex-1 space-y-6">
-            {isLoadingPlaylists ? (
-              <div className="flex h-40 items-center justify-center rounded-2xl bg-muted/30">
-                <Loading text={m.playlist_loading_single()} size="sm" />
-              </div>
-            ) : activePlaylist ? (
-              <div className="flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-muted/30 p-6 transition-[background-color,border-color] border border-border/50">
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate type-h2 text-foreground">
-                    {activePlaylist.title || m.playlist_untitled()}
-                  </h2>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {activePlaylist.description || m.playlist_no_description()}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground">
-                  <span className="rounded-full bg-muted px-3 py-1">{pageLabel}</span>
-                  {typeof totalResults === "number" && (
-                    <span className="rounded-full bg-muted px-3 py-1">
-                      {m.playlist_count_videos({ count: totalResults })}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 pl-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePrevPage}
-                      disabled={!canPrev || isLoadingItems}
-                      className="rounded-full w-9 h-9 p-0"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      <span className="sr-only">{m.button_prev()}</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNextPage}
-                      disabled={!canNext || isLoadingItems}
-                      className="rounded-full w-9 h-9 p-0"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                      <span className="sr-only">{m.button_next()}</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border-2 border-dashed border-outline-variant/40 px-6 py-12 text-center text-sm text-muted-foreground/60">
-                {m.playlist_select_hint()}
-              </div>
-            )}
-
-            {activePlaylist && (
-              <>
-                {selectedCount > 0 && (
-                  <div className="sticky top-6 z-20 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-secondary px-5 py-3 ring-1 ring-border/60">
-                    <div className="flex items-center gap-4">
-                      <div className="flex -space-x-3">
-                        {selectionPreview.map((video) => (
-                          <div
-                            key={video.id}
-                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-secondary-container bg-card shadow-sm"
-                          >
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title || m.aria_video_thumbnail()}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span className="text-[10px] font-semibold text-muted-foreground">
-                                {m.playlist_video_placeholder()}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                        {selectedCount > selectionPreview.length && (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-foreground">
-                            +{selectedCount - selectionPreview.length}
-                          </div>
+                  <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-muted/30 px-5 py-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {activeSelectedVideo?.title || m.default_video_title()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {activeSelectedVideo?.source_playlist_title
+                          ? m.review_source_from({
+                            source: activeSelectedVideo.source_playlist_title,
+                          })
+                          : m.review_source_selected()}
+                        {activeSelectedVideo?.published_at
+                          ? ` �?${formatDate(activeSelectedVideo.published_at)}`
+                          : ""}
+                        {activeDurationLabel ? ` �?${activeDurationLabel}` : ""}
+                        {activeSelectedVideo ? (
+                          <span className="ml-1 inline-block rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                            {m.review_quota_label({ quota: activeQuotaLabel })}
+                          </span>
+                        ) : (
+                          ""
                         )}
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="text-sm font-bold text-secondary-foreground">
-                          {selectedCount} {selectionLabel}
-                        </p>
-                        <p className="text-[10px] font-medium opacity-80 text-secondary-foreground">
-                          {selectedPlaylistCount} {playlistLabel}
-                        </p>
-                      </div>
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="font-medium bg-card px-2 py-1 rounded-full">
+                        {carouselIndex + 1} / {selectedCount}
+                      </span>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={handleClearSelection}
-                        disabled={submitSelectionMutation.isPending}
-                        className="rounded-lg text-foreground hover:bg-muted/70"
+                        onClick={() => handleRemoveSelected(activeSelectedVideo?.id)}
+                        disabled={!activeSelectedVideo}
+                        className="rounded-full h-8 px-3 text-error hover:bg-error/10 hover:text-error"
                       >
-                        {m.action_clear()}
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleOpenReviewDialog}
-                        disabled={submitSelectionMutation.isPending}
-                        className="rounded-lg"
-                      >
-                        {m.action_review_submit()}
+                        {m.review_remove()}
                       </Button>
                     </div>
                   </div>
-                )}
-                {isLoadingItems ? (
-                  <Loading text={m.library_loading()} size="md" />
-                ) : itemsQuery.isError ? (
-                  <div className="rounded-2xl bg-destructive/10 px-6 py-4 text-sm text-destructive">
-                    {m.playlist_items_error()}
+                  <div className="rounded-2xl bg-muted/30 px-5 py-4">
+                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                      <span>{m.review_quota_split()}</span>
+                      <span>
+                        {m.review_total_quota()}
+                        <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                          {totalQuotaLabel}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="mt-3 w-full overflow-x-auto pb-1">
+                      <div
+                        className="flex h-4 items-stretch overflow-hidden rounded-full ring-1 ring-inset ring-black/5"
+                        style={{ minWidth: `${progressMinWidth}px` }}
+                      >
+                        {quotaSegments.map((segment, index) => {
+                          const isActive = segment.id === activeSelectedVideo?.id;
+                          const segmentFill = isActive
+                            ? segment.color.fillActive
+                            : segment.color.fill;
+                          return (
+                            <button
+                              key={segment.id}
+                              type="button"
+                              title={segment.title}
+                              aria-label={`Select ${segment.title}`}
+                              onClick={() => setCarouselIndex(index)}
+                              className={cn(
+                                "h-full transition-[width,background-color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                isActive ? "opacity-100" : "opacity-80 hover:opacity-100",
+                              )}
+                              style={{
+                                width: `${segment.percent}%`,
+                                backgroundColor: segmentFill,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground/70 text-center">
+                      {m.review_click_segment_hint()}
+                    </p>
                   </div>
-                ) : videos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-2">
-                    {m.playlist_items_empty()}
-                  </p>
-                ) : (
-                  <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(240px,1fr))] pb-10 overflow-auto">
-                    {videos.map((video) => (
-                      <VideoCard
-                        key={video.id}
-                        video={video as VideoWithStatus}
-                        isSelected={selectedVideoIdSet.has(video.id)}
-                        isSelectable={video.isSelectable}
-                        selectionHint={video.selectionHint}
-                        selectionLabel={video.selectionLabel}
-                        onSelect={handleToggleVideo}
-                        onOpen={handleOpenVideo}
-                        actionLabel={m.video_card_action_open()}
-                        hideFooter={true}
-                      />
-                    ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter className="border-t border-border bg-muted/30 px-6 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowReviewDialog(false)}
+                className="rounded-lg"
+              >
+                {m.review_selection_cancel()}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmitSelection}
+                disabled={selectedCount === 0 || submitSelectionMutation.isPending}
+                className="rounded-lg"
+              >
+                {submitSelectionMutation.isPending
+                  ? m.review_selection_submitting()
+                  : m.review_selection_submit()}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {accountQuery.isLoading ? (
+          <Loading text={m.loading_checking_account()} size="md" />
+        ) : !hasAccount || search.code ? (
+          <ConnectYouTubeAlert
+            code={search.code}
+            state={search.state}
+            error={search.error}
+          />
+        ) : (
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <aside className="lg:w-80 lg:shrink-0">
+              <div className="flex max-h-[70vh] flex-col rounded-2xl bg-muted/30 border border-border/50 lg:sticky top-2 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {m.playlists_your_playlists()}
+                  </h2>
+                  <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs font-medium text-secondary">
+                    {playlists.length}
+                  </span>
+                </div>
+                <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
+                  {isLoadingPlaylists ? (
+                    <Loading size="sm" text={m.playlists_loading()} />
+                  ) : playlistsQuery.isError ? (
+                    <p className="px-2 text-sm text-destructive">
+                      {m.playlists_error_load()}
+                    </p>
+                  ) : playlists.length === 0 ? (
+                    <p className="px-2 text-sm text-muted-foreground">
+                      {m.playlists_empty()}
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {playlists.map((playlist) => {
+                        const isActive = playlist.playlistId === activePlaylistId;
+                        return (
+                          <button
+                            key={playlist.playlistId}
+                            type="button"
+                            onClick={() => handleSelectPlaylist(playlist.playlistId)}
+                            className={cn(
+                              "group flex w-full items-center gap-4 rounded-full px-4 py-3 text-left transition-[background-color,transform] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              isActive
+                                ? "bg-secondary text-secondary-foreground shadow-sm"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full transition-transform group-hover:scale-105",
+                                isActive ? "bg-primary/10" : "bg-secondary",
+                              )}
+                            >
+                              {playlist.thumbnailUrl ? (
+                                <img
+                                  src={playlist.thumbnailUrl}
+                                  alt={playlist.title || m.aria_playlist_thumbnail()}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="text-xs font-semibold">PL</span>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className={cn(
+                                  "truncate text-sm font-medium",
+                                  isActive ? "font-semibold" : "",
+                                )}
+                              >
+                                {playlist.title || m.playlist_untitled()}
+                              </p>
+                              <p className="truncate text-xs opacity-70">
+                                {playlist.description || m.playlist_no_description()}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+            </aside>
+
+            <div className="min-w-0 flex-1 space-y-6">
+              {isLoadingPlaylists ? (
+                <div className="flex h-40 items-center justify-center rounded-2xl bg-muted/30">
+                  <Loading text={m.playlist_loading_single()} size="sm" />
+                </div>
+              ) : activePlaylist ? (
+                <div className="flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-muted/30 p-6 transition-[background-color,border-color] border border-border/50">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate type-h2 text-foreground">
+                      {activePlaylist.title || m.playlist_untitled()}
+                    </h2>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {activePlaylist.description || m.playlist_no_description()}
+                    </p>
                   </div>
-                )}
-              </>
-            )}
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground">
+                    <span className="rounded-full bg-muted px-3 py-1">{pageLabel}</span>
+                    {typeof totalResults === "number" && (
+                      <span className="rounded-full bg-muted px-3 py-1">
+                        {m.playlist_count_videos({ count: totalResults })}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2 pl-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrevPage}
+                        disabled={!canPrev || isLoadingItems}
+                        className="rounded-full w-9 h-9 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        <span className="sr-only">{m.button_prev()}</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={!canNext || isLoadingItems}
+                        className="rounded-full w-9 h-9 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                        <span className="sr-only">{m.button_next()}</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border-2 border-dashed border-outline-variant/40 px-6 py-12 text-center text-sm text-muted-foreground/60">
+                  {m.playlist_select_hint()}
+                </div>
+              )}
+
+              {activePlaylist && (
+                <>
+                  {selectedCount > 0 && (
+                    <div className="sticky top-6 z-20 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-secondary px-5 py-3 ring-1 ring-border/60">
+                      <div className="flex items-center gap-4">
+                        <div className="flex -space-x-3">
+                          {selectionPreview.map((video) => (
+                            <div
+                              key={video.id}
+                              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-secondary-container bg-card shadow-sm"
+                            >
+                              {video.thumbnail_url ? (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title || m.aria_video_thumbnail()}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="text-[10px] font-semibold text-muted-foreground">
+                                  {m.playlist_video_placeholder()}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                          {selectedCount > selectionPreview.length && (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-foreground">
+                              +{selectedCount - selectionPreview.length}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <p className="text-sm font-bold text-secondary-foreground">
+                            {selectedCount} {selectionLabel}
+                          </p>
+                          <p className="text-[10px] font-medium opacity-80 text-secondary-foreground">
+                            {selectedPlaylistCount} {playlistLabel}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearSelection}
+                          disabled={submitSelectionMutation.isPending}
+                          className="rounded-lg text-foreground hover:bg-muted/70"
+                        >
+                          {m.action_clear()}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleOpenReviewDialog}
+                          disabled={submitSelectionMutation.isPending}
+                          className="rounded-lg"
+                        >
+                          {m.action_review_submit()}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {isLoadingItems ? (
+                    <Loading text={m.library_loading()} size="md" />
+                  ) : itemsQuery.isError ? (
+                    <div className="rounded-2xl bg-destructive/10 px-6 py-4 text-sm text-destructive">
+                      {m.playlist_items_error()}
+                    </div>
+                  ) : videos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground px-2">
+                      {m.playlist_items_empty()}
+                    </p>
+                  ) : (
+                    <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(240px,1fr))] pb-10 overflow-auto">
+                      {videos.map((video) => (
+                        <VideoCard
+                          key={video.id}
+                          video={video as VideoWithStatus}
+                          isSelected={selectedVideoIdSet.has(video.id)}
+                          isSelectable={video.isSelectable}
+                          selectionHint={video.selectionHint}
+                          selectionLabel={video.selectionLabel}
+                          onSelect={handleToggleVideo}
+                          onOpen={handleOpenVideo}
+                          actionLabel={m.video_card_action_open()}
+                          hideFooter={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

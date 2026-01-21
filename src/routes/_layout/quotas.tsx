@@ -75,7 +75,7 @@ function QuotaPage() {
     : m.quota_period_long();
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full px-6 py-10 space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -224,8 +224,8 @@ function QuotaPage() {
               const expiryDate = grant.validTo ? new Date(grant.validTo) : null;
               const daysUntilExpiry = expiryDate
                 ? Math.ceil(
-                    (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-                  )
+                  (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                )
                 : null;
 
               let sourceLabel = grant.sourceType;
@@ -254,8 +254,8 @@ function QuotaPage() {
                               ? daysUntilExpiry && daysUntilExpiry <= 7
                                 ? m.quota_grant_expires_soon({ days: daysUntilExpiry })
                                 : m.quota_grant_expires({
-                                    date: expiryDate.toLocaleDateString(),
-                                  })
+                                  date: expiryDate.toLocaleDateString(),
+                                })
                               : m.quota_grant_no_expiry()}
                           </span>
                         </div>

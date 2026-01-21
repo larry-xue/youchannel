@@ -38,35 +38,31 @@ export function LiveTranscript({
       : "Assistant";
 
   return (
-    <div className="flex h-full flex-col">
-      <div className={cn("flex-1 overflow-auto px-1 sm:px-2", className)}>
-        <div className="flex min-h-full flex-col gap-6 pb-28">
-          {messages.length === 0 && !isActiveSession && (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-              <p className="text-sm">Start a session to begin chatting.</p>
-            </div>
-          )}
-          {messages.length === 0 && isActiveSession && (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-              <p className="text-sm">Listening...</p>
-            </div>
-          )}
-          {messages.map((message) => {
-            const isModel = message.role === "assistant";
-            return (
-              <div key={message.id} className="flex flex-col gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {isModel ? personaLabel : "You"}
-                </span>
-                <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                  {message.content}
-                </div>
-              </div>
-            );
-          })}
-          <div ref={bottomRef} />
+    <div className={cn("flex flex-col gap-6 px-1 pb-6 sm:px-2", className)}>
+      {messages.length === 0 && !isActiveSession && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <p className="text-[15px]">Start a session to begin chatting.</p>
         </div>
-      </div>
+      )}
+      {messages.length === 0 && isActiveSession && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <p className="text-[15px]">Listening...</p>
+        </div>
+      )}
+      {messages.map((message) => {
+        const isModel = message.role === "assistant";
+        return (
+          <div key={message.id} className="flex flex-col gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              {isModel ? personaLabel : "You"}
+            </span>
+            <div className="max-w-[720px] whitespace-pre-wrap text-[15px] leading-[1.75] text-foreground">
+              {message.content}
+            </div>
+          </div>
+        );
+      })}
+      <div ref={bottomRef} />
     </div>
   );
 }

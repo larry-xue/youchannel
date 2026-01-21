@@ -173,72 +173,74 @@ function DashboardLearnVideo() {
 
   // Desktop Layout
   return (
-    <div className="space-y-6 h-full min-h-[600px]">
-      <ResizablePanelGroup
-        direction="horizontal"
-        className="rounded-2xl border border-border/50 bg-card overflow-hidden"
-      >
-        {/* Main content area */}
-        <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>
-          <ResizablePanelGroup direction="vertical">
-            {/* Video player */}
-            <ResizablePanel defaultSize={100 - BOTTOM_PANEL_DEFAULT_SIZE} minSize={30}>
-              <VideoPlayerCard
-                title={title}
-                youtubeId={youtubeId}
-                publishedAt={publishedAt}
-                isLoading={isLoading}
-                onPlayerReady={handlePlayerReady}
-                className="h-full"
-              />
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            {/* Bottom panel */}
-            <ResizablePanel
-              panelRef={bottomPanelRef}
-              defaultSize={BOTTOM_PANEL_DEFAULT_SIZE}
-              minSize={BOTTOM_PANEL_MIN_SIZE}
-              collapsible
-              collapsedSize={SIDEBAR_COLLAPSED_SIZE}
-              onResize={(size) => {
-                setIsBottomPanelCollapsed(size.asPercentage <= SIDEBAR_COLLAPSED_SIZE);
-              }}
-            >
-              <BottomPanel
-                isCollapsed={isBottomPanelCollapsed}
-                onToggle={handleToggleBottomPanel}
-                className="h-full"
-              >
-                <LearningTabs
-                  title={title}
-                  description={video?.description}
-                  publishedAt={publishedAt}
-                  analysisText={latestAnalysis?.analysis_text}
-                  onSeekToTimestamp={handleSeekToTimestamp}
-                />
-              </BottomPanel>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle />
-
-        {/* Chat sidebar */}
-        <ResizablePanel
-          defaultSize={SIDEBAR_DEFAULT_SIZE}
-          minSize={SIDEBAR_MIN_SIZE}
-          collapsible
-          collapsedSize={SIDEBAR_COLLAPSED_SIZE}
+    <div className="mx-auto w-full px-6 py-10 h-full">
+      <div className="space-y-6 h-full min-h-[600px]">
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="rounded-2xl border border-border/50 bg-card overflow-hidden"
         >
-          <ChatSidebar
-            className="h-full"
-            analysisText={chatAnalysisText}
-            onSeekToTimestamp={handleSeekToTimestamp}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          {/* Main content area */}
+          <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>
+            <ResizablePanelGroup direction="vertical">
+              {/* Video player */}
+              <ResizablePanel defaultSize={100 - BOTTOM_PANEL_DEFAULT_SIZE} minSize={30}>
+                <VideoPlayerCard
+                  title={title}
+                  youtubeId={youtubeId}
+                  publishedAt={publishedAt}
+                  isLoading={isLoading}
+                  onPlayerReady={handlePlayerReady}
+                  className="h-full"
+                />
+              </ResizablePanel>
+
+              <ResizableHandle withHandle />
+
+              {/* Bottom panel */}
+              <ResizablePanel
+                panelRef={bottomPanelRef}
+                defaultSize={BOTTOM_PANEL_DEFAULT_SIZE}
+                minSize={BOTTOM_PANEL_MIN_SIZE}
+                collapsible
+                collapsedSize={SIDEBAR_COLLAPSED_SIZE}
+                onResize={(size) => {
+                  setIsBottomPanelCollapsed(size.asPercentage <= SIDEBAR_COLLAPSED_SIZE);
+                }}
+              >
+                <BottomPanel
+                  isCollapsed={isBottomPanelCollapsed}
+                  onToggle={handleToggleBottomPanel}
+                  className="h-full"
+                >
+                  <LearningTabs
+                    title={title}
+                    description={video?.description}
+                    publishedAt={publishedAt}
+                    analysisText={latestAnalysis?.analysis_text}
+                    onSeekToTimestamp={handleSeekToTimestamp}
+                  />
+                </BottomPanel>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Chat sidebar */}
+          <ResizablePanel
+            defaultSize={SIDEBAR_DEFAULT_SIZE}
+            minSize={SIDEBAR_MIN_SIZE}
+            collapsible
+            collapsedSize={SIDEBAR_COLLAPSED_SIZE}
+          >
+            <ChatSidebar
+              className="h-full"
+              analysisText={chatAnalysisText}
+              onSeekToTimestamp={handleSeekToTimestamp}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </div>
   );
 }

@@ -62,7 +62,7 @@ async function writeLiveSessionMessages(
 
 const messageSchema = z.object({
   id: z.string().uuid().optional(),
-  role: z.enum(["user", "model"]),
+  role: z.enum(["user", "assistant"]),
   content: z.string().min(1),
   timestamp: z.string().datetime(),
   /** Monotonically increasing sequence number for ordering */
@@ -180,10 +180,9 @@ export const finalizeLiveSessionFn = createServerFn({ method: "POST" })
 
     const messageRows = data.messages.map((message, index) => ({
       live_session_id: data.liveSessionId,
-      role: message.role === "model" ? "assistant" : "user",
+      role: message.role, // Already "user" | "assistant" from client
       content: message.content,
       metadata: {
-        sessionId: data.session.sessionId,
         source: "live",
       },
       created_at: message.timestamp,
@@ -217,11 +216,10 @@ export const appendLiveSessionMessagesFn = createServerFn({ method: "POST" })
 
     const messageRows = data.messages.map((message) => ({
       live_session_id: data.liveSessionId,
-      role: message.role === "model" ? "assistant" : "user",
+      role: message.role, // Already "user" | "assistant" from client
       content: message.content,
       metadata: {
         source: "live",
-        clientMessageId: message.id ?? null,
       },
       created_at: message.timestamp,
       // Include sequence_number and client_message_id for ordering and deduplication
@@ -318,10 +316,9 @@ export const storeLiveSessionFn = createServerFn({ method: "POST" })
 
     const messageRows = data.messages.map((message, index) => ({
       live_session_id: liveSession.id,
-      role: message.role === "model" ? "assistant" : "user",
+      role: message.role, // Already "user" | "assistant" from client
       content: message.content,
       metadata: {
-        sessionId: data.session.sessionId,
         source: "live",
       },
       created_at: message.timestamp,

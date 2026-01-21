@@ -1,4 +1,4 @@
-import { GoogleGenAI, LiveServerMessage, Modality, Session } from "@google/genai";
+import { GoogleGenAI, LiveConnectConfig, LiveServerMessage, Modality, Session } from "@google/genai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AUDIO_WORKLET_PROCESSOR_CODE } from "./audio-processor";
 import { createBlob, decode, decodeAudioData } from "./utils";
@@ -9,7 +9,7 @@ export type GeminiLiveStatus = "disconnected" | "connecting" | "connected" | "er
 
 export interface Message {
   id: string;
-  role: "user" | "model";
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
   /** Monotonically increasing sequence number for ordering */
@@ -23,6 +23,8 @@ interface UseGeminiLiveOptions {
   model?: string;
   voiceName?: string;
   uiLanguage?: string;
+  /** Maximum number of messages to keep in memory (default: 200) */
+  messageWindowSize?: number;
 }
 /*  */
 export function useGeminiLive({
@@ -30,6 +32,7 @@ export function useGeminiLive({
   model = "gemini-2.5-flash-native-audio-preview-12-2025",
   voiceName = "Orus",
   uiLanguage = "en",
+  messageWindowSize = 200,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +68,18 @@ export function useGeminiLive({
     sequenceCounterRef.current += 1;
     return sequenceCounterRef.current;
   }, []);
+
+  // Helper to apply message window size limit
+  const applyMessageWindow = useCallback(
+    (messages: Message[]): Message[] => {
+      if (messages.length <= messageWindowSize) {
+        return messages;
+      }
+      // Keep the most recent messages
+      return messages.slice(-messageWindowSize);
+    },
+    [messageWindowSize],
+  );
 
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
@@ -103,10 +118,10 @@ export function useGeminiLive({
           httpOptions: { apiVersion: "v1alpha" },
         });
 
-        const config: any = {
-          // Request BOTH audio + text to ensure we always have a persistable transcript.
-          // Relying solely on outputAudioTranscription is not always reliable.
-          responseModalities: [Modality.AUDIO, Modality.TEXT],
+        const config: LiveConnectConfig = {
+          // responseModalities only support one type
+          responseModalities: [Modality.AUDIO],
+          systemInstruction,
           thinkingConfig: {
             thinkingBudget: 1024,
           },
@@ -116,12 +131,7 @@ export function useGeminiLive({
           enableAffectiveDialog: true,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
-          tools: [],
         };
-
-        if (systemInstruction) {
-          config.systemInstruction = { parts: [{ text: systemInstruction }] };
-        }
 
         sessionRef.current = await clientRef.current.live.connect({
           model,
@@ -217,7 +227,7 @@ export function useGeminiLive({
                     };
                     const newArr = [...prev];
                     newArr[existingIdx] = updated;
-                    return newArr;
+                    return applyMessageWindow(newArr);
                   } else {
                     // Create new model message
                     const newId = crypto.randomUUID();
@@ -242,13 +252,13 @@ export function useGeminiLive({
 
                     const newMessage: Message = {
                       id: newId,
-                      role: "model",
+                      role: "assistant",
                       content: outputText,
                       timestamp: new Date(),
                       sequenceNumber: getNextSequenceNumber(),
                       isStreaming: isFinalChunk ? false : true,
                     };
-                    return [...updatedPrev, newMessage];
+                    return applyMessageWindow([...updatedPrev, newMessage]);
                   }
                 });
               }
@@ -280,7 +290,7 @@ export function useGeminiLive({
                     };
                     const newArr = [...prev];
                     newArr[existingIdx] = updated;
-                    return newArr;
+                    return applyMessageWindow(newArr);
                   } else {
                     // Create new user message
                     const newId = crypto.randomUUID();
@@ -311,7 +321,7 @@ export function useGeminiLive({
                       sequenceNumber: getNextSequenceNumber(),
                       isStreaming: true,
                     };
-                    return [...updatedPrev, newMessage];
+                    return applyMessageWindow([...updatedPrev, newMessage]);
                   }
                 });
               }
@@ -347,7 +357,7 @@ export function useGeminiLive({
 
                     const updated = [...prev];
                     updated[idx] = { ...updated[idx], isStreaming: false };
-                    return updated;
+                    return applyMessageWindow(updated);
                   });
                 }
                 // Keep currentModelMessageIdRef until the next user activity starts.
@@ -370,7 +380,7 @@ export function useGeminiLive({
         setStatus("error");
       }
     },
-    [apiKey, model, voiceName, ensureAudioContexts, getNextSequenceNumber],
+    [apiKey, model, voiceName, ensureAudioContexts, getNextSequenceNumber, applyMessageWindow],
   );
 
   const startRecording = useCallback(async () => {
@@ -501,7 +511,7 @@ export function useGeminiLive({
               sequenceNumber: getNextSequenceNumber(),
               isStreaming: false,
             };
-            return [...prev, newMessage];
+            return applyMessageWindow([...prev, newMessage]);
           });
         }
 
@@ -515,36 +525,39 @@ export function useGeminiLive({
         }
       }
     },
-    [getNextSequenceNumber],
+    [getNextSequenceNumber, applyMessageWindow],
   );
 
   const sendTurns = useCallback(
     (
-      turns: Array<{ role: "user" | "model"; content: string }>,
+      turns: Array<{ role: "user" | "assistant"; content: string }>,
       hideFromUI: boolean = false,
     ) => {
       if (!sessionRef.current || turns.length === 0) return;
 
       if (!hideFromUI) {
-        setMessages((prev) => [
-          ...prev,
-          ...turns.map(
-            (turn): Message => ({
-              id: crypto.randomUUID(),
-              role: turn.role,
-              content: turn.content,
-              timestamp: new Date(),
-              sequenceNumber: getNextSequenceNumber(),
-              isStreaming: false,
-            }),
-          ),
-        ]);
+        setMessages((prev) =>
+          applyMessageWindow([
+            ...prev,
+            ...turns.map(
+              (turn): Message => ({
+                id: crypto.randomUUID(),
+                role: turn.role,
+                content: turn.content,
+                timestamp: new Date(),
+                sequenceNumber: getNextSequenceNumber(),
+                isStreaming: false,
+              }),
+            ),
+          ]),
+        );
       }
 
       if (typeof (sessionRef.current as any).sendClientContent === "function") {
         (sessionRef.current as any).sendClientContent({
           turns: turns.map((turn) => ({
-            role: turn.role,
+            // Convert "assistant" back to "model" for Gemini API
+            role: turn.role === "assistant" ? "model" : turn.role,
             parts: [{ text: turn.content }],
           })),
           turnComplete: true,
@@ -553,7 +566,7 @@ export function useGeminiLive({
         console.error("sendClientContent not found on session");
       }
     },
-    [getNextSequenceNumber],
+    [getNextSequenceNumber, applyMessageWindow],
   );
 
   return {

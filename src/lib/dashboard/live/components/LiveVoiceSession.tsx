@@ -55,7 +55,7 @@ export function LiveTranscript({
             </div>
           )}
           {messages.map((message) => {
-            const isModel = message.role === "model";
+            const isModel = message.role === "assistant";
             return (
               <div
                 key={message.id}

@@ -5,7 +5,7 @@ import {
   useMatchRoute,
   useNavigate,
 } from "@tanstack/react-router";
-import { Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
+import { AlertCircle, Loader2, Mic, MicOff, Phone, PhoneOff, RefreshCw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Card } from "~/lib/components/ui/card";
@@ -27,6 +27,7 @@ import {
   getLiveSessionDetailFn,
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
+import { MessageSyncQueue, retryWithBackoff, type MessageSyncState } from "~/lib/dashboard/live/retry";
 import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
@@ -75,14 +76,33 @@ export function LivePage() {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [syncStates, setSyncStates] = useState<Map<string, MessageSyncState>>(new Map());
   const hasSentGreetingRef = useRef(false);
   const activeSessionRef = useRef<LiveSessionMeta | null>(null);
   const pendingSessionRef = useRef<LiveSessionMeta | null>(null);
   const lastPersistedSessionIdRef = useRef<string | null>(null);
   const syncedMessageIdsRef = useRef<Set<string>>(new Set());
-  const isCreatingSessionRef = useRef(false);
+  const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
+  const syncQueueRef = useRef<MessageSyncQueue | null>(null);
 
-  // Persist syncedMessageIds to sessionStorage to prevent re-sync after page refresh
+  // Initialize sync queue
+  if (!syncQueueRef.current) {
+    syncQueueRef.current = new MessageSyncQueue((states) => {
+      setSyncStates(states);
+    });
+  }
+
+  // Debounce timer for batch message sync
+  const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track last synced message count to detect new messages
+  const lastSyncedCountRef = useRef<number>(0);
+  const uiLocale = getLocale();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const isViewingHistory = Boolean(resolvedSessionId);
+  const isReadOnlyHistory = isViewingHistory && !isResuming;
+
+  // Storage utilities using sessionStorage (simple and reliable)
   const saveSyncedIds = useCallback((sessionId: string, ids: Set<string>) => {
     try {
       const key = `syncedMessageIds-${sessionId}`;
@@ -113,15 +133,6 @@ export function LivePage() {
       console.warn("Failed to clear syncedMessageIds from sessionStorage:", err);
     }
   }, []);
-  // Debounce timer for batch message sync
-  const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track last synced message count to detect new messages
-  const lastSyncedCountRef = useRef<number>(0);
-  const uiLocale = getLocale();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const isViewingHistory = Boolean(resolvedSessionId);
-  const isReadOnlyHistory = isViewingHistory && !isResuming;
 
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
@@ -165,7 +176,7 @@ export function LivePage() {
     if (!historyQuery.data) return [];
     return historyQuery.data.messages.map((message, index) => ({
       id: message.id,
-      role: (message.role === "user" ? "user" : "model") as "user" | "model",
+      role: (message.role === "user" ? "user" : "assistant") as "user" | "assistant",
       content: message.content,
       timestamp: new Date(message.createdAt),
       // Assign sequence numbers based on order from database
@@ -238,7 +249,6 @@ export function LivePage() {
     activeSessionRef.current = pendingSessionRef.current;
     pendingSessionRef.current = null;
     // Note: syncedMessageIdsRef is already set in connectSession/connectResumeSession
-    isCreatingSessionRef.current = false;
   }, [status]);
 
   const syncPreviousSession = useCallback(async () => {
@@ -267,24 +277,41 @@ export function LivePage() {
       );
 
       if (unsyncedMessages.length > 0) {
+        const messageIds = unsyncedMessages.map((m) => m.id);
+        syncQueueRef.current?.markSyncing(messageIds);
+
         const { appendLiveSessionMessagesFn } =
           await import("~/lib/dashboard/live/session");
-        await appendLiveSessionMessagesFn({
-          data: {
-            liveSessionId: session.liveSessionId,
-            messages: unsyncedMessages.map((message) => ({
-              id: message.id,
-              role: message.role,
-              content: message.content,
-              timestamp: message.timestamp.toISOString(),
-              sequenceNumber: message.sequenceNumber,
-            })),
+
+        // Use retry logic for final sync
+        await retryWithBackoff(
+          async () => {
+            await appendLiveSessionMessagesFn({
+              data: {
+                liveSessionId: session.liveSessionId!,
+                messages: unsyncedMessages.map((message) => ({
+                  id: message.id,
+                  role: message.role,
+                  content: message.content,
+                  timestamp: message.timestamp.toISOString(),
+                  sequenceNumber: message.sequenceNumber,
+                })),
+              },
+            });
           },
-        });
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+            onRetry: (attempt) => {
+              console.log(`[LiveSync] Retrying final sync, attempt ${attempt}`);
+            },
+          },
+        );
+
         unsyncedMessages.forEach((message) => {
           syncedMessageIdsRef.current.add(message.id);
         });
-        // Persist to sessionStorage before closing session
+        syncQueueRef.current?.markSynced(messageIds);
         saveSyncedIds(session.sessionId, syncedMessageIdsRef.current);
       }
 
@@ -300,6 +327,7 @@ export function LivePage() {
       queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
     } catch (err) {
       console.error("Failed to store previous live session", err);
+      // Don't throw - allow disconnection to proceed
     }
   }, [messages, queryClient, saveSyncedIds]);
 
@@ -324,52 +352,86 @@ export function LivePage() {
       );
       if (unsynced.length === 0) return;
 
+      const messageIds = unsynced.map((m) => m.id);
+      syncQueueRef.current?.markPending(messageIds);
+      syncQueueRef.current?.markSyncing(messageIds);
+
       try {
         const { appendLiveSessionMessagesFn } =
           await import("~/lib/dashboard/live/session");
-        await appendLiveSessionMessagesFn({
-          data: {
-            liveSessionId: session.liveSessionId,
-            messages: unsynced.map((message) => ({
-              id: message.id,
-              role: message.role,
-              content: message.content,
-              timestamp: message.timestamp.toISOString(),
-              sequenceNumber: message.sequenceNumber,
-            })),
+
+        // Use retry logic with exponential backoff
+        await retryWithBackoff(
+          async () => {
+            await appendLiveSessionMessagesFn({
+              data: {
+                liveSessionId: session.liveSessionId!,
+                messages: unsynced.map((message) => ({
+                  id: message.id,
+                  role: message.role,
+                  content: message.content,
+                  timestamp: message.timestamp.toISOString(),
+                  sequenceNumber: message.sequenceNumber,
+                })),
+              },
+            });
           },
-        });
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+            onRetry: (attempt, error) => {
+              console.log(`[LiveSync] Retry attempt ${attempt}`, error);
+            },
+          },
+        );
+
+        // Mark as synced on success
         unsynced.forEach((message) => {
           syncedMessageIdsRef.current.add(message.id);
         });
-        // Persist to sessionStorage
+        syncQueueRef.current?.markSynced(messageIds);
         saveSyncedIds(session.sessionId, syncedMessageIdsRef.current);
         lastSyncedCountRef.current = syncedMessageIdsRef.current.size;
         queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
       } catch (err) {
-        console.error("Failed to append live messages", err);
+        // Mark as failed after all retries exhausted
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        console.error("[LiveSync] Failed to append live messages after retries", err);
+        syncQueueRef.current?.markFailed(messageIds, errorMessage);
       }
     },
     [queryClient, saveSyncedIds],
   );
 
-  const ensureLiveSessionId = useCallback(async () => {
+  const ensureLiveSessionId = useCallback(async (): Promise<string> => {
     const session = activeSessionRef.current;
-    if (!session || session.liveSessionId || isCreatingSessionRef.current) return;
-    console.log("[LiveSync] ensureLiveSessionId: creating new live session record");
-    isCreatingSessionRef.current = true;
-    try {
-      const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
-      const { liveSessionId } = await createLiveSessionFn({
-        data: { session },
-      });
-      activeSessionRef.current = { ...session, liveSessionId };
-      queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
-    } catch (err) {
-      console.error("Failed to create live session", err);
-    } finally {
-      isCreatingSessionRef.current = false;
+    if (!session) throw new Error("No active session");
+    if (session.liveSessionId) return session.liveSessionId;
+
+    // If session creation is already in progress, wait for it
+    if (sessionCreationPromiseRef.current) {
+      return sessionCreationPromiseRef.current;
     }
+
+    console.log("[LiveSync] ensureLiveSessionId: creating new live session record");
+
+    // Create promise for session creation
+    const creationPromise = (async () => {
+      try {
+        const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
+        const { liveSessionId } = await createLiveSessionFn({
+          data: { session },
+        });
+        activeSessionRef.current = { ...session, liveSessionId };
+        queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+        return liveSessionId;
+      } finally {
+        sessionCreationPromiseRef.current = null;
+      }
+    })();
+
+    sessionCreationPromiseRef.current = creationPromise;
+    return creationPromise;
   }, [queryClient]);
 
   const connectSession = useCallback(async () => {
@@ -384,7 +446,7 @@ export function LivePage() {
       if (previousSession) {
         clearSyncedIds(previousSession.sessionId);
       }
-      // Load syncedMessageIds for the new session (if resuming)
+      // Load syncedMessageIds for the new session
       syncedMessageIdsRef.current = loadSyncedIds(session.sessionId);
       const { token } = await getGeminiToken();
 
@@ -412,8 +474,9 @@ System Context:
     }
   }, [
     buildSessionMeta,
+    clearSyncedIds,
     connect,
-    queryClient,
+    loadSyncedIds,
     selectedPersona.systemPrompt,
     syncPreviousSession,
   ]);
@@ -450,14 +513,28 @@ System Context:
 
       const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}`;
       await connect(fullSystemPrompt, token);
+
+      // Send history with error handling
       if (historyMessages.length > 0) {
-        await sendTurns(
-          historyMessages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-          true,
-        );
+        try {
+          console.log(`[LiveSync] Sending ${historyMessages.length} history messages to Gemini`);
+          await sendTurns(
+            historyMessages.map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+            true,
+          );
+          console.log("[LiveSync] History successfully sent to Gemini");
+        } catch (historyError) {
+          console.error("[LiveSync] Failed to send history to Gemini:", historyError);
+          // Show warning but don't fail the connection
+          setSessionError(
+            "Connected, but failed to restore conversation history. Starting fresh context.",
+          );
+          // Clear the error after 5 seconds
+          setTimeout(() => setSessionError(null), 5000);
+        }
       }
     } catch (err) {
       console.error("Resume connection error:", err);
@@ -469,7 +546,9 @@ System Context:
     }
   }, [
     buildSessionMeta,
+    clearSyncedIds,
     connect,
+    loadSyncedIds,
     sendTurns,
     historyMessages,
     historyQuery.data,
@@ -497,6 +576,16 @@ System Context:
     [isReadOnlyHistory, sendText, status, textInput],
   );
 
+  const handleRetryFailedMessages = useCallback(async () => {
+    const failedIds = syncQueueRef.current?.retryFailed() || [];
+    if (failedIds.length === 0) return;
+
+    const failedMessages = messages.filter((m) => failedIds.includes(m.id));
+    if (failedMessages.length > 0) {
+      await appendTurnMessages(failedMessages);
+    }
+  }, [appendTurnMessages, messages]);
+
   // Debounced batch sync effect - syncs all unsynced non-streaming messages
   // after 1.5 seconds of no new messages (conversation turn complete)
   useEffect(() => {
@@ -505,9 +594,12 @@ System Context:
     if (!session) return;
 
     // Ensure session exists in DB when first model response arrives
-    const hasModelMessage = messages.some((m) => m.role === "model");
+    const hasModelMessage = messages.some((m) => m.role === "assistant");
     if (hasModelMessage && !session.liveSessionId) {
-      void ensureLiveSessionId();
+      // Wait for session creation before syncing
+      void ensureLiveSessionId().catch((err) => {
+        console.error("[LiveSync] Failed to ensure session ID", err);
+      });
       return;
     }
 
@@ -635,6 +727,25 @@ System Context:
             {sessionError && (
               <div className="mx-auto rounded-full bg-destructive/10 px-4 py-1.5 text-sm font-medium text-destructive backdrop-blur-sm border border-destructive/20 animate-in fade-in slide-in-from-bottom-4">
                 {sessionError}
+              </div>
+            )}
+
+            {/* Sync failure indicator */}
+            {syncQueueRef.current?.getFailedMessages().length > 0 && (
+              <div className="mx-auto flex items-center gap-2 rounded-full bg-amber-50/90 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm border border-amber-200/50 animate-in fade-in slide-in-from-bottom-4">
+                <AlertCircle className="h-4 w-4" />
+                <span>
+                  {syncQueueRef.current.getFailedMessages().length} message(s) failed to sync
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRetryFailedMessages}
+                  className="h-6 px-2 text-xs hover:bg-amber-100"
+                >
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                  Retry
+                </Button>
               </div>
             )}
 

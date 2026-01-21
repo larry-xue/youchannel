@@ -39,21 +39,23 @@ export const HistoryBanner = memo(function HistoryBanner({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3",
+        "flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3",
       )}
     >
       <div>
-        <p className="text-sm font-semibold text-foreground">Viewing saved session</p>
-        <p className="text-xs text-muted-foreground">{helperText}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Saved Session
+        </p>
+        <p className="mt-1 text-sm text-foreground">{helperText}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={onNewSession} className="rounded-lg px-4" variant="outline">
+        <Button onClick={onNewSession} className="h-8 px-3 text-xs" variant="ghost">
           New Session
         </Button>
         {errorMessage && (
           <Button
             onClick={onRetry}
-            className="rounded-lg px-3"
+            className="h-8 px-3 text-xs"
             variant="ghost"
             size="sm"
             disabled={isLoading}
@@ -63,7 +65,7 @@ export const HistoryBanner = memo(function HistoryBanner({
         )}
         <Button
           onClick={onResume}
-          className="rounded-lg px-4"
+          className="h-8 px-4 text-xs font-semibold"
           disabled={isResumeDisabled}
         >
           {isConnecting || isLoading ? (

@@ -25,7 +25,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
       {isRestoringHistory && (
         <StatusPill
           className={cn(
-            "mx-auto flex items-center gap-2 bg-muted/70 text-sm",
+            "mx-auto flex items-center gap-2 text-xs",
             "font-medium text-muted-foreground border border-border/60",
           )}
         >
@@ -37,8 +37,8 @@ export const LiveStatusSection = memo(function LiveStatusSection({
       {sessionError && (
         <StatusPill
           className={cn(
-            "mx-auto bg-destructive/5 text-sm font-medium text-destructive",
-            "border border-destructive/20",
+            "mx-auto text-xs font-medium text-destructive",
+            "border border-destructive/30",
           )}
         >
           {sessionError}
@@ -48,7 +48,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
       {failedSyncCount > 0 && (
         <StatusPill
           className={cn(
-            "mx-auto flex items-center gap-2 bg-muted/70 text-sm",
+            "mx-auto flex items-center gap-2 text-xs",
             "font-medium text-foreground border border-border/60",
           )}
         >

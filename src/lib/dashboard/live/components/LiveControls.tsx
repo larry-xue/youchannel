@@ -1,7 +1,6 @@
 import { Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
 import { memo, useCallback, type KeyboardEvent } from "react";
 import { Button } from "~/lib/components/ui/button";
-import { Card } from "~/lib/components/ui/card";
 import { Textarea } from "~/lib/components/ui/textarea";
 import { PersonaSelector } from "~/lib/dashboard/live/components/PersonaSelector";
 import { VoiceSelector } from "~/lib/dashboard/live/components/LiveVoiceSession";
@@ -24,6 +23,7 @@ type LiveControlsProps = {
   onTextInputChange: (value: string) => void;
   onSendMessage: () => void;
   canSendText: boolean;
+  className?: string;
 };
 
 export const LiveControls = memo(function LiveControls({
@@ -42,6 +42,7 @@ export const LiveControls = memo(function LiveControls({
   onTextInputChange,
   onSendMessage,
   canSendText,
+  className,
 }: LiveControlsProps) {
   const statusLabel = isConnecting
     ? "Connecting"
@@ -57,12 +58,19 @@ export const LiveControls = memo(function LiveControls({
   const messagePlaceholder = isActiveSession
     ? "Type a message..."
     : "Connect to start chatting...";
+  const callButtonClassName = cn(
+    "h-10 min-w-[150px] px-5 text-sm font-semibold",
+    isActiveSession
+      ? "text-destructive"
+      : "bg-foreground text-background hover:bg-foreground/90",
+  );
 
   return (
-    <Card
+    <div
       className={cn(
-        "shrink-0 p-3 rounded-2xl border border-border/60 bg-card",
-        "z-20 flex flex-col gap-3",
+        "shrink-0 rounded-2xl border border-border/60 bg-background px-4 py-3",
+        "z-20 flex flex-col gap-3 shadow-sm",
+        className,
       )}
     >
       <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -115,12 +123,9 @@ export const LiveControls = memo(function LiveControls({
           )}
 
           <Button
-            size="sm"
+            size="default"
             variant={isActiveSession ? "outline" : "default"}
-            className={cn(
-              "h-9 px-4 text-sm font-medium",
-              isActiveSession && "text-destructive",
-            )}
+            className={callButtonClassName}
             onClick={onToggleSession}
             disabled={isConnecting || isReadOnlyHistory}
           >
@@ -151,11 +156,10 @@ export const LiveControls = memo(function LiveControls({
         onValueChange={onTextInputChange}
         onSend={onSendMessage}
         canSend={canSendText}
-        isRecording={isRecording}
         isDisabled={!isActiveSession || isReadOnlyHistory}
         placeholder={messagePlaceholder}
       />
-    </Card>
+    </div>
   );
 });
 
@@ -164,7 +168,6 @@ type MessageComposerProps = {
   onValueChange: (value: string) => void;
   onSend: () => void;
   canSend: boolean;
-  isRecording: boolean;
   isDisabled: boolean;
   placeholder: string;
 };
@@ -174,7 +177,6 @@ const MessageComposer = memo(function MessageComposer({
   onValueChange,
   onSend,
   canSend,
-  isRecording,
   isDisabled,
   placeholder,
 }: MessageComposerProps) {

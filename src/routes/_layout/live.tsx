@@ -3,7 +3,6 @@ import { createFileRoute, useMatchRoute, useNavigate } from "@tanstack/react-rou
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HistoryBanner } from "~/lib/dashboard/live/components/HistoryBanner";
 import { LiveControls } from "~/lib/dashboard/live/components/LiveControls";
-import { LiveHistorySidebar } from "~/lib/dashboard/live/components/LiveHistorySidebar";
 import { LiveStatusSection } from "~/lib/dashboard/live/components/LiveStatusSection";
 import { LiveTranscript } from "~/lib/dashboard/live/components/LiveVoiceSession";
 import { ObserverPanel } from "~/lib/dashboard/live/components/ObserverPanel";
@@ -205,15 +204,16 @@ export function LivePage() {
     const personaId = historyQuery.data?.session.metadata?.personaId;
     return personaId ? getPersonaById(personaId) : selectedPersona;
   }, [historyQuery.data?.session.metadata?.personaId, selectedPersona]);
+  const isActiveSession = status === "connected";
+  const isConnecting = status === "connecting" || isFetchingToken;
   const displayMessages = useMemo(() => {
     if (!isViewingHistory) return messages;
     if (!isResuming) return historyMessages;
     return [...historyMessages, ...messages];
   }, [historyMessages, isResuming, isViewingHistory, messages]);
   const canTriggerObserver = displayMessages.length > 0 && !observer.isRunning;
-
-  const isActiveSession = status === "connected";
-  const isConnecting = status === "connecting" || isFetchingToken;
+  const isEmptyState =
+    displayMessages.length === 0 && !isActiveSession && !isViewingHistory;
   const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
   const historyError = isViewingHistory ? historyQuery.error : null;
   const historyErrorMessage =
@@ -743,7 +743,7 @@ System Context:
   }, []);
 
   return (
-    <div className="relative h-full">
+    <div className="relative min-h-[calc(100vh-10rem)]">
       <a
         href="#live-main"
         className={cn(
@@ -756,14 +756,7 @@ System Context:
       </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
 
-      <div
-        className="mx-auto flex h-full max-w-[1680px] gap-6 px-6 py-6 lg:px-8"
-      >
-        <LiveHistorySidebar
-          activeSessionId={resolvedSessionId}
-          className="border-none bg-transparent"
-        />
-
+      <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-[1680px] px-6 py-6 lg:px-8">
         <main
           id="live-main"
           aria-labelledby="live-title"
@@ -773,7 +766,7 @@ System Context:
             Live Voice Session
           </h1>
 
-          <div className="flex min-h-0 flex-1 gap-6">
+          <div className="flex min-h-0 flex-1 gap-8">
             <section className="flex min-h-0 flex-1 flex-col">
               <div className="mx-auto flex w-full max-w-[900px] flex-1 flex-col gap-6">
                 <div className="space-y-3">
@@ -790,12 +783,12 @@ System Context:
                   {(isHistoryLoading || historyError instanceof Error) && (
                     <div className="space-y-2">
                       {isHistoryLoading && (
-                        <StatusPill className="bg-muted/40 text-xs text-muted-foreground">
+                        <StatusPill className="border border-border/60 text-xs text-muted-foreground">
                           Loading session history...
                         </StatusPill>
                       )}
                       {historyError instanceof Error && (
-                        <StatusPill className="bg-destructive/10 text-xs text-destructive">
+                        <StatusPill className="border border-destructive/30 text-xs text-destructive">
                           {historyError.message}
                         </StatusPill>
                       )}
@@ -812,33 +805,6 @@ System Context:
                   />
                 </div>
               </div>
-
-              <div className="mx-auto mt-6 flex w-full max-w-[900px] flex-col gap-3">
-                <LiveStatusSection
-                  isRestoringHistory={isRestoringHistory}
-                  sessionError={sessionError}
-                  failedSyncCount={failedSyncCount}
-                  onRetryFailedMessages={handleRetryFailedMessages}
-                />
-
-                <LiveControls
-                  selectedPersonaId={selectedPersona.id}
-                  onSelectPersona={setSelectedPersona}
-                  selectedVoice={selectedVoice}
-                  onVoiceChange={setSelectedVoice}
-                  isActiveSession={isActiveSession}
-                  isConnecting={isConnecting}
-                  isReadOnlyHistory={isReadOnlyHistory}
-                  isRecording={isRecording}
-                  isPaused={isPaused}
-                  onToggleMute={handleToggleMute}
-                  onToggleSession={handleToggleSession}
-                  textInput={textInput}
-                  onTextInputChange={setTextInput}
-                  onSendMessage={handleSendMessage}
-                  canSendText={canSendText}
-                />
-              </div>
             </section>
 
             <ObserverPanel
@@ -846,9 +812,45 @@ System Context:
               error={observer.error}
               canTrigger={canTriggerObserver}
               onTrigger={handleTriggerObserver}
+              className="w-[320px]"
             />
           </div>
         </main>
+      </div>
+
+      <div
+        className={cn(
+          "pointer-events-none fixed left-1/2 z-40 w-full max-w-[900px] -translate-x-1/2 px-6",
+          isEmptyState ? "top-1/2 -translate-y-1/2" : "bottom-6",
+        )}
+      >
+        <div className="pointer-events-auto flex flex-col items-center gap-3">
+          <LiveStatusSection
+            isRestoringHistory={isRestoringHistory}
+            sessionError={sessionError}
+            failedSyncCount={failedSyncCount}
+            onRetryFailedMessages={handleRetryFailedMessages}
+          />
+
+          <LiveControls
+            selectedPersonaId={selectedPersona.id}
+            onSelectPersona={setSelectedPersona}
+            selectedVoice={selectedVoice}
+            onVoiceChange={setSelectedVoice}
+            isActiveSession={isActiveSession}
+            isConnecting={isConnecting}
+            isReadOnlyHistory={isReadOnlyHistory}
+            isRecording={isRecording}
+            isPaused={isPaused}
+            onToggleMute={handleToggleMute}
+            onToggleSession={handleToggleSession}
+            textInput={textInput}
+            onTextInputChange={setTextInput}
+            onSendMessage={handleSendMessage}
+            canSendText={canSendText}
+            className="w-full"
+          />
+        </div>
       </div>
     </div>
   );

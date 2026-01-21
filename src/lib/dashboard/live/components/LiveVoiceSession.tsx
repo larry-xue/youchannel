@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -33,12 +32,15 @@ export function LiveTranscript({
 
   const isActiveSession = status === "connected";
 
-  const personaInitial = persona.name ? persona.name.charAt(0).toUpperCase() : "A";
+  const personaLabel =
+    persona.name && persona.name.trim().length > 0
+      ? persona.name
+      : "Assistant";
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
-      <ScrollArea className="flex-1 rounded-2xl border border-border/60 bg-card p-6 overflow-hidden h-124">
-        <div className="flex flex-col gap-6 min-h-full justify-end h-full">
+    <div className="flex h-full flex-col">
+      <div className={cn("flex-1 overflow-auto px-1 sm:px-2", className)}>
+        <div className="flex min-h-full flex-col gap-6 pb-28">
           {messages.length === 0 && !isActiveSession && (
             <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
               <p className="text-sm">Start a session to begin chatting.</p>
@@ -52,26 +54,11 @@ export function LiveTranscript({
           {messages.map((message) => {
             const isModel = message.role === "assistant";
             return (
-              <div
-                key={message.id}
-                className={cn("flex gap-4", isModel ? "" : "flex-row-reverse")}
-              >
-                <div
-                  className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-                    isModel
-                      ? "bg-muted text-foreground"
-                      : "bg-muted/50 text-muted-foreground",
-                  )}
-                >
-                  {isModel ? personaInitial : "You"}
-                </div>
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                    isModel ? "bg-background text-foreground" : "bg-muted/40 text-foreground",
-                  )}
-                >
+              <div key={message.id} className="flex flex-col gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  {isModel ? personaLabel : "You"}
+                </span>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                   {message.content}
                 </div>
               </div>
@@ -79,7 +66,7 @@ export function LiveTranscript({
           })}
           <div ref={bottomRef} />
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

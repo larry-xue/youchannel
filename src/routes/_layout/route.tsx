@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { FullPageLoader } from "~/lib/components/FullPageLoader";
+import { AppSidebar } from "~/lib/components/AppSidebar";
 import { Header } from "~/lib/components/Header";
 import { signOutFn } from "~/lib/server/auth";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
@@ -30,13 +31,19 @@ function DashboardLayout() {
 
   return (
     <div className="min-h-screen">
-      <Header onSignOut={handleSignOut} />
+      <div className="flex min-h-screen">
+        <AppSidebar onSignOut={handleSignOut} />
 
-      <main className="mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
-        <div className="min-w-0">
-          <Outlet />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header onSignOut={handleSignOut} className="md:hidden" showMenu />
+
+          <main id="main-content" className="flex-1">
+            <div className="mx-auto w-full max-w-5xl px-6 py-10">
+              <Outlet />
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

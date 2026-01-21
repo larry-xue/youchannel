@@ -10,11 +10,11 @@ import {
 
 const localeNames: Record<string, string> = {
   en: "English",
-  de: "Deutsch",
-  ja: "日本語",
-  "zh-CN": "简体中文",
-  "zh-TW": "繁體中文",
-  es: "Español",
+  de: "German",
+  ja: "Japanese",
+  "zh-CN": "Chinese (Simplified)",
+  "zh-TW": "Chinese (Traditional)",
+  es: "Spanish",
 };
 
 export function LanguageSwitcher() {
@@ -26,9 +26,9 @@ export function LanguageSwitcher() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-10 gap-2 rounded-full px-3 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+          className="h-9 gap-2 rounded-lg px-2 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
         >
-          <Languages className="h-5 w-5" />
+          <Languages className="h-4 w-4" />
           <span className="text-xs font-semibold uppercase tracking-wide">
             {currentLocale}
           </span>
@@ -36,7 +36,7 @@ export function LanguageSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-[200px] rounded-3xl p-1.5 shadow-xl border-border/50 bg-background/95 backdrop-blur-2xl"
+        className="w-[200px] rounded-xl p-1.5 shadow-sm border-border/60 bg-background"
       >
         {locales.map((locale) => (
           <DropdownMenuItem
@@ -44,8 +44,8 @@ export function LanguageSwitcher() {
             onClick={() => setLocale(locale)}
             className={
               currentLocale === locale
-                ? "bg-secondary text-secondary-foreground font-semibold rounded-2xl"
-                : "rounded-2xl font-medium text-muted-foreground focus:text-foreground"
+                ? "bg-muted/70 text-foreground font-semibold rounded-lg"
+                : "rounded-lg font-medium text-muted-foreground focus:text-foreground"
             }
             data-active-locale={currentLocale === locale}
           >

@@ -38,11 +38,11 @@ export function LanguageAppCheck({ children }: { children: React.ReactNode }) {
       <Dialog open={true} onOpenChange={() => {}}>
         {/* Prevent closing by passing empty onOpenChange and removing close button via CSS or custom content */}
         <DialogContent
-          className="sm:max-w-[625px] rounded-3xl border-border/50 bg-background/95 p-8 shadow-2xl backdrop-blur-xl [&>button]:hidden"
+          className="sm:max-w-[625px] rounded-2xl border border-border/60 bg-background p-6 shadow-md [&>button]:hidden"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DialogHeader className="space-y-4">
+        <DialogHeader className="space-y-4">
             <DialogTitle className="text-2xl font-semibold tracking-tight">
               {m.user_settings()}
             </DialogTitle>

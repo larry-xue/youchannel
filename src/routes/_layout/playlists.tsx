@@ -571,7 +571,7 @@ function DashboardPlaylists() {
             disabled={isRefreshing}
             className="rounded-full text-muted-foreground hover:bg-muted"
           >
-            <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+            <RefreshCcw className="h-4 w-4" />
             <span className="sr-only">Refresh</span>
           </Button>
         )}
@@ -584,7 +584,7 @@ function DashboardPlaylists() {
       )}
 
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden rounded-3xl p-0 gap-0 border-none bg-card shadow-2xl">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl p-0 gap-0 border-none bg-card shadow-md">
           <DialogHeader className="px-6 py-4 border-b border-border bg-card">
             <DialogTitle className="text-xl font-display">
               {m.review_selection_title()}
@@ -611,13 +611,13 @@ function DashboardPlaylists() {
           </DialogHeader>
           <div className="overflow-y-auto px-6 py-6 bg-card">
             {selectedCount === 0 ? (
-              <div className="rounded-3xl border-2 border-dashed border-outline-variant/40 bg-muted/30 px-4 py-12 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border-2 border-dashed border-outline-variant/40 bg-muted/30 px-4 py-12 text-center text-sm text-muted-foreground">
                 {m.review_selection_no_videos()}
               </div>
             ) : (
               <div className="space-y-6">
                 <div
-                  className="relative flex h-[280px] items-center justify-center overflow-hidden rounded-3xl bg-muted p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[320px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
+                  className="relative flex h-[280px] items-center justify-center overflow-hidden rounded-2xl bg-muted p-4 [--stack-shift:70px] [--stack-drop:8px] sm:h-[320px] sm:[--stack-shift:100px] sm:[--stack-drop:10px]"
                   onWheel={handleStackWheel}
                 >
                   {selectedVideos.map((video, index) => {
@@ -644,7 +644,7 @@ function DashboardPlaylists() {
                       >
                         <div
                           className={cn(
-                            "overflow-hidden rounded-3xl border-none bg-background shadow-md transition-shadow",
+                            "overflow-hidden rounded-2xl border-none bg-background shadow-md transition-shadow",
                           )}
                           style={{ boxShadow: cardShadow }}
                         >
@@ -662,7 +662,7 @@ function DashboardPlaylists() {
                               </div>
                             )}
                             {durationLabel && (
-                              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
                                 {durationLabel}
                               </div>
                             )}
@@ -680,7 +680,7 @@ function DashboardPlaylists() {
                     );
                   })}
                 </div>
-                <div className="flex flex-wrap items-start justify-between gap-4 rounded-3xl bg-muted/30 px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-muted/30 px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">
                       {activeSelectedVideo?.title || m.default_video_title()}
@@ -692,9 +692,9 @@ function DashboardPlaylists() {
                           })
                         : m.review_source_selected()}
                       {activeSelectedVideo?.published_at
-                        ? ` ‚Ä¢ ${formatDate(activeSelectedVideo.published_at)}`
+                        ? ` ‚Ä?${formatDate(activeSelectedVideo.published_at)}`
                         : ""}
-                      {activeDurationLabel ? ` ‚Ä¢ ${activeDurationLabel}` : ""}
+                      {activeDurationLabel ? ` ‚Ä?${activeDurationLabel}` : ""}
                       {activeSelectedVideo ? (
                         <span className="ml-1 inline-block rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-foreground">
                           {m.review_quota_label({ quota: activeQuotaLabel })}
@@ -720,7 +720,7 @@ function DashboardPlaylists() {
                     </Button>
                   </div>
                 </div>
-                <div className="rounded-3xl bg-muted/30 px-5 py-4">
+                <div className="rounded-2xl bg-muted/30 px-5 py-4">
                   <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                     <span>{m.review_quota_split()}</span>
                     <span>
@@ -772,7 +772,7 @@ function DashboardPlaylists() {
               type="button"
               variant="outline"
               onClick={() => setShowReviewDialog(false)}
-              className="rounded-full border-outline hover:bg-muted"
+              className="rounded-lg"
             >
               {m.review_selection_cancel()}
             </Button>
@@ -780,7 +780,7 @@ function DashboardPlaylists() {
               type="button"
               onClick={handleSubmitSelection}
               disabled={selectedCount === 0 || submitSelectionMutation.isPending}
-              className="rounded-full bg-primary text-on-primary shadow-sm hover:bg-primary/90"
+              className="rounded-lg"
             >
               {submitSelectionMutation.isPending
                 ? m.review_selection_submitting()
@@ -801,7 +801,7 @@ function DashboardPlaylists() {
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row">
           <aside className="lg:w-80 lg:shrink-0">
-            <div className="flex max-h-[70vh] flex-col rounded-3xl bg-muted/30 border border-border/50 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
+            <div className="flex max-h-[70vh] flex-col rounded-2xl bg-muted/30 border border-border/50 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
                 <h2 className="text-sm font-semibold text-foreground">
                   {m.playlists_your_playlists()}
@@ -878,11 +878,11 @@ function DashboardPlaylists() {
 
           <div className="min-w-0 flex-1 space-y-6">
             {isLoadingPlaylists ? (
-              <div className="flex h-40 items-center justify-center rounded-3xl bg-muted/30">
+              <div className="flex h-40 items-center justify-center rounded-2xl bg-muted/30">
                 <Loading text={m.playlist_loading_single()} size="sm" />
               </div>
             ) : activePlaylist ? (
-              <div className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-muted/30 p-6 transition-[background-color,border-color] border border-border/50">
+              <div className="flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-muted/30 p-6 transition-[background-color,border-color] border border-border/50">
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate type-h2 text-foreground">
                     {activePlaylist.title || m.playlist_untitled()}
@@ -906,8 +906,7 @@ function DashboardPlaylists() {
                       disabled={!canPrev || isLoadingItems}
                       className="rounded-full w-9 h-9 p-0"
                     >
-                      <span className="sr-only">{m.button_prev()}</span>‚Üê
-                    </Button>
+                      <span className="sr-only">{m.button_prev()}</span>‚Ü?                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -915,13 +914,12 @@ function DashboardPlaylists() {
                       disabled={!canNext || isLoadingItems}
                       className="rounded-full w-9 h-9 p-0"
                     >
-                      <span className="sr-only">{m.button_next()}</span>‚Üí
-                    </Button>
+                      <span className="sr-only">{m.button_next()}</span>‚Ü?                    </Button>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="rounded-3xl border-2 border-dashed border-outline-variant/40 px-6 py-12 text-center text-sm text-muted-foreground/60">
+              <div className="rounded-2xl border-2 border-dashed border-outline-variant/40 px-6 py-12 text-center text-sm text-muted-foreground/60">
                 {m.playlist_select_hint()}
               </div>
             )}
@@ -929,7 +927,7 @@ function DashboardPlaylists() {
             {activePlaylist && (
               <>
                 {selectedCount > 0 && (
-                  <div className="sticky top-6 z-20 flex flex-wrap items-center justify-between gap-4 rounded-full bg-secondary px-6 py-3 shadow-lg shadow-black/5 ring-1 ring-black/5 transition-[opacity,transform,top] animate-in fade-in slide-in-from-top-4">
+                  <div className="sticky top-6 z-20 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-secondary px-5 py-3 ring-1 ring-border/60">
                     <div className="flex items-center gap-4">
                       <div className="flex -space-x-3">
                         {selectionPreview.map((video) => (
@@ -952,7 +950,7 @@ function DashboardPlaylists() {
                           </div>
                         ))}
                         {selectedCount > selectionPreview.length && (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-secondary-container bg-secondary text-xs font-bold text-on-secondary shadow-sm">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-foreground">
                             +{selectedCount - selectionPreview.length}
                           </div>
                         )}
@@ -972,7 +970,7 @@ function DashboardPlaylists() {
                         size="sm"
                         onClick={handleClearSelection}
                         disabled={submitSelectionMutation.isPending}
-                        className="rounded-full text-secondary-foreground hover:bg-on-secondary-container/10"
+                        className="rounded-lg text-foreground hover:bg-muted/70"
                       >
                         {m.action_clear()}
                       </Button>
@@ -980,7 +978,7 @@ function DashboardPlaylists() {
                         size="sm"
                         onClick={handleOpenReviewDialog}
                         disabled={submitSelectionMutation.isPending}
-                        className="rounded-full bg-primary text-on-primary hover:bg-primary/90 shadow-sm"
+                        className="rounded-lg"
                       >
                         {m.action_review_submit()}
                       </Button>
@@ -990,7 +988,7 @@ function DashboardPlaylists() {
                 {isLoadingItems ? (
                   <Loading text={m.library_loading()} size="md" />
                 ) : itemsQuery.isError ? (
-                  <div className="rounded-3xl bg-destructive/10 px-6 py-4 text-sm text-destructive">
+                  <div className="rounded-2xl bg-destructive/10 px-6 py-4 text-sm text-destructive">
                     {m.playlist_items_error()}
                   </div>
                 ) : videos.length === 0 ? (

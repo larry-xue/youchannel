@@ -23,8 +23,7 @@ export const ObserverPanel = memo(function ObserverPanel({
     <aside
       className={cn(
         "hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col",
-        "rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md",
-        "p-4 shadow-md",
+        "rounded-2xl border border-border/60 bg-card p-4",
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -43,7 +42,7 @@ export const ObserverPanel = memo(function ObserverPanel({
           role="status"
           aria-live="polite"
           className={cn(
-            "mt-3 rounded-2xl bg-destructive/10 px-3 py-2 text-xs text-destructive",
+            "mt-3 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive",
           )}
         >
           {error.message}
@@ -55,8 +54,7 @@ export const ObserverPanel = memo(function ObserverPanel({
           {!hasOutputs && (
             <div
               className={cn(
-                "rounded-2xl border border-border/40 bg-background/40 p-3 text-xs",
-                "text-muted-foreground",
+                "rounded-xl border border-border/60 bg-card p-3 text-xs text-muted-foreground",
               )}
             >
               No insights yet. Run the observer to generate notes.
@@ -66,8 +64,7 @@ export const ObserverPanel = memo(function ObserverPanel({
             <div
               key={entry.id}
               className={cn(
-                "rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm",
-                "overflow-auto break-words",
+                "rounded-xl border border-border/60 bg-card p-3 overflow-auto break-words",
               )}
             >
               {entry.explanation && entry.explanation.length > 0 && (
@@ -77,10 +74,10 @@ export const ObserverPanel = memo(function ObserverPanel({
                     return (
                       <div
                         key={itemKey}
-                        className="bg-background/40 rounded-lg p-2 text-xs"
+                        className="bg-muted/30 rounded-lg p-2 text-xs"
                       >
                         <div className="flex items-baseline gap-1.5">
-                          <span className="font-semibold text-primary">
+                          <span className="font-semibold text-foreground">
                             {item.term}
                           </span>
                           <span className="text-muted-foreground">-</span>

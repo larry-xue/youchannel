@@ -62,27 +62,25 @@ function DashboardPlaylists() {
   };
 
   return (
-    <div className="space-y-8 animate-rise">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="type-h1 text-foreground">{m.library_title()}</h1>
-          <p className="mt-1 type-body text-muted-foreground">
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {m.library_description()}
           </p>
         </div>
         <Button
           variant="outline"
           size="icon"
-          className="rounded-full h-10 w-10 shrink-0"
+          className="h-9 w-9 rounded-lg shrink-0"
           onClick={() => {
             videosQuery.refetch();
           }}
           disabled={videosQuery.isRefetching}
           title={m.video_card_processing()}
         >
-          <RefreshCcw
-            className={cn("h-4 w-4", videosQuery.isRefetching && "animate-spin")}
-          />
+          <RefreshCcw className="h-4 w-4" />
         </Button>
       </div>
 

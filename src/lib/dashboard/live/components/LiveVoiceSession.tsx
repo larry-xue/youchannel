@@ -1,4 +1,3 @@
-import { Check, Mic } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
@@ -16,7 +15,6 @@ interface LiveTranscriptProps {
   messages: Message[];
   status: GeminiLiveStatus;
   persona: Persona;
-  isRecording: boolean;
   className?: string;
 }
 
@@ -24,7 +22,6 @@ export function LiveTranscript({
   messages,
   status,
   persona,
-  isRecording,
   className,
 }: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -36,22 +33,20 @@ export function LiveTranscript({
 
   const isActiveSession = status === "connected";
 
+  const personaInitial = persona.name ? persona.name.charAt(0).toUpperCase() : "A";
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <ScrollArea className="flex-1 rounded-3xl bg-muted/5 backdrop-blur-sm p-6 overflow-hidden h-124">
+      <ScrollArea className="flex-1 rounded-2xl border border-border/60 bg-card p-6 overflow-hidden h-124">
         <div className="flex flex-col gap-6 min-h-full justify-end h-full">
           {messages.length === 0 && !isActiveSession && (
-            <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground/50">
-              <Mic className="h-16 w-16 mb-6 opacity-20" />
-              <p className="text-lg">Start a session to begin chatting</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+              <p className="text-sm">Start a session to begin chatting.</p>
             </div>
           )}
           {messages.length === 0 && isActiveSession && (
-            <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
-              <div className="h-12 w-12 rounded-full bg-primary/10 animate-pulse flex items-center justify-center mb-6">
-                <Mic className="h-5 w-5 text-primary" />
-              </div>
-              <p className="text-lg font-medium">Listening...</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+              <p className="text-sm">Listening...</p>
             </div>
           )}
           {messages.map((message) => {
@@ -59,24 +54,22 @@ export function LiveTranscript({
             return (
               <div
                 key={message.id}
-                className={cn("flex gap-4 group", isModel ? "" : "flex-row-reverse")}
+                className={cn("flex gap-4", isModel ? "" : "flex-row-reverse")}
               >
                 <div
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-medium shadow-sm transition-transform group-hover:scale-110",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
                     isModel
-                      ? "bg-gradient-to-br from-primary/20 to-primary/5 text-primary"
-                      : "bg-muted text-muted-foreground",
+                      ? "bg-muted text-foreground"
+                      : "bg-muted/50 text-muted-foreground",
                   )}
                 >
-                  {isModel ? persona.emoji : "🎤"}
+                  {isModel ? personaInitial : "You"}
                 </div>
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-3xl px-6 py-4 text-[0.95rem] leading-relaxed shadow-sm backdrop-blur-md relative whitespace-pre-wrap", // Added whitespace-pre-wrap for multiline support
-                    isModel
-                      ? "bg-card/60 text-foreground rounded-tl-sm"
-                      : "bg-primary/90 text-primary-foreground rounded-tr-sm shadow-primary/20",
+                    "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                    isModel ? "bg-background text-foreground" : "bg-muted/40 text-foreground",
                   )}
                 >
                   {message.content}
@@ -108,7 +101,7 @@ export function VoiceSelector({
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger
         className={cn(
-          "h-9 w-[160px] rounded-2xl border-border/30 bg-background/30 px-3 text-sm font-medium hover:bg-muted/50 transition-colors [&_.voice-desc]:hidden",
+          "h-9 w-[160px] rounded-xl border-border/60 bg-card px-3 text-sm font-medium hover:bg-muted/50 transition-colors [&_.voice-desc]:hidden",
           className,
         )}
       >
@@ -116,13 +109,13 @@ export function VoiceSelector({
       </SelectTrigger>
       <SelectContent
         align="start"
-        className="max-h-[320px] rounded-2xl bg-popover/95 backdrop-blur-xl p-2"
+        className="max-h-[320px] rounded-xl bg-popover p-2"
       >
         {VOICES.map((voice) => (
           <SelectItem
             key={voice.name}
             value={voice.name}
-            className="rounded-xl p-2 cursor-pointer focus:bg-accent focus:text-accent-foreground"
+            className="rounded-lg p-2 cursor-pointer focus:bg-muted/70 focus:text-foreground"
           >
             <div className="flex flex-col text-left">
               <span className="font-medium">{voice.name}</span>

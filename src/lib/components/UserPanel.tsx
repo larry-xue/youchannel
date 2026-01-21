@@ -49,7 +49,7 @@ function UserQuotas() {
 
   if (error) {
     return (
-      <div className="mx-2 mb-2 rounded-xl bg-destructive/10 p-3 text-center text-xs text-destructive">
+      <div className="mx-2 mb-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-center text-xs text-destructive">
         {m.quota_error()}
       </div>
     );
@@ -65,7 +65,7 @@ function UserQuotas() {
       <div className="px-2 py-1.5">
         <Link
           to="/quotas"
-          className="group flex items-center justify-between rounded-md p-2 hover:bg-muted/50"
+          className="group flex items-center justify-between rounded-lg p-2 hover:bg-muted/70"
         >
           <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
             {m.quota_title()}
@@ -81,7 +81,7 @@ function UserQuotas() {
       <div className="mb-2 flex items-center justify-between px-1">
         <Link
           to="/quotas"
-          className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline"
         >
           {m.quota_title()}
         </Link>
@@ -93,42 +93,33 @@ function UserQuotas() {
           disabled={isRefetching}
         >
           <RefreshCw
-            className={`h-3 w-3 text-muted-foreground transition-colors hover:text-foreground ${isRefetching ? "animate-spin" : ""}`}
+            className="h-3 w-3 text-muted-foreground transition-colors hover:text-foreground"
           />
         </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Video Quota */}
         <Link
           to="/quotas"
-          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-colors hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20"
+          className="rounded-lg border border-border/60 bg-card p-3"
         >
-          <div className="mb-1 text-lg">🎬</div>
-          <div className="text-xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
-            {quota.videoPercent.toFixed(0)}
-            <span className="text-xs font-normal text-muted-foreground">%</span>
-          </div>
-          <Progress
-            value={quota.videoPercent}
-            className="mt-2 h-1 bg-indigo-100 dark:bg-indigo-950 [&>[data-slot=progress-indicator]]:bg-indigo-500"
-          />
+          <p className="text-xs font-semibold text-muted-foreground">
+            {m.quota_video_label()}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-foreground">
+            {quota.videoPercent.toFixed(0)}%
+          </p>
+          <Progress value={quota.videoPercent} className="mt-2 h-1" />
         </Link>
 
-        {/* Chat Quota */}
-        <Link
-          to="/quotas"
-          className="group rounded-lg border border-border/40 bg-card/50 p-2 text-center transition-colors hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20"
-        >
-          <div className="mb-1 text-lg">💬</div>
-          <div className="text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
-            {quota.chatPercent.toFixed(0)}
-            <span className="text-xs font-normal text-muted-foreground">%</span>
-          </div>
-          <Progress
-            value={quota.chatPercent}
-            className="mt-2 h-1 bg-emerald-100 dark:bg-emerald-950 [&>[data-slot=progress-indicator]]:bg-emerald-500"
-          />
+        <Link to="/quotas" className="rounded-lg border border-border/60 bg-card p-3">
+          <p className="text-xs font-semibold text-muted-foreground">
+            {m.quota_chat_label()}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-foreground">
+            {quota.chatPercent.toFixed(0)}%
+          </p>
+          <Progress value={quota.chatPercent} className="mt-2 h-1" />
         </Link>
       </div>
     </div>
@@ -156,12 +147,12 @@ export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {userAvatar ? (
-            <img
-              src={userAvatar}
-              alt="Avatar"
-              className="h-8 w-8 rounded-full object-cover"
+      <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+        {userAvatar ? (
+          <img
+            src={userAvatar}
+            alt="Avatar"
+            className="h-8 w-8 rounded-full object-cover"
             />
           ) : (
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">

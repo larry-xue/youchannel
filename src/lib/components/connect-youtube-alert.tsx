@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import {
@@ -8,7 +8,6 @@ import {
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
-  EmptyMedia,
   EmptyTitle,
 } from "~/lib/components/ui/empty";
 import { Loading } from "~/lib/components/ui/loading";
@@ -51,7 +50,6 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
       completeYouTubeOauthFn({ data }),
     onSuccess: async () => {
       setStatus("success");
-      // Short delay to show success state before clearing params
       setTimeout(async () => {
         await router.invalidate();
         await router.navigate({ to: "/playlists", search: {} });
@@ -73,25 +71,17 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "success") {
     return (
-      <Empty className="rounded-3xl border-none bg-emerald-500/5 px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-2xl border border-border/60 bg-card px-6 py-10">
         <EmptyHeader>
-          <EmptyMedia>
-            <div className="relative">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-emerald-500/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-background shadow-sm ring-1 ring-emerald-500/20">
-                <span className="text-4xl">✅</span>
-              </div>
-            </div>
-          </EmptyMedia>
-          <EmptyTitle className="font-display text-2xl text-emerald-700 dark:text-emerald-400">
+          <EmptyTitle className="text-base font-semibold text-foreground">
             {m.connect_success_title()}
           </EmptyTitle>
-          <EmptyDescription className="text-base text-emerald-600/80 dark:text-emerald-300/80">
+          <EmptyDescription className="text-sm text-muted-foreground">
             {m.connect_success_desc()}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Loading size="sm" />
+          <Loading size="sm" text={m.connect_redirecting()} />
         </EmptyContent>
       </Empty>
     );
@@ -99,20 +89,12 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "processing") {
     return (
-      <Empty className="rounded-3xl border-none bg-card px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-2xl border border-border/60 bg-card px-6 py-10">
         <EmptyHeader>
-          <EmptyMedia>
-            <div className="relative">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-background shadow-sm ring-1 ring-primary/20">
-                <span className="text-4xl">⏳</span>
-              </div>
-            </div>
-          </EmptyMedia>
-          <EmptyTitle className="font-display text-2xl">
+          <EmptyTitle className="text-base font-semibold text-foreground">
             {m.connect_processing_title()}
           </EmptyTitle>
-          <EmptyDescription className="text-base">
+          <EmptyDescription className="text-sm text-muted-foreground">
             {m.connect_processing_desc()}
           </EmptyDescription>
         </EmptyHeader>
@@ -122,34 +104,23 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
 
   if (status === "error") {
     return (
-      <Empty className="rounded-3xl border-none bg-destructive/5 px-4 py-12 shadow-sm animate-in fade-in zoom-in-95 duration-500">
+      <Empty className="rounded-2xl border border-border/60 bg-card px-6 py-10">
         <EmptyHeader>
-          <EmptyMedia>
-            <div className="relative">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-destructive/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-background shadow-sm ring-1 ring-destructive/20">
-                <span className="text-4xl">❌</span>
-              </div>
-            </div>
-          </EmptyMedia>
-          <EmptyTitle className="font-display text-2xl text-destructive">
+          <EmptyTitle className="text-base font-semibold text-foreground">
             {m.connect_failure_title()}
           </EmptyTitle>
-          <EmptyDescription className="text-base text-destructive/80">
+          <EmptyDescription className="text-sm text-muted-foreground">
             {errorMessage}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button
-            size="lg"
-            variant="outline"
             onClick={() => connectMutation.mutate()}
             disabled={connectMutation.isPending}
-            className="h-12 rounded-full border-destructive/20 bg-background px-8 text-destructive hover:bg-destructive/10 hover:text-destructive shadow-sm"
           >
             {connectMutation.isPending ? (
               <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4" />
                 {m.connect_redirecting()}
               </>
             ) : (
@@ -162,41 +133,27 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
   }
 
   return (
-    <Empty className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card px-6 py-16 shadow-md transition-shadow hover:shadow-lg animate-in fade-in zoom-in-95 duration-500">
-      {/* Decorative gradient blob */}
-      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl transition-colors group-hover:bg-primary/10" />
-      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-secondary/5 blur-3xl transition-colors group-hover:bg-secondary/10" />
-
-      <EmptyHeader className="relative z-10">
-        <EmptyMedia>
-          <div className="relative mb-4">
-            <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-2xl" />
-            <div className="relative flex h-24 w-24 items-center justify-center rounded-[32px] bg-linear-to-br from-background to-muted shadow-lg ring-1 ring-border/50">
-              <span className="text-5xl drop-shadow-md">▶️</span>
-            </div>
-          </div>
-        </EmptyMedia>
-        <EmptyTitle className="font-display text-3xl font-bold tracking-tight text-foreground">
+    <Empty className="rounded-2xl border border-border/60 bg-card px-6 py-12">
+      <EmptyHeader>
+        <EmptyTitle className="text-base font-semibold text-foreground">
           {m.connect_youtube_title()}
         </EmptyTitle>
-        <EmptyDescription className="mx-auto max-w-lg text-lg text-muted-foreground/90 leading-relaxed">
+        <EmptyDescription className="text-sm leading-relaxed text-muted-foreground">
           {m.connect_youtube_desc()}
         </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent className="relative z-10 mt-8">
+      <EmptyContent className="mt-4">
         <Button
-          size="lg"
           onClick={() => connectMutation.mutate()}
           disabled={connectMutation.isPending}
-          className="h-14 rounded-full px-10 text-lg font-medium shadow-xl shadow-primary/20 transition-[scale,box-shadow] hover:scale-105 hover:shadow-2xl hover:shadow-primary/30"
         >
           {connectMutation.isPending ? (
             <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4" />
               {m.connect_redirecting()}
             </>
           ) : (
-            <div className="flex items-center gap-2">{m.connect_youtube_button()}</div>
+            m.connect_youtube_button()
           )}
         </Button>
       </EmptyContent>

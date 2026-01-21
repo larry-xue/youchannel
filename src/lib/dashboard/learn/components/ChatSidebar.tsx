@@ -388,7 +388,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                       type="button"
                       onClick={() => handleSelectCharacter(character.name)}
                       className={cn(
-                        "group w-full rounded-3xl p-4 text-left transition-[background-color,border-color,box-shadow] duration-300 motion-safe:transition-[background-color,border-color,box-shadow]",
+                        "group w-full rounded-2xl p-4 text-left transition-[background-color,border-color,box-shadow] duration-300 motion-safe:transition-[background-color,border-color,box-shadow]",
                         "bg-card hover:bg-muted shadow-sm hover:shadow-md border border-transparent hover:border-primary/10",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       )}
@@ -420,7 +420,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
           /* ========== Chat View ========== */
           <div className="flex h-full flex-col">
             {/* Header with character info */}
-            <div className="px-6 py-5 bg-card/50 backdrop-blur-sm border-b border-border/50">
+            <div className="px-6 py-5 bg-card/50 border-b border-border/50">
               <div className="flex items-start gap-4">
                 {/* Back button */}
                 <button
@@ -521,7 +521,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                             </div>
                             <div
                               className={cn(
-                                "rounded-3xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word shadow-sm",
+                                "rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word shadow-sm",
                                 isModel
                                   ? "bg-muted text-foreground rounded-tl-sm"
                                   : "bg-primary text-primary-foreground rounded-tr-sm",
@@ -537,7 +537,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
                     {/* Typing indicator or Mic status when empty */}
                     {messages.length === 0 && isActiveSession && (
                       <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground gap-2">
-                        <div className="h-8 w-8 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
                           <Mic className="h-4 w-4 text-primary" />
                         </div>
                         <p className="text-sm">{m.chat_sidebar_listening_active()}</p>
@@ -561,7 +561,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
             </ScrollArea>
 
             {/* Voice control footer */}
-            <div className="px-6 py-5 bg-card/50 backdrop-blur-sm border-t border-border/50">
+            <div className="px-6 py-5 bg-card/50 border-t border-border/50">
               {import.meta.env.DEV && (
                 <div className="flex gap-2 mb-4">
                   <Input
@@ -592,7 +592,7 @@ function ChatSidebarContent({ className, analysisText }: ChatSidebarProps) {
               )}
               {/* Error message */}
               {sessionError && (
-                <p className="mb-3 rounded-3xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                <p className="mb-3 rounded-2xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
                   {sessionError}
                 </p>
               )}
@@ -743,7 +743,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
       <aside className={cn("flex h-full flex-col", props.className)}>
         <div className="flex h-full flex-col items-center justify-center bg-background/50">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <Mic className="h-7 w-7 text-muted-foreground animate-pulse" />
+            <Mic className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="mt-4 text-sm text-muted-foreground">{m.chat_sidebar_loading()}</p>
         </div>

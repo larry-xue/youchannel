@@ -50,11 +50,10 @@ export const LiveControls = memo(function LiveControls({
         ? "Paused"
         : "Live"
       : "Offline";
-  const statusTone = isConnecting || isPaused
-    ? "bg-amber-50 text-amber-700 border-amber-200"
-    : isActiveSession
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : "bg-muted text-muted-foreground border-border/50";
+  const statusTone =
+    isActiveSession && !isPaused
+      ? "bg-muted/70 text-foreground border-border/60"
+      : "bg-muted/70 text-muted-foreground border-border/60";
   const messagePlaceholder = isActiveSession
     ? "Type a message..."
     : "Connect to start chatting...";
@@ -62,8 +61,8 @@ export const LiveControls = memo(function LiveControls({
   return (
     <Card
       className={cn(
-        "shrink-0 p-3 rounded-xl bg-card/80 backdrop-blur-xl border-border/50",
-        "shadow-sm z-20 flex flex-col gap-3",
+        "shrink-0 p-3 rounded-2xl border border-border/60 bg-card",
+        "z-20 flex flex-col gap-3",
       )}
     >
       <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -98,12 +97,7 @@ export const LiveControls = memo(function LiveControls({
               size="sm"
               variant="outline"
               aria-pressed={isRecording}
-              className={cn(
-                "h-9 px-3 text-xs font-medium",
-                isRecording
-                  ? "bg-background"
-                  : "bg-amber-50 text-amber-600 border-amber-200",
-              )}
+              className="h-9 px-3 text-xs font-medium"
               onClick={onToggleMute}
             >
               {isRecording ? (
@@ -122,11 +116,10 @@ export const LiveControls = memo(function LiveControls({
 
           <Button
             size="sm"
+            variant={isActiveSession ? "outline" : "default"}
             className={cn(
-              "h-9 px-4 text-sm font-medium transition-all shadow-sm",
-              isActiveSession
-                ? "bg-red-500 hover:bg-red-600 text-white"
-                : "bg-primary hover:bg-primary/90",
+              "h-9 px-4 text-sm font-medium",
+              isActiveSession && "text-destructive",
             )}
             onClick={onToggleSession}
             disabled={isConnecting || isReadOnlyHistory}
@@ -141,7 +134,7 @@ export const LiveControls = memo(function LiveControls({
                 {isConnecting ? (
                   <Loader2
                     aria-hidden="true"
-                    className="mr-2 h-3.5 w-3.5 animate-spin"
+                    className="mr-2 h-3.5 w-3.5"
                   />
                 ) : (
                   <Phone aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
@@ -198,21 +191,6 @@ const MessageComposer = memo(function MessageComposer({
   return (
     <div className="flex items-end gap-2">
       <div className="relative flex-1">
-        {isRecording && (
-          <span className="absolute top-3 left-3 flex h-2 w-2" aria-hidden="true">
-            <span
-              className={cn(
-                "animate-ping absolute inline-flex h-full w-full rounded-full",
-                "bg-green-400 opacity-75",
-              )}
-            ></span>
-            <span
-              className={cn(
-                "relative inline-flex rounded-full h-2 w-2 bg-green-500",
-              )}
-            ></span>
-          </span>
-        )}
         <Textarea
           value={value}
           name="live_message"
@@ -223,8 +201,7 @@ const MessageComposer = memo(function MessageComposer({
           placeholder={placeholder}
           disabled={isDisabled}
           className={cn(
-            "min-h-[36px] max-h-[120px] py-1.5 px-3 rounded-lg resize-none text-sm",
-            isRecording && "pl-8",
+            "min-h-[36px] max-h-[120px] py-2 px-3 rounded-2xl resize-none text-sm",
           )}
         />
       </div>

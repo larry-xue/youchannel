@@ -108,7 +108,7 @@ export function LearningTabs({
                   {m.learn_published_at({ date: formatDate(publishedAt) })}
                 </p>
               </div>
-              <div className="rounded-3xl bg-muted/30 p-5 border border-border/50/50">
+              <div className="rounded-2xl bg-muted/30 p-5 border border-border/50/50">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {description?.trim() || m.learn_description_empty()}
                 </p>
@@ -121,7 +121,7 @@ export function LearningTabs({
                   {m.learn_summary_heading()}
                 </p>
               </div>
-              <div className="rounded-3xl bg-muted/50 p-6 border border-border/50">
+              <div className="rounded-2xl bg-muted/50 p-6 border border-border/50">
                 <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed tracking-wide prose-p:my-2 prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
                   {summaryText ? (
                     <p className="whitespace-pre-wrap">{summaryText}</p>
@@ -144,7 +144,7 @@ export function LearningTabs({
               wikiItems.map((item, index) => (
                 <div
                   key={`${item.title || "wiki"}-${item.timestamp || index}`}
-                  className="group flex min-w-[300px] flex-[1_1_calc(50%-16px)] flex-col gap-2 rounded-3xl border border-border/50 bg-card p-5 transition-shadow duration-300 hover:border-primary/20 hover:bg-muted/30 hover:shadow-md"
+                  className="group flex min-w-[300px] flex-[1_1_calc(50%-16px)] flex-col gap-2 rounded-2xl border border-border/50 bg-card p-5 transition-shadow duration-300 hover:border-primary/20 hover:bg-muted/30 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <p className="font-semibold text-foreground group-hover:text-primary transition-colors duration-200">
@@ -166,7 +166,7 @@ export function LearningTabs({
                 </div>
               ))
             ) : (
-              <div className="flex h-40 w-full items-center justify-center rounded-3xl border border-dashed border-border/50 bg-muted/10">
+              <div className="flex h-40 w-full items-center justify-center rounded-2xl border border-dashed border-border/50 bg-muted/10">
                 <p className="text-sm text-muted-foreground">
                   {hasAnalysisText
                     ? m.learn_wiki_empty()
@@ -179,7 +179,7 @@ export function LearningTabs({
 
         <TabsContent value="transcript">
           <div className="space-y-4">
-            <div className="flex items-start gap-4 rounded-3xl border border-amber-200/40 bg-amber-50/50 p-4 text-sm text-amber-900/80">
+            <div className="flex items-start gap-4 rounded-2xl border border-amber-200/40 bg-amber-50/50 p-4 text-sm text-amber-900/80">
               <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
               <p className="text-xs font-medium leading-relaxed">
                 {m.learn_transcript_notice()}
@@ -233,7 +233,7 @@ export function LearningTabs({
                 ))}
               </div>
             ) : (
-              <div className="flex h-40 w-full items-center justify-center rounded-3xl border border-dashed border-border/50 bg-muted/10">
+              <div className="flex h-40 w-full items-center justify-center rounded-2xl border border-dashed border-border/50 bg-muted/10">
                 <p className="text-sm text-muted-foreground">
                   {hasAnalysisText
                     ? m.learn_transcript_empty()
@@ -245,7 +245,7 @@ export function LearningTabs({
         </TabsContent>
 
         <TabsContent value="captions">
-          <div className="flex h-60 w-full items-center justify-center rounded-3xl border border-dashed border-border/50 bg-muted/10">
+          <div className="flex h-60 w-full items-center justify-center rounded-2xl border border-dashed border-border/50 bg-muted/10">
             <p className="text-sm text-muted-foreground">
               {m.learn_captions_unavailable()}
             </p>

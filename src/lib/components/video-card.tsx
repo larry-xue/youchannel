@@ -81,17 +81,14 @@ export function VideoCard({
       aria-label={m.aria_open_view({ title: video.title || m.default_video_title() })}
       onClick={() => onOpen(video)}
       onKeyDown={handleCardKeyDown}
-      className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-border/50 bg-card transition-shadow duration-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
+      className={`group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40`}
     >
-      {/* State Layer (Hover Overlay) */}
-      <div className="absolute inset-0 pointer-events-none z-10 bg-foreground/0 transition-colors duration-300 group-hover:bg-foreground/[0.08]" />
-
-      <div className="relative w-full overflow-hidden bg-muted/40 pb-[56.25%]">
+      <div className="relative w-full overflow-hidden bg-muted/30 pb-[56.25%]">
         {video.thumbnail_url ? (
           <img
             src={video.thumbnail_url}
             alt={video.title || m.aria_video_thumbnail()}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 will-change-transform group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
           />
         ) : (
@@ -112,7 +109,7 @@ export function VideoCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <label
-                    className={`flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-card ${
+                    className={`flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 ${
                       isSelectable ? "" : "opacity-80"
                     }`}
                   >
@@ -129,13 +126,13 @@ export function VideoCard({
                     <span>{resolvedSelectionLabel}</span>
                   </label>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="rounded-xl">
+                <TooltipContent side="top" className="rounded-lg">
                   {resolvedSelectionHint}
                 </TooltipContent>
               </Tooltip>
             ) : (
               <label
-                className={`flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-opacity hover:bg-card ${
+                className={`flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 ${
                   isSelectable ? "" : "opacity-80"
                 }`}
               >
@@ -155,7 +152,7 @@ export function VideoCard({
         </div>
 
         {durationLabel && (
-          <div className="absolute bottom-3 right-3 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs">
+          <div className="absolute bottom-3 right-3 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[10px] font-medium text-background">
             {durationLabel}
           </div>
         )}
@@ -163,7 +160,7 @@ export function VideoCard({
 
       <div className="flex flex-1 flex-col space-y-3 p-4">
         <h3
-          className="line-clamp-2 text-base font-semibold leading-tight text-card-foreground font-display"
+          className="line-clamp-2 text-sm font-semibold leading-relaxed text-card-foreground"
           title={video.title || m.default_video_title()}
         >
           {video.title || m.default_video_title()}
@@ -175,7 +172,7 @@ export function VideoCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 rounded-full px-3 text-xs font-medium hover:bg-secondary/50"
+              className="h-8 rounded-lg px-3 text-xs font-medium"
               onClick={(event) => {
                 event.stopPropagation();
                 onOpen(video);
@@ -203,10 +200,9 @@ function AnalysisStatusBadge({ status }: { status: VideoAnalysisStatus | null })
     failed: "destructive",
   };
   const classNameMap: Record<VideoAnalysisStatus, string> = {
-    pending: "text-xs",
-    completed:
-      "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    failed: "border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400",
+    pending: "text-xs bg-muted/70 text-muted-foreground border-transparent",
+    completed: "bg-muted/70 text-foreground border-transparent",
+    failed: "border-destructive/20 bg-destructive/10 text-xs text-destructive",
   };
 
   return (

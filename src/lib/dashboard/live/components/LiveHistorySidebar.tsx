@@ -81,7 +81,7 @@ export function LiveHistorySidebar({
   return (
     <aside
       className={cn(
-        "hidden lg:flex w-[280px] xl:w-[320px] flex-col gap-4 rounded-[28px] border border-border/60 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(59,130,246,0.12),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.12))] p-4 shadow-xl backdrop-blur",
+        "hidden lg:flex w-[280px] xl:w-[320px] flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4",
         className,
       )}
     >
@@ -111,14 +111,14 @@ export function LiveHistorySidebar({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search sessions..."
-          className="h-10 rounded-2xl bg-background/70 pl-10"
+          className="h-10 rounded-xl bg-card pl-10"
         />
       </div>
 
       <ScrollArea className="min-h-0 flex-1 pr-2">
         {isLoading && (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4" />
             Loading history...
           </div>
         )}
@@ -147,19 +147,19 @@ export function LiveHistorySidebar({
                 to="/live/$sessionId"
                 params={{ sessionId: entry.id }}
                 className={cn(
-                  "group relative rounded-2xl border border-border/40 bg-card/70 p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/90",
-                  isActive && "border-primary/50 bg-card/95 shadow-md ring-1 ring-primary/10",
+                  "group relative rounded-xl border border-border/60 bg-card p-3 transition-colors duration-150 hover:bg-muted/30",
+                  isActive && "border-border/80 bg-muted/30",
                 )}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-3 h-8 w-1 rounded-full bg-primary/70" />
+                  <span className="absolute left-0 top-3 h-8 w-1 rounded-full bg-foreground/40" />
                 )}
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p
                       className={cn(
                         "text-sm font-semibold text-foreground line-clamp-1",
-                        isActive && "text-primary",
+                        isActive && "text-foreground",
                       )}
                     >
                       {label}
@@ -175,7 +175,7 @@ export function LiveHistorySidebar({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
+                      className="h-7 w-7 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                       aria-label="Delete session"
                       onClick={(event) => {
                         event.preventDefault();

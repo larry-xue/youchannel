@@ -39,8 +39,7 @@ export const HistoryBanner = memo(function HistoryBanner({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-2xl border",
-        "border-border/50 bg-card/70 px-4 py-3 shadow-sm",
+        "flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3",
       )}
     >
       <div>
@@ -48,13 +47,13 @@ export const HistoryBanner = memo(function HistoryBanner({
         <p className="text-xs text-muted-foreground">{helperText}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={onNewSession} className="rounded-full px-5" variant="outline">
+        <Button onClick={onNewSession} className="rounded-lg px-4" variant="outline">
           New Session
         </Button>
         {errorMessage && (
           <Button
             onClick={onRetry}
-            className="rounded-full px-4"
+            className="rounded-lg px-3"
             variant="ghost"
             size="sm"
             disabled={isLoading}
@@ -64,11 +63,11 @@ export const HistoryBanner = memo(function HistoryBanner({
         )}
         <Button
           onClick={onResume}
-          className="rounded-full px-5"
+          className="rounded-lg px-4"
           disabled={isResumeDisabled}
         >
           {isConnecting || isLoading ? (
-            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4" />
           ) : null}
           {resumeLabel}
         </Button>

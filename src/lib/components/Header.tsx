@@ -36,7 +36,7 @@ export function Header({ onSignOut, className, showMenu = false }: HeaderProps) 
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 w-full border-b border-border/60 bg-background/90 backdrop-blur-sm",
+        "sticky top-0 z-40 w-full border-b border-border/60 bg-background/90",
         className,
       )}
     >

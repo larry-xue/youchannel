@@ -808,8 +808,7 @@ System Context:
                     messages={displayMessages}
                     status={status}
                     persona={isViewingHistory ? historyPersona : selectedPersona}
-                    isRecording={isRecording}
-                    className="h-full w-full rounded-[24px] border border-border/50 bg-card/60 backdrop-blur-md shadow-md"
+                    className="h-full w-full rounded-2xl border border-border/60 bg-card"
                   />
                 </div>
                 <ObserverPanel

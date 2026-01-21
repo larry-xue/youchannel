@@ -32,7 +32,7 @@ export function PersonaSelector({
     >
       <SelectTrigger
         className={cn(
-          "h-9 w-full min-w-[200px] border-border/50 bg-background/50 backdrop-blur-sm [&_.persona-desc]:hidden",
+          "h-9 w-full min-w-[200px] border-border/60 bg-card [&_.persona-desc]:hidden",
           className,
         )}
       >
@@ -50,10 +50,12 @@ export function PersonaSelector({
 }
 
 function PersonaInfo({ persona }: { persona: Persona }) {
+  const initial = persona.name ? persona.name.charAt(0).toUpperCase() : "P";
+
   return (
     <div className="flex items-center gap-2.5 min-w-0 text-left">
-      <span className="shrink-0 text-xl leading-none filter drop-shadow-sm">
-        {persona.emoji}
+      <span className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
+        {initial}
       </span>
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="font-medium text-foreground leading-none truncate">

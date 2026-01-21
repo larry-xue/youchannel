@@ -206,7 +206,7 @@ export function VideoPlayerCard({
         className="flex min-h-0 min-w-0 flex-1 items-center justify-center px-4 pt-4"
       >
         <div
-          className="relative overflow-hidden rounded-3xl bg-muted/30 mb-5 shadow-sm ring-1 ring-border/30"
+          className="relative overflow-hidden rounded-2xl bg-muted/30 mb-5 shadow-sm ring-1 ring-border/30"
           style={playerStyle}
         >
           {youtubeId ? (

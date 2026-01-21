@@ -106,7 +106,7 @@ function DashboardLearnVideo() {
 
   if (hasError) {
     return (
-      <div className="rounded-3xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
         {m.learn_error_load()}
       </div>
     );
@@ -118,7 +118,7 @@ function DashboardLearnVideo() {
       <div className="flex flex-col h-[calc(100vh-(--spacing(20)))] space-y-4">
         {/* Fixed Video Section */}
         <div className="w-full shrink-0">
-          <div className="aspect-video w-full overflow-hidden rounded-3xl border border-border/50 bg-black/5 shadow-sm">
+          <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/50 bg-black/5">
             <VideoPlayerCard
               title={title}
               youtubeId={youtubeId}
@@ -144,7 +144,7 @@ function DashboardLearnVideo() {
 
             <TabsContent
               value="learn"
-              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border/50 bg-card shadow-sm"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/50 bg-card"
             >
               <LearningTabs
                 title={title}
@@ -157,7 +157,7 @@ function DashboardLearnVideo() {
 
             <TabsContent
               value="chat"
-              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-3xl border border-border/50 bg-card shadow-sm"
+              className="mt-0 min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/50 bg-card"
             >
               <ChatSidebar
                 className="h-full"
@@ -176,7 +176,7 @@ function DashboardLearnVideo() {
     <div className="space-y-6 h-[84vh] min-h-[600px]">
       <ResizablePanelGroup
         direction="horizontal"
-        className="rounded-3xl border border-border/50 shadow-sm bg-card overflow-hidden"
+        className="rounded-2xl border border-border/50 bg-card overflow-hidden"
       >
         {/* Main content area */}
         <ResizablePanel defaultSize={100 - SIDEBAR_DEFAULT_SIZE} minSize={50}>

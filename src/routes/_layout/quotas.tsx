@@ -50,12 +50,14 @@ function QuotaPage() {
   if (error || !data) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
-        <div className="rounded-full bg-destructive/10 p-4">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
           <MessageSquare className="h-8 w-8 text-destructive" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-lg font-medium">{m.quota_error()}</h3>
-          <p className="text-muted-foreground">{m.connect_error_complete_failed()}</p>
+          <h3 className="text-base font-semibold">{m.quota_error()}</h3>
+          <p className="text-sm text-muted-foreground">
+            {m.connect_error_complete_failed()}
+          </p>
         </div>
         <Button asChild variant="outline">
           <Link to="/">{m.not_found_go_back()}</Link>
@@ -86,14 +88,14 @@ function QuotaPage() {
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-full shadow-sm hover:shadow-md transition-shadow duration-300"
+          className="rounded-lg"
           onClick={(e) => {
             e.preventDefault();
             refetch();
           }}
           disabled={isRefetching}
         >
-          <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+          <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
 
@@ -101,22 +103,21 @@ function QuotaPage() {
       <div className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Video Quota Card */}
-          <Card className="overflow-hidden rounded-3xl border-border/50 shadow-sm transition-shadow duration-300 hover:shadow-md motion-safe:transition-shadow">
+          <Card className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-xl font-medium">
-                <span className="mr-2 text-2xl">🎬</span>
+              <CardTitle className="text-base font-semibold">
                 {m.quota_video_label()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-4">
                 <div className="flex items-baseline justify-between">
-                  <div className="text-7xl font-bold tracking-tighter text-primary">
+                  <div className="text-3xl font-semibold text-foreground">
                     {quota.videoPercent.toFixed(0)}
-                    <span className="text-4xl text-muted-foreground/50">%</span>
+                    <span className="text-base text-muted-foreground">%</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">
+                    <div className="text-lg font-semibold">
                       {formatSeconds(quota.videoSecondsRemaining)}
                     </div>
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -127,7 +128,7 @@ function QuotaPage() {
 
                 <Progress
                   value={quota.videoPercent}
-                  className="h-2 w-full bg-primary/20 [&>[data-slot=progress-indicator]]:bg-primary"
+                  className="h-2 w-full"
                 />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -141,7 +142,7 @@ function QuotaPage() {
                     quota.perVideoLimitSeconds > 0 && (
                       <Badge
                         variant="secondary"
-                        className="font-normal opacity-80 rounded-full"
+                        className="font-normal rounded-full"
                       >
                         {m.quota_per_video({
                           limit: formatSeconds(quota.perVideoLimitSeconds),
@@ -154,22 +155,21 @@ function QuotaPage() {
           </Card>
 
           {/* Chat Quota Card */}
-          <Card className="overflow-hidden rounded-3xl border-border/50 shadow-sm transition-shadow duration-300 hover:shadow-md motion-safe:transition-shadow">
+          <Card className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-xl font-medium">
-                <span className="mr-2 text-2xl">💬</span>
+              <CardTitle className="text-base font-semibold">
                 {m.quota_chat_label()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-4">
                 <div className="flex items-baseline justify-between">
-                  <div className="text-7xl font-bold tracking-tighter text-chart-5">
+                  <div className="text-3xl font-semibold text-foreground">
                     {quota.chatPercent.toFixed(0)}
-                    <span className="text-4xl text-muted-foreground/50">%</span>
+                    <span className="text-base text-muted-foreground">%</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">
+                    <div className="text-lg font-semibold">
                       {formatSeconds(quota.chatSecondsRemaining)}
                     </div>
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -180,7 +180,7 @@ function QuotaPage() {
 
                 <Progress
                   value={quota.chatPercent}
-                  className="h-2 w-full bg-chart-5/20 [&>[data-slot=progress-indicator]]:bg-chart-5"
+                  className="h-2 w-full"
                 />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -240,19 +240,15 @@ function QuotaPage() {
               return (
                 <Card
                   key={grant.id}
-                  className="flex flex-col rounded-3xl border-border/50 shadow-sm transition-shadow duration-300 hover:shadow-md motion-safe:transition-shadow"
+                  className="flex flex-col rounded-2xl border-border/60"
                 >
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl">🎟️</span>
                         <span className="font-bold text-lg">{sourceLabel}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>
-                            {daysUntilExpiry && daysUntilExpiry <= 7 ? "⏳" : "📅"}
-                          </span>
                           <span className="font-medium">
                             {expiryDate
                               ? daysUntilExpiry && daysUntilExpiry <= 7
@@ -276,7 +272,6 @@ function QuotaPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">🎬</span>
                           <span className="font-medium text-muted-foreground">
                             {m.quota_video_label()}
                           </span>
@@ -297,7 +292,7 @@ function QuotaPage() {
                       {grant.maxVideoSeconds > 0 && (
                         <Progress
                           value={grantVideoPercent}
-                          className="h-1.5 w-full bg-primary/20 [&>[data-slot=progress-indicator]]:bg-primary"
+                          className="h-1.5 w-full"
                         />
                       )}
                     </div>
@@ -306,7 +301,6 @@ function QuotaPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">💬</span>
                           <span className="font-medium text-muted-foreground">
                             {m.quota_chat_label()}
                           </span>
@@ -320,7 +314,7 @@ function QuotaPage() {
                       </div>
                       <Progress
                         value={grantChatPercent}
-                        className="h-1.5 w-full bg-chart-5/20 [&>[data-slot=progress-indicator]]:bg-chart-5"
+                        className="h-1.5 w-full"
                       />
                     </div>
                   </CardContent>

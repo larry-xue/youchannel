@@ -80,7 +80,7 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
         <div className="app-shell relative flex min-h-screen flex-col font-sans antialiased selection:bg-primary/20 selection:text-primary">
           <a
             href="#main-content"
-            className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-4 focus:px-6 focus:py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg transition-transform focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-4 focus:px-4 focus:py-2 rounded-lg bg-muted text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"
           >
             Skip to content
           </a>

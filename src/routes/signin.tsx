@@ -98,27 +98,26 @@ function AuthPage() {
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="flex min-h-screen flex-col">
         <Header onSignOut={handleSignOut} />
-        <main className="flex flex-1 items-center justify-center px-6 py-12">
-          <Card className="w-full max-w-md rounded-3xl border border-border bg-card shadow-lg">
+        <main id="main-content" className="flex flex-1 items-center justify-center px-6 py-12">
+          <Card className="w-full max-w-md">
             <CardHeader className="space-y-1 pb-6 pt-8 text-center">
-              <CardTitle className="text-3xl font-medium tracking-tight text-card-foreground">
+              <CardTitle className="text-lg font-semibold text-card-foreground">
                 {m.signin_welcome()}
               </CardTitle>
-              <CardDescription className="text-base text-muted-foreground">
+              <CardDescription className="text-sm text-muted-foreground">
                 {m.signin_description()}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8 pb-8">
               {error && (
-                <div className="flex items-center gap-3 rounded-2xl bg-destructive/15 p-4 text-destructive">
-                  <div className="text-sm font-medium">{error}</div>
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+                  {error}
                 </div>
               )}
 
               {isLoading && (
-                <div className="flex items-center gap-3 rounded-2xl bg-accent p-4 text-accent-foreground">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground border-t-transparent" />
-                  <div className="text-sm font-medium">{m.signin_loading()}</div>
+                <div className="rounded-xl border border-border/60 bg-card p-3 text-sm text-muted-foreground">
+                  {m.signin_loading()}
                 </div>
               )}
 

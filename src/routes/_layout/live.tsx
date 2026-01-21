@@ -69,6 +69,7 @@ export function LivePage() {
   const resolvedSessionId = matchedSession ? matchedSession.sessionId : null;
   const [textInput, setTextInput] = useState("");
   const [isResuming, setIsResuming] = useState(false);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(
     getPersonaById(DEFAULT_PERSONA_ID),
   );
@@ -230,7 +231,7 @@ export function LivePage() {
   }, [historyQuery.data, isViewingHistory]);
 
   useEffect(() => {
-    if (status === "connected") {
+    if (status === "connected" && !isRestoringHistory) {
       if (!isRecording && !isPaused) {
         startRecording();
       }
@@ -238,11 +239,19 @@ export function LivePage() {
         sendText("Hello!", true);
         hasSentGreetingRef.current = true;
       }
-    } else {
+    } else if (status !== "connected") {
       hasSentGreetingRef.current = false;
       setIsPaused(false);
     }
-  }, [status, isRecording, isPaused, isResuming, startRecording, sendText]);
+  }, [
+    status,
+    isRecording,
+    isPaused,
+    isResuming,
+    isRestoringHistory,
+    startRecording,
+    sendText,
+  ]);
 
   useEffect(() => {
     if (status !== "connected" || !pendingSessionRef.current) return;
@@ -512,6 +521,12 @@ System Context:
 `;
 
       const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}`;
+
+      // Set restoring state BEFORE connecting to prevent race condition with auto-recording
+      if (historyMessages.length > 0) {
+        setIsRestoringHistory(true);
+      }
+
       await connect(fullSystemPrompt, token);
 
       // Send history with error handling
@@ -534,6 +549,8 @@ System Context:
           );
           // Clear the error after 5 seconds
           setTimeout(() => setSessionError(null), 5000);
+        } finally {
+          setIsRestoringHistory(false);
         }
       }
     } catch (err) {
@@ -541,6 +558,7 @@ System Context:
       setSessionError(err instanceof Error ? err.message : "Failed to resume");
       pendingSessionRef.current = null;
       setIsResuming(false);
+      setIsRestoringHistory(false);
     } finally {
       setIsFetchingToken(false);
     }
@@ -723,6 +741,13 @@ System Context:
                 />
               </div>
             </div>
+
+            {isRestoringHistory && (
+              <div className="mx-auto flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-1.5 text-sm font-medium text-blue-600 backdrop-blur-sm border border-blue-500/20 animate-in fade-in slide-in-from-bottom-4">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Restoring conversation memory...
+              </div>
+            )}
 
             {sessionError && (
               <div className="mx-auto rounded-full bg-destructive/10 px-4 py-1.5 text-sm font-medium text-destructive backdrop-blur-sm border border-destructive/20 animate-in fade-in slide-in-from-bottom-4">

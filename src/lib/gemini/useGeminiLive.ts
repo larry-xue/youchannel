@@ -212,9 +212,23 @@ export function useGeminiLive({
                 setMessages((prev) => {
                   // Find if we have a current streaming model message
                   const currentModelId = currentModelMessageIdRef.current;
-                  const existingIdx = currentModelId
+                  let existingIdx = currentModelId
                     ? prev.findIndex((m) => m.id === currentModelId)
                     : -1;
+
+                  // React batching workaround: If not found but we have a currentModelId,
+                  // check if the last message is an assistant message (might not be in prev yet due to batching)
+                  // Also handle React Strict Mode double-rendering by checking if last message is streaming
+                  if (existingIdx < 0 && prev.length > 0) {
+                    const lastMsg = prev[prev.length - 1];
+                    // If last message is a streaming assistant, reuse it regardless of ID match
+                    // This handles React Strict Mode where same chunk creates different UUIDs
+                    if (lastMsg.role === "assistant" && lastMsg.isStreaming) {
+                      existingIdx = prev.length - 1;
+                      // Sync the ref to match the existing message
+                      currentModelMessageIdRef.current = lastMsg.id;
+                    }
+                  }
 
                   if (existingIdx >= 0) {
                     // Append to existing model message
@@ -339,16 +353,6 @@ export function useGeminiLive({
               if (turnComplete) {
                 const currentModelId = currentModelMessageIdRef.current;
 
-                if (import.meta.env.DEV) {
-                  console.log("[GeminiLive] turnComplete", {
-                    currentModelId,
-                    hasOutputTranscription: Boolean(
-                      message.serverContent?.outputTranscription?.text,
-                    ),
-                    hasModelTurnText: typeof message.text === "string",
-                  });
-                }
-
                 if (currentModelId) {
                   setMessages((prev) => {
                     const idx = prev.findIndex((m) => m.id === currentModelId);
@@ -366,9 +370,19 @@ export function useGeminiLive({
             },
 
             onclose: (e) => {
+              console.error("[GeminiLive] Connection closed:", {
+                code: e.code,
+                reason: e.reason,
+                wasClean: e.wasClean,
+                timestamp: new Date().toISOString(),
+              });
               setStatus("disconnected");
             },
             onerror: (e) => {
+              console.error("[GeminiLive] Connection error:", {
+                message: e.message,
+                timestamp: new Date().toISOString(),
+              });
               setError(e.message || "Session error");
               setStatus("error");
             },
@@ -529,7 +543,7 @@ export function useGeminiLive({
   );
 
   const sendTurns = useCallback(
-    (
+    async (
       turns: Array<{ role: "user" | "assistant"; content: string }>,
       hideFromUI: boolean = false,
     ) => {
@@ -554,7 +568,7 @@ export function useGeminiLive({
       }
 
       if (typeof (sessionRef.current as any).sendClientContent === "function") {
-        (sessionRef.current as any).sendClientContent({
+        await (sessionRef.current as any).sendClientContent({
           turns: turns.map((turn) => ({
             // Convert "assistant" back to "model" for Gemini API
             role: turn.role === "assistant" ? "model" : turn.role,

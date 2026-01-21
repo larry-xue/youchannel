@@ -8,7 +8,7 @@ type HistoryBannerProps = {
   isConnecting: boolean;
   isLoading: boolean;
   errorMessage: string | null;
-  onNewSession: () => void;
+  sessionTitle?: string | null;
   onResume: () => void;
   onRetry: () => void;
 };
@@ -18,12 +18,16 @@ export const HistoryBanner = memo(function HistoryBanner({
   isConnecting,
   isLoading,
   errorMessage,
-  onNewSession,
+  sessionTitle,
   onResume,
   onRetry,
 }: HistoryBannerProps) {
   if (!isVisible) return null;
 
+  const title =
+    sessionTitle && sessionTitle.trim().length > 0
+      ? sessionTitle
+      : "Untitled session";
   const isResumeDisabled = isConnecting || isLoading || Boolean(errorMessage);
   const resumeLabel = isConnecting
     ? "Resuming..."
@@ -39,19 +43,17 @@ export const HistoryBanner = memo(function HistoryBanner({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3",
+        "sticky top-14 z-30 flex flex-wrap items-center justify-between gap-3",
+        "border-b border-border/60 bg-background pb-3 pt-2 md:top-6",
       )}
     >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Saved Session
+      <div className="min-w-0">
+        <p className="mt-1 truncate text-sm font-semibold text-foreground">
+          {title}
         </p>
-        <p className="mt-1 text-sm text-foreground">{helperText}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{helperText}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={onNewSession} className="h-8 px-3 text-xs" variant="ghost">
-          New Session
-        </Button>
         {errorMessage && (
           <Button
             onClick={onRetry}

@@ -767,15 +767,16 @@ System Context:
           <div className="flex flex-1 flex-col">
             <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
               <div className="space-y-3">
-                <HistoryBanner
-                  isVisible={isViewingHistory}
-                  isConnecting={isConnecting}
-                  isLoading={isHistoryLoading}
-                  errorMessage={historyErrorMessage}
-                  onNewSession={handleStartNewSession}
-                  onResume={connectResumeSession}
-                  onRetry={handleRetryHistory}
-                />
+                  <HistoryBanner
+                    isVisible={isViewingHistory}
+                    isConnecting={isConnecting}
+                    isLoading={isHistoryLoading}
+                    errorMessage={historyErrorMessage}
+                    sessionTitle={historyQuery.data?.session.title ?? null}
+                    onNewSession={handleStartNewSession}
+                    onResume={connectResumeSession}
+                    onRetry={handleRetryHistory}
+                  />
 
                 {(isHistoryLoading || historyError instanceof Error) && (
                   <div className="space-y-2">

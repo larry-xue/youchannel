@@ -67,11 +67,27 @@ export function useGeminiLiveMessages({
     return -1;
   }, []);
 
+  const resolveStreamingUserIndex = useCallback((nextMessages: Message[]) => {
+    const currentUserId = currentUserMessageIdRef.current;
+    if (currentUserId) {
+      const idx = nextMessages.findIndex((message) => message.id === currentUserId);
+      if (idx >= 0) return idx;
+    }
+
+    if (nextMessages.length > 0) {
+      const lastMessage = nextMessages[nextMessages.length - 1];
+      if (lastMessage.role === "user" && lastMessage.isStreaming) {
+        currentUserMessageIdRef.current = lastMessage.id;
+        return nextMessages.length - 1;
+      }
+    }
+
+    return -1;
+  }, []);
+
   const handleOutputText = useCallback(
     (message: LiveServerMessage) => {
-      const outputText =
-        message.serverContent?.outputTranscription?.text ??
-        (typeof message.text === "string" ? message.text : undefined);
+      let outputText = message.serverContent?.outputTranscription?.text;
       if (!outputText) return;
 
       const isFinalChunk = Boolean(message.serverContent?.turnComplete);
@@ -83,7 +99,7 @@ export function useGeminiLiveMessages({
           const existing = prev[existingIdx];
           const updated: Message = {
             ...existing,
-            content: existing.content + outputText,
+            content: existing.content.trim() + outputText.trim(),
             isStreaming: isFinalChunk || existing.isStreaming === false ? false : true,
           };
           const newArr = [...prev];
@@ -119,15 +135,7 @@ export function useGeminiLiveMessages({
       if (!inputText) return;
 
       setMessages((prev) => {
-        const currentUserId = currentUserMessageIdRef.current;
-
-        if (!currentUserId && !inputText.trim()) {
-          return prev;
-        }
-
-        const existingIdx = currentUserId
-          ? prev.findIndex((m) => m.id === currentUserId)
-          : -1;
+        const existingIdx = resolveStreamingUserIndex(prev);
 
         if (existingIdx >= 0) {
           const existing = prev[existingIdx];
@@ -139,6 +147,10 @@ export function useGeminiLiveMessages({
           const newArr = [...prev];
           newArr[existingIdx] = updated;
           return applyMessageWindow(newArr);
+        }
+
+        if (!inputText.trim()) {
+          return prev;
         }
 
         const newId = crypto.randomUUID();
@@ -160,7 +172,7 @@ export function useGeminiLiveMessages({
         return applyMessageWindow([...updatedPrev, newMessage]);
       });
     },
-    [applyMessageWindow, getNextSequenceNumber],
+    [applyMessageWindow, getNextSequenceNumber, resolveStreamingUserIndex],
   );
 
   const handleTurnComplete = useCallback(

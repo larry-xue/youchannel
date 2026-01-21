@@ -574,7 +574,7 @@ export function useGeminiLive({
             role: turn.role === "assistant" ? "model" : turn.role,
             parts: [{ text: turn.content }],
           })),
-          turnComplete: true,
+          turnComplete: turns.length ? turns[turns.length - 1].role === "user" : true,
         });
       } else {
         console.error("sendClientContent not found on session");

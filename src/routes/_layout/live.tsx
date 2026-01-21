@@ -228,9 +228,6 @@ export function LivePage() {
     });
     return count;
   }, [syncStates]);
-  const handleStartNewSession = useCallback(() => {
-    navigate({ to: "/live" });
-  }, [navigate]);
   const handleRetryHistory = useCallback(() => {
     void historyQuery.refetch();
   }, [historyQuery]);
@@ -767,16 +764,15 @@ System Context:
           <div className="flex flex-1 flex-col">
             <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
               <div className="space-y-3">
-                  <HistoryBanner
-                    isVisible={isViewingHistory}
-                    isConnecting={isConnecting}
-                    isLoading={isHistoryLoading}
-                    errorMessage={historyErrorMessage}
-                    sessionTitle={historyQuery.data?.session.title ?? null}
-                    onNewSession={handleStartNewSession}
-                    onResume={connectResumeSession}
-                    onRetry={handleRetryHistory}
-                  />
+                <HistoryBanner
+                  isVisible={isViewingHistory}
+                  isConnecting={isConnecting}
+                  isLoading={isHistoryLoading}
+                  errorMessage={historyErrorMessage}
+                  sessionTitle={historyQuery.data?.session.title ?? null}
+                  onResume={connectResumeSession}
+                  onRetry={handleRetryHistory}
+                />
 
                 {(isHistoryLoading || historyError instanceof Error) && (
                   <div className="space-y-2">
@@ -803,7 +799,7 @@ System Context:
                 />
               </div>
 
-              <div className="sticky bottom-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-6 -mx-6 px-6 lg:-mx-8 lg:px-8 mt-auto border-t border-border/40">
+              <div className="sticky bottom-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-6 -mx-6 px-6 lg:-mx-8 lg:px-8 mt-auto">
                 <div className="flex flex-col gap-3">
                   <LiveStatusSection
                     isRestoringHistory={isRestoringHistory}

@@ -5,8 +5,17 @@ import {
   useMatchRoute,
   useNavigate,
 } from "@tanstack/react-router";
-import { AlertCircle, Loader2, Mic, MicOff, Phone, PhoneOff, RefreshCw, Send } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  Loader2,
+  Mic,
+  MicOff,
+  Phone,
+  PhoneOff,
+  RefreshCw,
+  Send,
+} from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Card } from "~/lib/components/ui/card";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
@@ -27,7 +36,11 @@ import {
   getLiveSessionDetailFn,
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
-import { MessageSyncQueue, retryWithBackoff, type MessageSyncState } from "~/lib/dashboard/live/retry";
+import {
+  MessageSyncQueue,
+  retryWithBackoff,
+  type MessageSyncState,
+} from "~/lib/dashboard/live/retry";
 import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
@@ -85,6 +98,7 @@ export function LivePage() {
   const syncedMessageIdsRef = useRef<Set<string>>(new Set());
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
+  const messagesRef = useRef<Message[]>([]);
 
   // Initialize sync queue
   if (!syncQueueRef.current) {
@@ -104,36 +118,48 @@ export function LivePage() {
   const isReadOnlyHistory = isViewingHistory && !isResuming;
 
   // Storage utilities using sessionStorage (simple and reliable)
-  const saveSyncedIds = useCallback((sessionId: string, ids: Set<string>) => {
-    try {
-      const key = `syncedMessageIds-${sessionId}`;
-      sessionStorage.setItem(key, JSON.stringify([...ids]));
-    } catch (err) {
-      console.warn("Failed to save syncedMessageIds to sessionStorage:", err);
-    }
-  }, []);
-
-  const loadSyncedIds = useCallback((sessionId: string): Set<string> => {
-    try {
-      const key = `syncedMessageIds-${sessionId}`;
-      const stored = sessionStorage.getItem(key);
-      if (stored) {
-        return new Set(JSON.parse(stored));
+  const saveSyncedIds = useCallback(
+    (sessionId: string, ids: Set<string>) => {
+      try {
+        const storageKey = resolvedSessionId || sessionId;
+        const key = `syncedMessageIds-${storageKey}`;
+        sessionStorage.setItem(key, JSON.stringify([...ids]));
+      } catch (err) {
+        console.warn("Failed to save syncedMessageIds to sessionStorage:", err);
       }
-    } catch (err) {
-      console.warn("Failed to load syncedMessageIds from sessionStorage:", err);
-    }
-    return new Set();
-  }, []);
+    },
+    [resolvedSessionId],
+  );
 
-  const clearSyncedIds = useCallback((sessionId: string) => {
-    try {
-      const key = `syncedMessageIds-${sessionId}`;
-      sessionStorage.removeItem(key);
-    } catch (err) {
-      console.warn("Failed to clear syncedMessageIds from sessionStorage:", err);
-    }
-  }, []);
+  const loadSyncedIds = useCallback(
+    (sessionId: string): Set<string> => {
+      try {
+        const storageKey = resolvedSessionId || sessionId;
+        const key = `syncedMessageIds-${storageKey}`;
+        const stored = sessionStorage.getItem(key);
+        if (stored) {
+          return new Set(JSON.parse(stored));
+        }
+      } catch (err) {
+        console.warn("Failed to load syncedMessageIds from sessionStorage:", err);
+      }
+      return new Set();
+    },
+    [resolvedSessionId],
+  );
+
+  const clearSyncedIds = useCallback(
+    (sessionId: string) => {
+      try {
+        const storageKey = resolvedSessionId || sessionId;
+        const key = `syncedMessageIds-${storageKey}`;
+        sessionStorage.removeItem(key);
+      } catch (err) {
+        console.warn("Failed to clear syncedMessageIds from sessionStorage:", err);
+      }
+    },
+    [resolvedSessionId],
+  );
 
   useEffect(() => {
     setSelectedVoice(selectedPersona.defaultVoice);
@@ -145,26 +171,6 @@ export function LivePage() {
     }
   }, [isViewingHistory]);
 
-  const {
-    connect,
-    disconnect,
-    startRecording,
-    sendText,
-    sendTurns,
-    status,
-    error,
-    isRecording,
-    messages,
-    inputLevel,
-    outputLevel,
-    stopRecording: pause,
-    resume,
-  } = useGeminiLive({
-    apiKey: "",
-    voiceName: selectedVoice,
-    uiLanguage: uiLocale,
-  });
-  const observer = useObserverInsights(uiLocale);
   const historyQuery = useQuery<LiveSessionDetailResponse>({
     queryKey: ["live-session-detail", resolvedSessionId],
     queryFn: () =>
@@ -185,22 +191,71 @@ export function LivePage() {
       isStreaming: false,
     }));
   }, [historyQuery.data]);
+
+  const lastHistorySequenceNumber = useMemo(() => {
+    if (!historyMessages.length) return 0;
+    return Math.max(...historyMessages.map((message) => message.sequenceNumber));
+  }, [historyMessages]);
+
+  const {
+    connect,
+    disconnect,
+    startRecording,
+    sendText,
+    sendTurns,
+    status,
+    error,
+    isRecording,
+    messages,
+    inputLevel,
+    outputLevel,
+    stopRecording: pause,
+    resume,
+  } = useGeminiLive({
+    apiKey: "",
+    voiceName: selectedVoice,
+    initialSequenceNumber: lastHistorySequenceNumber,
+  });
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  const observer = useObserverInsights(uiLocale);
   const historyPersona = useMemo(() => {
     const personaId = historyQuery.data?.session.metadata?.personaId;
     return personaId ? getPersonaById(personaId) : selectedPersona;
   }, [historyQuery.data?.session.metadata?.personaId, selectedPersona]);
-  const displayMessages = isViewingHistory
-    ? isResuming
-      ? [...historyMessages, ...messages]
-      : historyMessages
-    : messages;
-  const observerMessages = displayMessages;
-  const canTriggerObserver = observerMessages.length > 0 && !observer.isRunning;
+  const displayMessages = useMemo(() => {
+    if (!isViewingHistory) return messages;
+    if (!isResuming) return historyMessages;
+    return [...historyMessages, ...messages];
+  }, [historyMessages, isResuming, isViewingHistory, messages]);
+  const canTriggerObserver = displayMessages.length > 0 && !observer.isRunning;
 
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
   const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
   const historyError = isViewingHistory ? historyQuery.error : null;
+  const historyErrorMessage =
+    historyError instanceof Error ? historyError.message : null;
+  const trimmedInput = textInput.trim();
+  const canSendText =
+    isActiveSession && !isReadOnlyHistory && trimmedInput.length > 0;
+  const failedSyncCount = useMemo(() => {
+    let count = 0;
+    syncStates.forEach((state) => {
+      if (state.status === "failed" && state.retryCount >= 3) {
+        count += 1;
+      }
+    });
+    return count;
+  }, [syncStates]);
+  const handleStartNewSession = useCallback(() => {
+    navigate({ to: "/live" });
+  }, [navigate]);
+  const handleRetryHistory = useCallback(() => {
+    void historyQuery.refetch();
+  }, [historyQuery]);
 
   const buildSessionMeta = useCallback(
     (): LiveSessionMeta => ({
@@ -266,7 +321,9 @@ export function LivePage() {
       liveSessionId: activeSessionRef.current?.liveSessionId,
     });
     const session = activeSessionRef.current;
-    if (!session || messages.length === 0) return;
+    const currentMessages = messagesRef.current;
+
+    if (!session || currentMessages.length === 0) return;
     if (lastPersistedSessionIdRef.current === session.sessionId) return;
     if (!session.liveSessionId) {
       console.warn("Live session id missing; skipping sync.");
@@ -281,7 +338,7 @@ export function LivePage() {
 
     try {
       // First, sync all remaining unsynced non-streaming messages
-      const unsyncedMessages = messages.filter(
+      const unsyncedMessages = currentMessages.filter(
         (m) => !m.isStreaming && !syncedMessageIdsRef.current.has(m.id),
       );
 
@@ -338,7 +395,7 @@ export function LivePage() {
       console.error("Failed to store previous live session", err);
       // Don't throw - allow disconnection to proceed
     }
-  }, [messages, queryClient, saveSyncedIds]);
+  }, [queryClient, saveSyncedIds]);
 
   const appendTurnMessages = useCallback(
     async (turnMessages: Message[]) => {
@@ -447,7 +504,11 @@ export function LivePage() {
     setSessionError(null);
     setIsFetchingToken(true);
     try {
-      await syncPreviousSession();
+      const [, { token }] = await Promise.all([
+        syncPreviousSession(),
+        getGeminiToken(),
+      ]);
+
       const session = buildSessionMeta();
       pendingSessionRef.current = session;
       // Clear syncedMessageIds for the previous active session (if any)
@@ -457,7 +518,6 @@ export function LivePage() {
       }
       // Load syncedMessageIds for the new session
       syncedMessageIdsRef.current = loadSyncedIds(session.sessionId);
-      const { token } = await getGeminiToken();
 
       // Gather device context
       const now = new Date();
@@ -495,7 +555,11 @@ System Context:
     setSessionError(null);
     setIsFetchingToken(true);
     try {
-      await syncPreviousSession();
+      const [, { token }] = await Promise.all([
+        syncPreviousSession(),
+        getGeminiToken(),
+      ]);
+
       const session = buildSessionMeta();
       pendingSessionRef.current = { ...session, liveSessionId: resolvedSessionId };
       setIsResuming(true);
@@ -506,7 +570,6 @@ System Context:
       }
       // Load syncedMessageIds for the resuming session
       syncedMessageIdsRef.current = loadSyncedIds(session.sessionId);
-      const { token } = await getGeminiToken();
 
       const now = new Date();
       const deviceContext = `
@@ -520,7 +583,12 @@ System Context:
 - User Agent: ${navigator.userAgent}
 `;
 
-      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}`;
+      const historyContext = historyMessages
+        .slice(-10) // Limit to last 10 turns
+        .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+        .join("\n");
+
+      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
 
       // Set restoring state BEFORE connecting to prevent race condition with auto-recording
       if (historyMessages.length > 0) {
@@ -575,24 +643,34 @@ System Context:
     syncPreviousSession,
   ]);
 
-  const handleToggleSession = async () => {
+  const handleToggleSession = useCallback(async () => {
     if (status === "connected" || status === "connecting") {
       await syncPreviousSession();
       disconnect();
       return;
     }
     await connectSession();
-  };
+  }, [connectSession, disconnect, status, syncPreviousSession]);
 
-  const handleSendText = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (isReadOnlyHistory || !textInput.trim() || status !== "connected") return;
-      sendText(textInput);
-      setTextInput("");
-    },
-    [isReadOnlyHistory, sendText, status, textInput],
-  );
+  const handleToggleMute = useCallback(() => {
+    if (isRecording) {
+      pause();
+      setIsPaused(true);
+    } else {
+      resume();
+      setIsPaused(false);
+    }
+  }, [isRecording, pause, resume]);
+
+  const handleSendMessage = useCallback(() => {
+    if (!isActiveSession || isReadOnlyHistory || !textInput.trim()) return;
+    sendText(textInput);
+    setTextInput("");
+  }, [isActiveSession, isReadOnlyHistory, sendText, textInput]);
+
+  const handleTriggerObserver = useCallback(() => {
+    observer.triggerFromMessages(displayMessages);
+  }, [displayMessages, observer]);
 
   const handleRetryFailedMessages = useCallback(async () => {
     const failedIds = syncQueueRef.current?.retryFailed() || [];
@@ -664,11 +742,38 @@ System Context:
       if (syncDebounceRef.current) {
         clearTimeout(syncDebounceRef.current);
       }
+      // Also try to sync when component unmounts
+      void syncPreviousSession();
     };
+  }, [syncPreviousSession]);
+
+  // Handle page hide/unload events for robust sync
+  const syncPreviousSessionRef = useRef(syncPreviousSession);
+  useEffect(() => {
+    syncPreviousSessionRef.current = syncPreviousSession;
+  }, [syncPreviousSession]);
+
+  useEffect(() => {
+    const handleUnload = () => {
+      // Use the latest ref to call sync
+      void syncPreviousSessionRef.current();
+    };
+    window.addEventListener("pagehide", handleUnload);
+    return () => window.removeEventListener("pagehide", handleUnload);
   }, []);
 
   return (
     <div className="relative h-[calc(100vh-10rem)]">
+      <a
+        href="#live-main"
+        className={cn(
+          "sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4",
+          "focus:z-50 focus:rounded-full focus:bg-background focus:px-4",
+          "focus:py-2 focus:text-sm focus:shadow",
+        )}
+      >
+        Skip to content
+      </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
       <AmbientGlowBackdrop
         inputLevel={inputLevel}
@@ -680,45 +785,36 @@ System Context:
         <div className="flex h-full gap-4">
           <LiveHistorySidebar activeSessionId={resolvedSessionId} />
 
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            {isViewingHistory && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/70 px-4 py-3 shadow-sm">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    Viewing saved session
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Resume to continue this conversation or start fresh.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={() => navigate({ to: "/live" })}
-                    className="rounded-full px-5"
-                    variant="outline"
-                  >
-                    New Session
-                  </Button>
-                  <Button
-                    onClick={connectResumeSession}
-                    className="rounded-full px-5"
-                    disabled={isConnecting}
-                  >
-                    Resume
-                  </Button>
-                </div>
-              </div>
-            )}
+          <main
+            id="live-main"
+            aria-labelledby="live-title"
+            className="flex min-w-0 flex-1 flex-col gap-4"
+          >
+            <h1 id="live-title" className="sr-only">
+              Live Voice Session
+            </h1>
+            <HistoryBanner
+              isVisible={isViewingHistory}
+              isConnecting={isConnecting}
+              isLoading={isHistoryLoading}
+              errorMessage={historyErrorMessage}
+              onNewSession={handleStartNewSession}
+              onResume={connectResumeSession}
+              onRetry={handleRetryHistory}
+            />
 
-            {isHistoryLoading && (
-              <div className="rounded-full bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground">
-                Loading session history...
-              </div>
-            )}
-
-            {historyError instanceof Error && (
-              <div className="rounded-full bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
-                {historyError.message}
+            {(isHistoryLoading || historyError instanceof Error) && (
+              <div className="space-y-2">
+                {isHistoryLoading && (
+                  <StatusPill className="bg-muted/40 text-xs text-muted-foreground">
+                    Loading session history...
+                  </StatusPill>
+                )}
+                {historyError instanceof Error && (
+                  <StatusPill className="bg-destructive/10 text-xs text-destructive">
+                    {historyError.message}
+                  </StatusPill>
+                )}
               </div>
             )}
 
@@ -737,181 +833,413 @@ System Context:
                   outputs={observer.outputs}
                   error={observer.error}
                   canTrigger={canTriggerObserver}
-                  onTrigger={() => observer.triggerFromMessages(observerMessages)}
+                  onTrigger={handleTriggerObserver}
                 />
               </div>
             </div>
 
-            {isRestoringHistory && (
-              <div className="mx-auto flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-1.5 text-sm font-medium text-blue-600 backdrop-blur-sm border border-blue-500/20 animate-in fade-in slide-in-from-bottom-4">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Restoring conversation memory...
-              </div>
-            )}
+            {(isRestoringHistory || sessionError || failedSyncCount > 0) && (
+              <div className="flex flex-col items-center gap-2">
+                {isRestoringHistory && (
+                  <StatusPill
+                    className={cn(
+                      "mx-auto flex items-center gap-2 bg-blue-500/10 text-sm",
+                      "font-medium text-blue-600 backdrop-blur-sm border",
+                      "border-blue-500/20 animate-in fade-in slide-in-from-bottom-4",
+                    )}
+                  >
+                    <Loader2
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 animate-spin"
+                    />
+                    Restoring conversation memory...
+                  </StatusPill>
+                )}
 
-            {sessionError && (
-              <div className="mx-auto rounded-full bg-destructive/10 px-4 py-1.5 text-sm font-medium text-destructive backdrop-blur-sm border border-destructive/20 animate-in fade-in slide-in-from-bottom-4">
-                {sessionError}
-              </div>
-            )}
+                {sessionError && (
+                  <StatusPill
+                    className={cn(
+                      "mx-auto bg-destructive/10 text-sm font-medium text-destructive",
+                      "backdrop-blur-sm border border-destructive/20 animate-in",
+                      "fade-in slide-in-from-bottom-4",
+                    )}
+                  >
+                    {sessionError}
+                  </StatusPill>
+                )}
 
-            {/* Sync failure indicator */}
-            {syncQueueRef.current?.getFailedMessages().length > 0 && (
-              <div className="mx-auto flex items-center gap-2 rounded-full bg-amber-50/90 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm border border-amber-200/50 animate-in fade-in slide-in-from-bottom-4">
-                <AlertCircle className="h-4 w-4" />
-                <span>
-                  {syncQueueRef.current.getFailedMessages().length} message(s) failed to sync
-                </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleRetryFailedMessages}
-                  className="h-6 px-2 text-xs hover:bg-amber-100"
-                >
-                  <RefreshCw className="mr-1 h-3 w-3" />
-                  Retry
-                </Button>
-              </div>
-            )}
-
-            <Card className="shrink-0 p-3 rounded-xl bg-card/80 backdrop-blur-xl border-border/50 shadow-sm z-20 flex flex-col gap-3">
-              {/* Top Row: Selectors + Controls */}
-              <div className="flex flex-wrap items-center gap-2 justify-between">
-                <div className="flex items-center gap-2">
-                  <PersonaSelector
-                    selectedId={selectedPersona.id}
-                    onSelect={setSelectedPersona}
-                    className="w-[180px] h-9"
-                  />
-                  <VoiceSelector
-                    value={selectedVoice}
-                    onValueChange={setSelectedVoice}
-                    disabled={isActiveSession || isConnecting || isReadOnlyHistory}
-                    className="w-[140px] h-9"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {isActiveSession && !isReadOnlyHistory && (
+                {failedSyncCount > 0 && (
+                  <StatusPill
+                    className={cn(
+                      "mx-auto flex items-center gap-2 bg-amber-50/90 text-sm",
+                      "font-medium text-amber-900 backdrop-blur-sm border",
+                      "border-amber-200/50 animate-in fade-in slide-in-from-bottom-4",
+                    )}
+                  >
+                    <AlertCircle aria-hidden="true" className="h-4 w-4" />
+                    <span>{failedSyncCount} message(s) failed to sync</span>
                     <Button
                       size="sm"
-                      variant="outline"
-                      className={cn(
-                        "h-9 px-3 text-xs font-medium",
-                        isRecording
-                          ? "bg-background"
-                          : "bg-amber-50 text-amber-600 border-amber-200",
-                      )}
-                      onClick={() => {
-                        if (isRecording) {
-                          pause();
-                          setIsPaused(true);
-                        } else {
-                          resume();
-                          setIsPaused(false);
-                        }
-                      }}
+                      variant="ghost"
+                      onClick={handleRetryFailedMessages}
+                      className="h-6 px-2 text-xs hover:bg-amber-100"
                     >
-                      {isRecording ? (
-                        <>
-                          <Mic className="mr-2 h-3.5 w-3.5" />
-                          Mute
-                        </>
-                      ) : (
-                        <>
-                          <MicOff className="mr-2 h-3.5 w-3.5" />
-                          Unmute
-                        </>
-                      )}
+                      <RefreshCw aria-hidden="true" className="mr-1 h-3 w-3" />
+                      Retry
                     </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    className={cn(
-                      "h-9 px-4 text-sm font-medium transition-all shadow-sm",
-                      isActiveSession
-                        ? "bg-red-500 hover:bg-red-600 text-white"
-                        : "bg-primary hover:bg-primary/90",
-                    )}
-                    onClick={
-                      isReadOnlyHistory
-                        ? () => navigate({ to: "/live" })
-                        : handleToggleSession
-                    }
-                    disabled={isConnecting || isReadOnlyHistory}
-                  >
-                    {isActiveSession ? (
-                      <>
-                        <PhoneOff className="mr-2 h-3.5 w-3.5" />
-                        End
-                      </>
-                    ) : (
-                      <>
-                        {isConnecting ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Phone className="mr-2 h-3.5 w-3.5" />
-                        )}
-                        {isConnecting ? "Connecting..." : "Start Call"}
-                      </>
-                    )}
-                  </Button>
-                </div>
+                  </StatusPill>
+                )}
               </div>
+            )}
 
-              {/* Bottom Row: Input + Send */}
-              <div className="flex items-end gap-2">
-                <div className="relative flex-1">
-                  {isRecording && (
-                    <span className="absolute top-3 left-3 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                  )}
-                  <Textarea
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        if (isActiveSession && !isReadOnlyHistory && textInput.trim()) {
-                          sendText(textInput);
-                          setTextInput("");
-                        }
-                      }
-                    }}
-                    placeholder={
-                      isActiveSession
-                        ? "Type a message..."
-                        : "Connect to start chatting..."
-                    }
-                    disabled={!isActiveSession || isReadOnlyHistory}
-                    className={cn(
-                      "min-h-[36px] max-h-[120px] py-1.5 px-3 rounded-lg resize-none text-sm",
-                      isRecording && "pl-8",
-                    )}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  disabled={!isActiveSession || !textInput.trim() || isReadOnlyHistory}
-                  onClick={() => {
-                    sendText(textInput);
-                    setTextInput("");
-                  }}
-                  className="h-9 w-9 p-0 shrink-0"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </Card>
-          </div>
+            <LiveControls
+              selectedPersonaId={selectedPersona.id}
+              onSelectPersona={setSelectedPersona}
+              selectedVoice={selectedVoice}
+              onVoiceChange={setSelectedVoice}
+              isActiveSession={isActiveSession}
+              isConnecting={isConnecting}
+              isReadOnlyHistory={isReadOnlyHistory}
+              isRecording={isRecording}
+              isPaused={isPaused}
+              onToggleMute={handleToggleMute}
+              onToggleSession={handleToggleSession}
+              textInput={textInput}
+              onTextInputChange={setTextInput}
+              onSendMessage={handleSendMessage}
+              canSendText={canSendText}
+            />
+          </main>
         </div>
       </div>
     </div>
   );
 }
+
+type HistoryBannerProps = {
+  isVisible: boolean;
+  isConnecting: boolean;
+  isLoading: boolean;
+  errorMessage: string | null;
+  onNewSession: () => void;
+  onResume: () => void;
+  onRetry: () => void;
+};
+
+const HistoryBanner = memo(function HistoryBanner({
+  isVisible,
+  isConnecting,
+  isLoading,
+  errorMessage,
+  onNewSession,
+  onResume,
+  onRetry,
+}: HistoryBannerProps) {
+  if (!isVisible) return null;
+
+  const isResumeDisabled = isConnecting || isLoading || Boolean(errorMessage);
+  const resumeLabel = isConnecting
+    ? "Resuming..."
+    : isLoading
+      ? "Loading..."
+      : "Resume";
+  const helperText = errorMessage
+    ? "History failed to load. Retry or start a new session."
+    : isLoading
+      ? "Loading session history..."
+      : "Resume to continue this conversation or start fresh.";
+
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-3 rounded-2xl border",
+        "border-border/50 bg-card/70 px-4 py-3 shadow-sm",
+      )}
+    >
+      <div>
+        <p className="text-sm font-semibold text-foreground">Viewing saved session</p>
+        <p className="text-xs text-muted-foreground">{helperText}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button onClick={onNewSession} className="rounded-full px-5" variant="outline">
+          New Session
+        </Button>
+        {errorMessage && (
+          <Button
+            onClick={onRetry}
+            className="rounded-full px-4"
+            variant="ghost"
+            size="sm"
+            disabled={isLoading}
+          >
+            Retry
+          </Button>
+        )}
+        <Button
+          onClick={onResume}
+          className="rounded-full px-5"
+          disabled={isResumeDisabled}
+        >
+          {isConnecting || isLoading ? (
+            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
+          {resumeLabel}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+type StatusPillProps = {
+  className?: string;
+  children: React.ReactNode;
+};
+
+const StatusPill = memo(function StatusPill({ className, children }: StatusPillProps) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn("rounded-full px-4 py-1.5", className)}
+    >
+      {children}
+    </div>
+  );
+});
+
+type LiveControlsProps = {
+  selectedPersonaId: string;
+  onSelectPersona: (persona: Persona) => void;
+  selectedVoice: string;
+  onVoiceChange: (voice: string) => void;
+  isActiveSession: boolean;
+  isConnecting: boolean;
+  isReadOnlyHistory: boolean;
+  isRecording: boolean;
+  isPaused: boolean;
+  onToggleMute: () => void;
+  onToggleSession: () => void;
+  textInput: string;
+  onTextInputChange: (value: string) => void;
+  onSendMessage: () => void;
+  canSendText: boolean;
+};
+
+const LiveControls = memo(function LiveControls({
+  selectedPersonaId,
+  onSelectPersona,
+  selectedVoice,
+  onVoiceChange,
+  isActiveSession,
+  isConnecting,
+  isReadOnlyHistory,
+  isRecording,
+  isPaused,
+  onToggleMute,
+  onToggleSession,
+  textInput,
+  onTextInputChange,
+  onSendMessage,
+  canSendText,
+}: LiveControlsProps) {
+  const statusLabel = isConnecting
+    ? "Connecting"
+    : isActiveSession
+      ? isPaused
+        ? "Paused"
+        : "Live"
+      : "Offline";
+  const statusTone = isConnecting || isPaused
+    ? "bg-amber-50 text-amber-700 border-amber-200"
+    : isActiveSession
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-muted text-muted-foreground border-border/50";
+  const messagePlaceholder = isActiveSession
+    ? "Type a message..."
+    : "Connect to start chatting...";
+
+  return (
+    <Card
+      className={cn(
+        "shrink-0 p-3 rounded-xl bg-card/80 backdrop-blur-xl border-border/50",
+        "shadow-sm z-20 flex flex-col gap-3",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <PersonaSelector
+            selectedId={selectedPersonaId}
+            onSelect={onSelectPersona}
+            className="w-[180px] h-9"
+          />
+          <VoiceSelector
+            value={selectedVoice}
+            onValueChange={onVoiceChange}
+            disabled={isActiveSession || isConnecting || isReadOnlyHistory}
+            className="w-[140px] h-9"
+          />
+          <span
+            role="status"
+            aria-live="polite"
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-semibold uppercase",
+              "tracking-wide",
+              statusTone,
+            )}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isActiveSession && !isReadOnlyHistory && (
+            <Button
+              size="sm"
+              variant="outline"
+              aria-pressed={isRecording}
+              className={cn(
+                "h-9 px-3 text-xs font-medium",
+                isRecording
+                  ? "bg-background"
+                  : "bg-amber-50 text-amber-600 border-amber-200",
+              )}
+              onClick={onToggleMute}
+            >
+              {isRecording ? (
+                <>
+                  <Mic aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
+                  Mute
+                </>
+              ) : (
+                <>
+                  <MicOff aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
+                  Unmute
+                </>
+              )}
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            className={cn(
+              "h-9 px-4 text-sm font-medium transition-all shadow-sm",
+              isActiveSession
+                ? "bg-red-500 hover:bg-red-600 text-white"
+                : "bg-primary hover:bg-primary/90",
+            )}
+            onClick={onToggleSession}
+            disabled={isConnecting || isReadOnlyHistory}
+          >
+            {isActiveSession ? (
+              <>
+                <PhoneOff aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
+                End
+              </>
+            ) : (
+              <>
+                {isConnecting ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="mr-2 h-3.5 w-3.5 animate-spin"
+                  />
+                ) : (
+                  <Phone aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
+                )}
+                {isConnecting ? "Connecting..." : "Start Call"}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <MessageComposer
+        value={textInput}
+        onValueChange={onTextInputChange}
+        onSend={onSendMessage}
+        canSend={canSendText}
+        isRecording={isRecording}
+        isDisabled={!isActiveSession || isReadOnlyHistory}
+        placeholder={messagePlaceholder}
+      />
+    </Card>
+  );
+});
+
+type MessageComposerProps = {
+  value: string;
+  onValueChange: (value: string) => void;
+  onSend: () => void;
+  canSend: boolean;
+  isRecording: boolean;
+  isDisabled: boolean;
+  placeholder: string;
+};
+
+const MessageComposer = memo(function MessageComposer({
+  value,
+  onValueChange,
+  onSend,
+  canSend,
+  isRecording,
+  isDisabled,
+  placeholder,
+}: MessageComposerProps) {
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        if (canSend) onSend();
+      }
+    },
+    [canSend, onSend],
+  );
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="relative flex-1">
+        {isRecording && (
+          <span className="absolute top-3 left-3 flex h-2 w-2" aria-hidden="true">
+            <span
+              className={cn(
+                "animate-ping absolute inline-flex h-full w-full rounded-full",
+                "bg-green-400 opacity-75",
+              )}
+            ></span>
+            <span
+              className={cn(
+                "relative inline-flex rounded-full h-2 w-2 bg-green-500",
+              )}
+            ></span>
+          </span>
+        )}
+        <Textarea
+          value={value}
+          name="live_message"
+          autoComplete="off"
+          aria-label="Message input"
+          onChange={(event) => onValueChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={isDisabled}
+          className={cn(
+            "min-h-[36px] max-h-[120px] py-1.5 px-3 rounded-lg resize-none text-sm",
+            isRecording && "pl-8",
+          )}
+        />
+      </div>
+      <Button
+        size="sm"
+        type="button"
+        aria-label="Send message"
+        disabled={!canSend}
+        onClick={onSend}
+        className="h-9 w-9 p-0 shrink-0"
+      >
+        <Send aria-hidden="true" className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+});
 
 type ObserverPanelProps = {
   outputs: ReturnType<typeof useObserverInsights>["outputs"];
@@ -920,9 +1248,22 @@ type ObserverPanelProps = {
   onTrigger: () => void;
 };
 
-function ObserverPanel({ outputs, error, canTrigger, onTrigger }: ObserverPanelProps) {
+const ObserverPanel = memo(function ObserverPanel({
+  outputs,
+  error,
+  canTrigger,
+  onTrigger,
+}: ObserverPanelProps) {
+  const hasOutputs = outputs.length > 0;
+
   return (
-    <aside className="hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md p-4 shadow-md">
+    <aside
+      className={cn(
+        "hidden lg:flex col-span-1 min-w-[320px] max-w-[420px] flex-col",
+        "rounded-[28px] border border-border/50 bg-card/60 backdrop-blur-md",
+        "p-4 shadow-md",
+      )}
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Observer Agent</p>
@@ -935,47 +1276,68 @@ function ObserverPanel({ outputs, error, canTrigger, onTrigger }: ObserverPanelP
       </div>
 
       {error instanceof Error && (
-        <div className="mt-3 rounded-2xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "mt-3 rounded-2xl bg-destructive/10 px-3 py-2 text-xs text-destructive",
+          )}
+        >
           {error.message}
         </div>
       )}
 
       <ScrollArea className="flex-1 mt-3 -mr-3 pr-3">
         <div className="space-y-2 pb-2">
-          {outputs.map((entry) => {
-            const turnId =
-              typeof entry.payload.output.turnId === "string"
-                ? entry.payload.output.turnId
-                : null;
-            return (
-              <div
-                key={entry.id}
-                className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm overflow-auto"
-              >
-                {entry.explanation && entry.explanation.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {entry.explanation.map((item, idx) => (
-                      <div key={idx} className="bg-background/40 rounded-lg p-2 text-xs">
+          {!hasOutputs && (
+            <div
+              className={cn(
+                "rounded-2xl border border-border/40 bg-background/40 p-3 text-xs",
+                "text-muted-foreground",
+              )}
+            >
+              No insights yet. Run the observer to generate notes.
+            </div>
+          )}
+          {outputs.map((entry) => (
+            <div
+              key={entry.id}
+              className={cn(
+                "rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm",
+                "overflow-auto break-words",
+              )}
+            >
+              {entry.explanation && entry.explanation.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {entry.explanation.map((item) => {
+                    const itemKey = `${entry.id}-${item.term}-${item.example}`;
+                    return (
+                      <div
+                        key={itemKey}
+                        className="bg-background/40 rounded-lg p-2 text-xs"
+                      >
                         <div className="flex items-baseline gap-1.5">
-                          <span className="font-semibold text-primary">{item.term}</span>
+                          <span className="font-semibold text-primary">
+                            {item.term}
+                          </span>
                           <span className="text-muted-foreground">-</span>
                           <span className="text-foreground/90">{item.note}</span>
                         </div>
-                        <div className="mt-1 text-muted-foreground/80 italic">
+                        <div className="mt-1 text-muted-foreground/80 italic break-words">
                           "{item.example}"
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </ScrollArea>
     </aside>
   );
-}
+});
 
 function SessionBlocker({ disconnect }: { disconnect: () => void }) {
   useBlocker({

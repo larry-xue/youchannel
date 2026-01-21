@@ -1,7 +1,12 @@
 import { GoogleGenAI, LiveConnectConfig, LiveServerMessage, Modality, Session } from "@google/genai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AUDIO_WORKLET_PROCESSOR_CODE } from "./audio-processor";
 import { createBlob, decode, decodeAudioData } from "./utils";
+
+const INPUT_SAMPLE_RATE = 16000;
+const OUTPUT_SAMPLE_RATE = 24000;
+const LEVEL_UPDATE_INTERVAL = 33;
+const LEVEL_MULTIPLIER = 5;
 
 export type GeminiLiveStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -18,11 +23,38 @@ export interface Message {
   isStreaming?: boolean;
 }
 
+type InlineAudioPart = {
+  inlineData?: {
+    data?: string;
+  };
+};
+
+const calcRmsLevel = (samples: Float32Array, multiplier = LEVEL_MULTIPLIER) => {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i] * samples[i];
+  }
+  const rms = Math.sqrt(sum / samples.length);
+  return Math.min(1, rms * multiplier);
+};
+
+const finalizeStreamingMessage = (messages: Message[], messageId: string | null) => {
+  if (!messageId) return messages;
+  const idx = messages.findIndex((message) => message.id === messageId);
+  if (idx < 0 || messages[idx].isStreaming === false) return messages;
+
+  const next = [...messages];
+  next[idx] = { ...next[idx], isStreaming: false };
+  return next;
+};
+
 interface UseGeminiLiveOptions {
   apiKey: string;
   model?: string;
   voiceName?: string;
-  uiLanguage?: string;
+  /** Initial sequence number to start from (useful for resuming sessions) */
+  initialSequenceNumber?: number;
   /** Maximum number of messages to keep in memory (default: 200) */
   messageWindowSize?: number;
 }
@@ -31,7 +63,7 @@ export function useGeminiLive({
   apiKey,
   model = "gemini-2.5-flash-native-audio-preview-12-2025",
   voiceName = "Orus",
-  uiLanguage = "en",
+  initialSequenceNumber = 0,
   messageWindowSize = 200,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
@@ -55,11 +87,12 @@ export function useGeminiLive({
   const streamRef = useRef<MediaStream | null>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const audioContextInitializedRef = useRef<boolean>(false);
+  const workletModuleUrlRef = useRef<string | null>(null);
 
   const processorRef = useRef<AudioWorkletNode | null>(null);
 
   // Sequence counter for message ordering - monotonically increasing
-  const sequenceCounterRef = useRef<number>(0);
+  const sequenceCounterRef = useRef<number>(initialSequenceNumber);
   // Track current streaming message IDs to properly handle incremental updates
   const currentUserMessageIdRef = useRef<string | null>(null);
   const currentModelMessageIdRef = useRef<string | null>(null);
@@ -81,16 +114,62 @@ export function useGeminiLive({
     [messageWindowSize],
   );
 
+  const stopOutputAudio = useCallback(() => {
+    audioSourcesRef.current.forEach((source) => source.stop());
+    audioSourcesRef.current.clear();
+    nextStartTimeRef.current = 0;
+  }, []);
+
+  const releaseAudioContexts = useCallback(() => {
+    const inputContext = inputContextRef.current;
+    const outputContext = outputContextRef.current;
+
+    inputContextRef.current = null;
+    outputContextRef.current = null;
+    outputNodeRef.current = null;
+    audioContextInitializedRef.current = false;
+
+    if (inputContext && inputContext.state !== "closed") {
+      void inputContext.close().catch((err) => {
+        console.warn("[GeminiLive] Failed to close input audio context", err);
+      });
+    }
+
+    if (outputContext && outputContext.state !== "closed") {
+      void outputContext.close().catch((err) => {
+        console.warn("[GeminiLive] Failed to close output audio context", err);
+      });
+    }
+  }, []);
+
+  const resolveStreamingAssistantIndex = useCallback((messages: Message[]) => {
+    const currentModelId = currentModelMessageIdRef.current;
+    if (currentModelId) {
+      const idx = messages.findIndex((message) => message.id === currentModelId);
+      if (idx >= 0) return idx;
+    }
+
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "assistant" && lastMessage.isStreaming) {
+        currentModelMessageIdRef.current = lastMessage.id;
+        return messages.length - 1;
+      }
+    }
+
+    return -1;
+  }, []);
+
   const ensureAudioContexts = useCallback(() => {
     if (!inputContextRef.current) {
       inputContextRef.current = new (
         window.AudioContext || (window as any).webkitAudioContext
-      )({ sampleRate: 16000 });
+      )({ sampleRate: INPUT_SAMPLE_RATE });
     }
     if (!outputContextRef.current) {
       outputContextRef.current = new (
         window.AudioContext || (window as any).webkitAudioContext
-      )({ sampleRate: 24000 });
+      )({ sampleRate: OUTPUT_SAMPLE_RATE });
       outputNodeRef.current = outputContextRef.current.createGain();
       outputNodeRef.current.connect(outputContextRef.current.destination);
     }
@@ -98,6 +177,155 @@ export function useGeminiLive({
     if (inputContextRef.current.state === "suspended") inputContextRef.current.resume();
     if (outputContextRef.current.state === "suspended") outputContextRef.current.resume();
   }, []);
+
+  const handleAudioChunk = useCallback(async (message: LiveServerMessage) => {
+    const parts = message.serverContent?.modelTurn?.parts;
+    const audioPart = parts?.find((part) => (part as InlineAudioPart).inlineData);
+    if (!audioPart?.inlineData || !outputContextRef.current || !outputNodeRef.current) {
+      return;
+    }
+
+    const ctx = outputContextRef.current;
+    nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+
+    try {
+      const audioBuffer = await decodeAudioData(
+        decode(audioPart.inlineData.data || ""),
+        ctx,
+        OUTPUT_SAMPLE_RATE,
+        1,
+      );
+
+      const outLevel = calcRmsLevel(audioBuffer.getChannelData(0));
+      const outNow = performance.now();
+      if (outNow - lastOutputUpdateRef.current > LEVEL_UPDATE_INTERVAL) {
+        setOutputLevel(outLevel);
+        lastOutputUpdateRef.current = outNow;
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(outputNodeRef.current);
+      source.addEventListener("ended", () => {
+        audioSourcesRef.current.delete(source);
+      });
+
+      source.start(nextStartTimeRef.current);
+      nextStartTimeRef.current += audioBuffer.duration;
+      audioSourcesRef.current.add(source);
+    } catch (err) {
+      console.error("Error decoding audio", err);
+    }
+  }, []);
+
+  const handleOutputText = useCallback(
+    (message: LiveServerMessage) => {
+      const outputText =
+        message.serverContent?.outputTranscription?.text ??
+        (typeof message.text === "string" ? message.text : undefined);
+      if (!outputText) return;
+
+      const isFinalChunk = Boolean(message.serverContent?.turnComplete);
+
+      setMessages((prev) => {
+        const existingIdx = resolveStreamingAssistantIndex(prev);
+
+        if (existingIdx >= 0) {
+          const existing = prev[existingIdx];
+          const updated: Message = {
+            ...existing,
+            content: existing.content + outputText,
+            isStreaming: isFinalChunk || existing.isStreaming === false ? false : true,
+          };
+          const newArr = [...prev];
+          newArr[existingIdx] = updated;
+          return applyMessageWindow(newArr);
+        }
+
+        const newId = crypto.randomUUID();
+        currentModelMessageIdRef.current = newId;
+
+        const prevUserMsgId = currentUserMessageIdRef.current;
+        currentUserMessageIdRef.current = null;
+
+        const updatedPrev = finalizeStreamingMessage(prev, prevUserMsgId);
+
+        const newMessage: Message = {
+          id: newId,
+          role: "assistant",
+          content: outputText,
+          timestamp: new Date(),
+          sequenceNumber: getNextSequenceNumber(),
+          isStreaming: isFinalChunk ? false : true,
+        };
+        return applyMessageWindow([...updatedPrev, newMessage]);
+      });
+    },
+    [applyMessageWindow, getNextSequenceNumber, resolveStreamingAssistantIndex],
+  );
+
+  const handleInputText = useCallback(
+    (message: LiveServerMessage) => {
+      const inputText = message.serverContent?.inputTranscription?.text;
+      if (!inputText) return;
+
+      setMessages((prev) => {
+        const currentUserId = currentUserMessageIdRef.current;
+
+        if (!currentUserId && !inputText.trim()) {
+          return prev;
+        }
+
+        const existingIdx = currentUserId
+          ? prev.findIndex((m) => m.id === currentUserId)
+          : -1;
+
+        if (existingIdx >= 0) {
+          const existing = prev[existingIdx];
+          const updated: Message = {
+            ...existing,
+            content: existing.content + inputText,
+            isStreaming: true,
+          };
+          const newArr = [...prev];
+          newArr[existingIdx] = updated;
+          return applyMessageWindow(newArr);
+        }
+
+        const newId = crypto.randomUUID();
+        currentUserMessageIdRef.current = newId;
+
+        const prevModelMsgId = currentModelMessageIdRef.current;
+        currentModelMessageIdRef.current = null;
+
+        const updatedPrev = finalizeStreamingMessage(prev, prevModelMsgId);
+
+        const newMessage: Message = {
+          id: newId,
+          role: "user",
+          content: inputText,
+          timestamp: new Date(),
+          sequenceNumber: getNextSequenceNumber(),
+          isStreaming: true,
+        };
+        return applyMessageWindow([...updatedPrev, newMessage]);
+      });
+    },
+    [applyMessageWindow, getNextSequenceNumber],
+  );
+
+  const handleTurnComplete = useCallback(
+    (message: LiveServerMessage) => {
+      if (!message.serverContent?.turnComplete) return;
+      const currentModelId = currentModelMessageIdRef.current;
+      if (!currentModelId) return;
+
+      setMessages((prev) =>
+        applyMessageWindow(finalizeStreamingMessage(prev, currentModelId)),
+      );
+    },
+    [applyMessageWindow],
+  );
 
   const connect = useCallback(
     async (systemInstruction?: string, authToken?: string) => {
@@ -141,232 +369,22 @@ export function useGeminiLive({
               setStatus("connected");
               setMessages([]); // Clear previous messages on new session
               // Reset sequence counter and streaming message refs for new session
-              sequenceCounterRef.current = 0;
+              sequenceCounterRef.current = initialSequenceNumber;
               currentUserMessageIdRef.current = null;
               currentModelMessageIdRef.current = null;
             },
             onmessage: async (message: LiveServerMessage) => {
-              // Log modelTurn parts
-              const parts = message.serverContent?.modelTurn?.parts;
+              await handleAudioChunk(message);
+              handleOutputText(message);
+              handleInputText(message);
 
-              // Audio handling
-              const audioPart = parts?.find((p) => (p as any).inlineData);
-              if (
-                audioPart?.inlineData &&
-                outputContextRef.current &&
-                outputNodeRef.current
-              ) {
-                const ctx = outputContextRef.current;
-                nextStartTimeRef.current = Math.max(
-                  nextStartTimeRef.current,
-                  ctx.currentTime,
-                );
-
-                try {
-                  const audioBuffer = await decodeAudioData(
-                    decode(audioPart.inlineData.data || ""),
-                    ctx,
-                    24000,
-                    1,
-                  );
-
-                  // Calculate RMS for output level visualization
-                  const channelData = audioBuffer.getChannelData(0);
-                  let outSum = 0;
-                  for (let i = 0; i < channelData.length; i++) {
-                    outSum += channelData[i] * channelData[i];
-                  }
-                  const outRms = Math.sqrt(outSum / channelData.length);
-                  const outLevel = Math.min(1, outRms * 5);
-
-                  const outNow = performance.now();
-                  if (outNow - lastOutputUpdateRef.current > 33) {
-                    setOutputLevel(outLevel);
-                    lastOutputUpdateRef.current = outNow;
-                  }
-
-                  const source = ctx.createBufferSource();
-                  source.buffer = audioBuffer;
-                  source.connect(outputNodeRef.current);
-                  source.addEventListener("ended", () => {
-                    audioSourcesRef.current.delete(source);
-                  });
-
-                  source.start(nextStartTimeRef.current);
-                  nextStartTimeRef.current += audioBuffer.duration;
-                  audioSourcesRef.current.add(source);
-                } catch (err) {
-                  console.error("Error decoding audio", err);
-                }
-              }
-
-              // Handle output transcription (model's audio -> text)
-              // Note: outputTranscription is not guaranteed to arrive in lockstep with turnComplete.
-              // Keep `isStreaming` sticky-false once finalized.
-              const outputText =
-                message.serverContent?.outputTranscription?.text ??
-                (typeof message.text === "string" ? message.text : undefined);
-              if (outputText) {
-                const isFinalChunk = Boolean(message.serverContent?.turnComplete);
-
-                setMessages((prev) => {
-                  // Find if we have a current streaming model message
-                  const currentModelId = currentModelMessageIdRef.current;
-                  let existingIdx = currentModelId
-                    ? prev.findIndex((m) => m.id === currentModelId)
-                    : -1;
-
-                  // React batching workaround: If not found but we have a currentModelId,
-                  // check if the last message is an assistant message (might not be in prev yet due to batching)
-                  // Also handle React Strict Mode double-rendering by checking if last message is streaming
-                  if (existingIdx < 0 && prev.length > 0) {
-                    const lastMsg = prev[prev.length - 1];
-                    // If last message is a streaming assistant, reuse it regardless of ID match
-                    // This handles React Strict Mode where same chunk creates different UUIDs
-                    if (lastMsg.role === "assistant" && lastMsg.isStreaming) {
-                      existingIdx = prev.length - 1;
-                      // Sync the ref to match the existing message
-                      currentModelMessageIdRef.current = lastMsg.id;
-                    }
-                  }
-
-                  if (existingIdx >= 0) {
-                    // Append to existing model message
-                    const existing = prev[existingIdx];
-                    const updated: Message = {
-                      ...existing,
-                      content: existing.content + outputText,
-                      isStreaming:
-                        isFinalChunk || existing.isStreaming === false ? false : true,
-                    };
-                    const newArr = [...prev];
-                    newArr[existingIdx] = updated;
-                    return applyMessageWindow(newArr);
-                  } else {
-                    // Create new model message
-                    const newId = crypto.randomUUID();
-                    currentModelMessageIdRef.current = newId;
-
-                    // When model starts speaking, finalize any streaming user message
-                    const prevUserMsgId = currentUserMessageIdRef.current;
-                    currentUserMessageIdRef.current = null;
-
-                    // Mark the previous user message as non-streaming
-                    let updatedPrev = prev;
-                    if (prevUserMsgId) {
-                      const prevUserIdx = prev.findIndex((m) => m.id === prevUserMsgId);
-                      if (prevUserIdx >= 0 && prev[prevUserIdx].isStreaming) {
-                        updatedPrev = [...prev];
-                        updatedPrev[prevUserIdx] = {
-                          ...updatedPrev[prevUserIdx],
-                          isStreaming: false,
-                        };
-                      }
-                    }
-
-                    const newMessage: Message = {
-                      id: newId,
-                      role: "assistant",
-                      content: outputText,
-                      timestamp: new Date(),
-                      sequenceNumber: getNextSequenceNumber(),
-                      isStreaming: isFinalChunk ? false : true,
-                    };
-                    return applyMessageWindow([...updatedPrev, newMessage]);
-                  }
-                });
-              }
-
-              // Handle input transcription (user's audio -> text)
-              const inputText = message.serverContent?.inputTranscription?.text;
-              if (inputText) {
-                setMessages((prev) => {
-                  // Find if we have a current streaming user message
-                  const currentUserId = currentUserMessageIdRef.current;
-
-                  // Ignore empty/whitespace-only input if it's the start of a new message
-                  // This prevents spurious "user turns" (noise/echo) from cutting off the model
-                  if (!currentUserId && !inputText.trim()) {
-                    return prev;
-                  }
-
-                  const existingIdx = currentUserId
-                    ? prev.findIndex((m) => m.id === currentUserId)
-                    : -1;
-
-                  if (existingIdx >= 0) {
-                    // Append to existing streaming message
-                    const existing = prev[existingIdx];
-                    const updated: Message = {
-                      ...existing,
-                      content: existing.content + inputText,
-                      isStreaming: true,
-                    };
-                    const newArr = [...prev];
-                    newArr[existingIdx] = updated;
-                    return applyMessageWindow(newArr);
-                  } else {
-                    // Create new user message
-                    const newId = crypto.randomUUID();
-                    currentUserMessageIdRef.current = newId;
-
-                    // When user starts speaking, finalize any streaming model message
-                    const prevModelMsgId = currentModelMessageIdRef.current;
-                    currentModelMessageIdRef.current = null;
-
-                    // Mark the previous model message as non-streaming
-                    let updatedPrev = prev;
-                    if (prevModelMsgId) {
-                      const prevModelIdx = prev.findIndex((m) => m.id === prevModelMsgId);
-                      if (prevModelIdx >= 0 && prev[prevModelIdx].isStreaming) {
-                        updatedPrev = [...prev];
-                        updatedPrev[prevModelIdx] = {
-                          ...updatedPrev[prevModelIdx],
-                          isStreaming: false,
-                        };
-                      }
-                    }
-
-                    const newMessage: Message = {
-                      id: newId,
-                      role: "user",
-                      content: inputText,
-                      timestamp: new Date(),
-                      sequenceNumber: getNextSequenceNumber(),
-                      isStreaming: true,
-                    };
-                    return applyMessageWindow([...updatedPrev, newMessage]);
-                  }
-                });
-              }
-
-              const interrupted = message.serverContent?.interrupted;
-              if (interrupted) {
-                audioSourcesRef.current.forEach((s) => s.stop());
-                audioSourcesRef.current.clear();
-                nextStartTimeRef.current = 0;
+              if (message.serverContent?.interrupted) {
+                stopOutputAudio();
               }
 
               // Mark end-of-turn so downstream sync can persist the final transcript.
               // Gemini Live indicates completion with serverContent.turnComplete.
-              const turnComplete = message.serverContent?.turnComplete;
-              if (turnComplete) {
-                const currentModelId = currentModelMessageIdRef.current;
-
-                if (currentModelId) {
-                  setMessages((prev) => {
-                    const idx = prev.findIndex((m) => m.id === currentModelId);
-                    if (idx < 0) return prev;
-                    if (prev[idx].isStreaming === false) return prev;
-
-                    const updated = [...prev];
-                    updated[idx] = { ...updated[idx], isStreaming: false };
-                    return applyMessageWindow(updated);
-                  });
-                }
-                // Keep currentModelMessageIdRef until the next user activity starts.
-                // This avoids splitting the model transcript if late chunks arrive.
-              }
+              handleTurnComplete(message);
             },
 
             onclose: (e) => {
@@ -394,7 +412,18 @@ export function useGeminiLive({
         setStatus("error");
       }
     },
-    [apiKey, model, voiceName, ensureAudioContexts, getNextSequenceNumber, applyMessageWindow],
+    [
+      apiKey,
+      model,
+      voiceName,
+      ensureAudioContexts,
+      handleAudioChunk,
+      handleInputText,
+      handleOutputText,
+      handleTurnComplete,
+      stopOutputAudio,
+      initialSequenceNumber,
+    ],
   );
 
   const startRecording = useCallback(async () => {
@@ -419,14 +448,23 @@ export function useGeminiLive({
           type: "application/javascript",
         });
         const url = URL.createObjectURL(blob);
+        workletModuleUrlRef.current = url;
 
         try {
           await inputContextRef.current.audioWorklet.addModule(url);
           audioContextInitializedRef.current = true;
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : "";
           // Ignore if already added (though we try to prevent this with the ref)
-          if (!err.message.includes("already registered")) {
+          if (message.includes("already registered")) {
+            audioContextInitializedRef.current = true;
+          } else {
             throw err;
+          }
+        } finally {
+          if (workletModuleUrlRef.current) {
+            URL.revokeObjectURL(workletModuleUrlRef.current);
+            workletModuleUrlRef.current = null;
           }
         }
       }
@@ -441,16 +479,11 @@ export function useGeminiLive({
         const inputData = event.data as Float32Array;
 
         // Calculate RMS for input level visualization
-        let sum = 0;
-        for (let i = 0; i < inputData.length; i++) {
-          sum += inputData[i] * inputData[i];
-        }
-        const rms = Math.sqrt(sum / inputData.length);
-        const level = Math.min(1, rms * 5); // Amplify for better visual response
+        const level = calcRmsLevel(inputData); // Amplify for better visual response
 
         // Throttle to ~30fps to avoid excessive re-renders
         const now = performance.now();
-        if (now - lastInputUpdateRef.current > 33) {
+        if (now - lastInputUpdateRef.current > LEVEL_UPDATE_INTERVAL) {
           setInputLevel(level);
           lastInputUpdateRef.current = now;
         }
@@ -488,8 +521,8 @@ export function useGeminiLive({
 
   const disconnect = useCallback(() => {
     stopRecording();
-    audioSourcesRef.current.forEach((s) => s.stop());
-    audioSourcesRef.current.clear();
+    stopOutputAudio();
+    releaseAudioContexts();
 
     if (sessionRef.current) {
       sessionRef.current.close();
@@ -498,7 +531,7 @@ export function useGeminiLive({
     setStatus("disconnected");
     setInputLevel(0);
     setOutputLevel(0);
-  }, [stopRecording]);
+  }, [releaseAudioContexts, stopOutputAudio, stopRecording]);
 
   useEffect(() => {
     return () => {
@@ -583,21 +616,40 @@ export function useGeminiLive({
     [getNextSequenceNumber, applyMessageWindow],
   );
 
-  return {
-    connect,
-    disconnect,
-    startRecording,
-    stopRecording,
-    sendText,
-    sendTurns,
-    status,
-    error,
-    isRecording,
-    messages,
-    inputLevel,
-    outputLevel,
-    resume: useCallback(() => {
-      startRecording();
-    }, [startRecording]),
-  };
+  const resume = useCallback(() => {
+    startRecording();
+  }, [startRecording]);
+
+  return useMemo(
+    () => ({
+      connect,
+      disconnect,
+      startRecording,
+      stopRecording,
+      sendText,
+      sendTurns,
+      status,
+      error,
+      isRecording,
+      messages,
+      inputLevel,
+      outputLevel,
+      resume,
+    }),
+    [
+      connect,
+      disconnect,
+      startRecording,
+      stopRecording,
+      sendText,
+      sendTurns,
+      status,
+      error,
+      isRecording,
+      messages,
+      inputLevel,
+      outputLevel,
+      resume,
+    ],
+  );
 }

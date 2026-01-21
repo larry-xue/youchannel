@@ -23,7 +23,7 @@ export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden md:flex h-screen w-64 flex-col border-r border-border/60 bg-background px-4 py-6",
+        "hidden md:flex h-screen w-64 flex-col border-r border-border/60 bg-background px-4 py-6 sticky top-0",
         className,
       )}
     >
@@ -59,8 +59,8 @@ export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
 
       <div className="mt-auto flex flex-col gap-4 pt-6">
         <div className="flex items-center gap-2">
-          <LanguageSwitcher />
           <ThemeToggle />
+          <LanguageSwitcher />
         </div>
         <UserPanel onSignOut={onSignOut} showMenuItems={false} />
       </div>

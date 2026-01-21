@@ -173,7 +173,7 @@ function DashboardLearnVideo() {
 
   // Desktop Layout
   return (
-    <div className="space-y-6 h-[84vh] min-h-[600px]">
+    <div className="space-y-6 h-full min-h-[600px]">
       <ResizablePanelGroup
         direction="horizontal"
         className="rounded-2xl border border-border/50 bg-card overflow-hidden"

@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { RefreshCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { toast } from "sonner";
 import { ConnectYouTubeAlert } from "~/lib/components/connect-youtube-alert";
@@ -317,9 +317,9 @@ function DashboardPlaylists() {
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
         ? m.quota_with_unknown({
-            time: formatSeconds(selectionQuota.totalSeconds),
-            count: selectionQuota.unknownCount,
-          })
+          time: formatSeconds(selectionQuota.totalSeconds),
+          count: selectionQuota.unknownCount,
+        })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -336,8 +336,8 @@ function DashboardPlaylists() {
     const averageKnown =
       knownSeconds.length > 0
         ? Math.round(
-            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
-          )
+          knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+        )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -397,9 +397,9 @@ function DashboardPlaylists() {
       const skippedText =
         result.skipped > 0
           ? m.toast_skipped_message({
-              count: result.skipped,
-              reasons: skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
-            })
+            count: result.skipped,
+            reasons: skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
+          })
           : "";
 
       if (result.enqueued > 0) {
@@ -688,13 +688,13 @@ function DashboardPlaylists() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {activeSelectedVideo?.source_playlist_title
                         ? m.review_source_from({
-                            source: activeSelectedVideo.source_playlist_title,
-                          })
+                          source: activeSelectedVideo.source_playlist_title,
+                        })
                         : m.review_source_selected()}
                       {activeSelectedVideo?.published_at
-                        ? ` â€?${formatDate(activeSelectedVideo.published_at)}`
+                        ? ` ï¿½?${formatDate(activeSelectedVideo.published_at)}`
                         : ""}
-                      {activeDurationLabel ? ` â€?${activeDurationLabel}` : ""}
+                      {activeDurationLabel ? ` ï¿½?${activeDurationLabel}` : ""}
                       {activeSelectedVideo ? (
                         <span className="ml-1 inline-block rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-foreground">
                           {m.review_quota_label({ quota: activeQuotaLabel })}
@@ -801,7 +801,7 @@ function DashboardPlaylists() {
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row">
           <aside className="lg:w-80 lg:shrink-0">
-            <div className="flex max-h-[70vh] flex-col rounded-2xl bg-muted/30 border border-border/50 lg:sticky lg:top-24 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
+            <div className="flex max-h-[70vh] flex-col rounded-2xl bg-muted/30 border border-border/50 lg:sticky top-2 lg:max-h-[calc(100vh-9rem)] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
                 <h2 className="text-sm font-semibold text-foreground">
                   {m.playlists_your_playlists()}
@@ -906,7 +906,9 @@ function DashboardPlaylists() {
                       disabled={!canPrev || isLoadingItems}
                       className="rounded-full w-9 h-9 p-0"
                     >
-                      <span className="sr-only">{m.button_prev()}</span>â†?                    </Button>
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="sr-only">{m.button_prev()}</span>
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -914,7 +916,9 @@ function DashboardPlaylists() {
                       disabled={!canNext || isLoadingItems}
                       className="rounded-full w-9 h-9 p-0"
                     >
-                      <span className="sr-only">{m.button_next()}</span>â†?                    </Button>
+                      <ChevronRight className="h-4 w-4" />
+                      <span className="sr-only">{m.button_next()}</span>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -996,7 +1000,7 @@ function DashboardPlaylists() {
                     {m.playlist_items_empty()}
                   </p>
                 ) : (
-                  <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(240px,1fr))] pb-10">
+                  <div className="grid w-full justify-start gap-4 grid-cols-[repeat(auto-fill,minmax(240px,1fr))] pb-10 overflow-auto">
                     {videos.map((video) => (
                       <VideoCard
                         key={video.id}

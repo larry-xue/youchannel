@@ -38,7 +38,7 @@ function DashboardLayout() {
           <Header onSignOut={handleSignOut} className="md:hidden" showMenu />
 
           <main id="main-content" className="flex-1">
-            <div className="mx-auto w-full max-w-5xl px-6 py-10">
+            <div className="mx-auto w-full px-6 py-10">
               <Outlet />
             </div>
           </main>

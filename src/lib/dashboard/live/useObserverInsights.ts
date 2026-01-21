@@ -5,7 +5,7 @@ import type { Message } from "~/lib/gemini/useGeminiLive";
 
 type ToolOutput = NonNullable<ObserverResponse["toolResult"]>;
 
-type ObserverOutput = {
+export type ObserverOutput = {
   id: string;
   createdAt: number;
   toolName: string;

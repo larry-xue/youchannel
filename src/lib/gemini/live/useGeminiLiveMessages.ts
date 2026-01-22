@@ -99,7 +99,7 @@ export function useGeminiLiveMessages({
           const existing = prev[existingIdx];
           const updated: Message = {
             ...existing,
-            content: existing.content.trim() + outputText.trim(),
+            content: existing.content + outputText,
             isStreaming: isFinalChunk || existing.isStreaming === false ? false : true,
           };
           const newArr = [...prev];

@@ -786,30 +786,10 @@ System Context:
             <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
               {!isNewSession && (
                 <>
-                  <div className="space-y-3">
-                    <HistoryBanner
-                      isVisible={isViewingHistory}
-                      isLoading={isHistoryLoading}
-                      errorMessage={historyErrorMessage}
-                      sessionTitle={historyQuery.data?.session.title ?? null}
-                      onRetry={handleRetryHistory}
-                    />
-
-                    {(isHistoryLoading || historyError instanceof Error) && (
-                      <div className="space-y-2">
-                        {isHistoryLoading && (
-                          <StatusPill className="border border-border/60 text-xs text-muted-foreground">
-                            Loading session history...
-                          </StatusPill>
-                        )}
-                        {historyError instanceof Error && (
-                          <StatusPill className="border border-destructive/30 text-xs text-destructive">
-                            {historyError.message}
-                          </StatusPill>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <HistoryBanner
+                    isVisible={isViewingHistory}
+                    sessionTitle={historyQuery.data?.session.title ?? null}
+                  />
 
                   <div className="min-h-0 flex-1">
                     <LiveTranscript

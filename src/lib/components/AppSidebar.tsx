@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useMatchRoute } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { LanguageSwitcher } from "~/lib/components/LanguageSwitcher";
 import ThemeToggle from "~/lib/components/ThemeToggle";
 import { UserPanel } from "~/lib/components/UserPanel";
@@ -99,14 +100,15 @@ export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
 
       <div className="mt-8 flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="font-semibold text-muted-foreground pl-2">
             Live Sessions
           </p>
           <Link
             to="/live"
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
           >
-            Start
+            <Plus className="h-3.5 w-3.5" />
+            <span>Start</span>
           </Link>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto pr-1">

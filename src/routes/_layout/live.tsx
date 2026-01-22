@@ -39,6 +39,16 @@ type LiveSessionMeta = {
   startedAt: string;
 };
 
+const formatHandleForLog = (handle: string | null) => {
+  if (!handle) return null;
+  const suffix = handle.slice(-6);
+  return `${handle.length}:${suffix}`;
+};
+
+const logLiveAssessment = (...args: unknown[]) => {
+  console.debug("[LiveAssessment]", ...args);
+};
+
 export const Route = createFileRoute("/_layout/live")({
   component: LiveRoute,
   head: () => ({
@@ -83,6 +93,7 @@ export function LivePage() {
   const pendingSessionRef = useRef<LiveSessionMeta | null>(null);
   const lastPersistedSessionIdRef = useRef<string | null>(null);
   const syncedMessageIdsRef = useRef<Set<string>>(new Set());
+  const resumptionHandleRef = useRef<string | null>(null);
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
@@ -184,6 +195,18 @@ export function LivePage() {
     return Math.max(...historyMessages.map((message) => message.sequenceNumber));
   }, [historyMessages]);
 
+  const handleResumptionHandle = useCallback(
+    (handle: string, resumable: boolean) => {
+      if (!resumable) return;
+      resumptionHandleRef.current = handle;
+      logLiveAssessment("resumption_handle_update", {
+        resumable,
+        handle: formatHandleForLog(handle),
+      });
+    },
+    [],
+  );
+
   const {
     connect,
     disconnect,
@@ -200,6 +223,7 @@ export function LivePage() {
     apiKey: "",
     voiceName: selectedVoice,
     initialSequenceNumber: lastHistorySequenceNumber,
+    onResumptionHandle: handleResumptionHandle,
   });
 
   useEffect(() => {
@@ -501,6 +525,12 @@ export function LivePage() {
       ]);
 
       const session = buildSessionMeta();
+      resumptionHandleRef.current = null;
+      logLiveAssessment("session_start", {
+        sessionId: session.sessionId,
+        personaId: session.personaId,
+        voice: session.voice,
+      });
       pendingSessionRef.current = session;
       // Clear syncedMessageIds for the previous active session (if any)
       const previousSession = activeSessionRef.current;
@@ -552,6 +582,11 @@ System Context:
       ]);
 
       const session = buildSessionMeta();
+      resumptionHandleRef.current = null;
+      logLiveAssessment("session_resume_start", {
+        sessionId: session.sessionId,
+        liveSessionId: resolvedSessionId,
+      });
       pendingSessionRef.current = { ...session, liveSessionId: resolvedSessionId };
       setIsResuming(true);
       // Clear syncedMessageIds for the previous active session (if any)
@@ -634,10 +669,58 @@ System Context:
     syncPreviousSession,
   ]);
 
+  const triggerAssessment = useCallback(
+    async (liveSessionId: string, resumptionHandle: string) => {
+      try {
+        const { evaluateLiveSessionFn } = await import(
+          "~/lib/dashboard/live/assessment"
+        );
+        logLiveAssessment("assessment_trigger", {
+          liveSessionId,
+          handle: formatHandleForLog(resumptionHandle),
+          uiLocale,
+        });
+        const result = await evaluateLiveSessionFn({
+          data: {
+            liveSessionId,
+            resumptionHandle,
+            uiLocale,
+          },
+        });
+        logLiveAssessment("assessment_trigger_success", {
+          liveSessionId,
+          formattedBy: result.formattedBy,
+          overall: result.assessment.overall_cefr,
+        });
+      } catch (err) {
+        console.error("[LiveAssessment] Failed to evaluate session", err);
+      }
+    },
+    [uiLocale],
+  );
+
   const handleToggleSession = useCallback(async () => {
     if (status === "connected" || status === "connecting") {
       await syncPreviousSession();
+      const session = activeSessionRef.current;
+      const resumptionHandle = resumptionHandleRef.current;
+      let liveSessionId = session?.liveSessionId ?? null;
+      if (!liveSessionId && session && resumptionHandle) {
+        try {
+          liveSessionId = await ensureLiveSessionId();
+        } catch (err) {
+          console.warn("[LiveAssessment] Failed to ensure session id", err);
+        }
+      }
+      logLiveAssessment("end_call", {
+        liveSessionId,
+        handle: formatHandleForLog(resumptionHandle),
+      });
       disconnect();
+      resumptionHandleRef.current = null;
+      if (liveSessionId && resumptionHandle) {
+        void triggerAssessment(liveSessionId, resumptionHandle);
+      }
       return;
     }
     if (isViewingHistory) {
@@ -649,9 +732,11 @@ System Context:
     connectResumeSession,
     connectSession,
     disconnect,
+    ensureLiveSessionId,
     isViewingHistory,
     status,
     syncPreviousSession,
+    triggerAssessment,
   ]);
 
   const handleToggleMute = useCallback(() => {

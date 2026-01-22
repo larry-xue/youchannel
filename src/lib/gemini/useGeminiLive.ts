@@ -12,6 +12,11 @@ import type { GeminiLiveStatus } from "~/lib/gemini/live/types";
 
 export type { GeminiLiveStatus, Message } from "~/lib/gemini/live/types";
 
+const formatHandleForLog = (handle: string) => {
+  const suffix = handle.slice(-6);
+  return `${handle.length}:${suffix}`;
+};
+
 interface UseGeminiLiveOptions {
   apiKey: string;
   model?: string;
@@ -20,6 +25,7 @@ interface UseGeminiLiveOptions {
   initialSequenceNumber?: number;
   /** Maximum number of messages to keep in memory (default: 200) */
   messageWindowSize?: number;
+  onResumptionHandle?: (handle: string, resumable: boolean) => void;
 }
 
 export function useGeminiLive({
@@ -28,6 +34,7 @@ export function useGeminiLive({
   voiceName = "Orus",
   initialSequenceNumber = 0,
   messageWindowSize = 200,
+  onResumptionHandle,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +107,7 @@ export function useGeminiLive({
           enableAffectiveDialog: true,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
+          sessionResumption: onResumptionHandle ? {} : undefined,
         };
 
         sessionRef.current = await clientRef.current.live.connect({
@@ -107,6 +115,7 @@ export function useGeminiLive({
           config,
           callbacks: {
             onopen: () => {
+              console.debug("[GeminiLive] Connection opened");
               setStatus("connected");
               resetMessages(initialSequenceNumber);
             },
@@ -114,6 +123,31 @@ export function useGeminiLive({
               await handleAudioChunk(message);
               handleOutputText(message);
               handleInputText(message);
+
+              const resumptionUpdate = (
+                message as {
+                  sessionResumptionUpdate?: {
+                    resumable?: boolean;
+                    newHandle?: string;
+                  };
+                }
+              ).sessionResumptionUpdate;
+
+              if (resumptionUpdate) {
+                console.debug("[GeminiLive] Resumption update", {
+                  resumable: resumptionUpdate.resumable ?? false,
+                  handle: resumptionUpdate.newHandle
+                    ? formatHandleForLog(resumptionUpdate.newHandle)
+                    : null,
+                });
+
+                if (resumptionUpdate.newHandle && onResumptionHandle) {
+                  onResumptionHandle(
+                    resumptionUpdate.newHandle,
+                    resumptionUpdate.resumable ?? false,
+                  );
+                }
+              }
 
               if (message.serverContent?.interrupted) {
                 stopOutputAudio();
@@ -160,6 +194,7 @@ export function useGeminiLive({
       resetMessages,
       stopOutputAudio,
       voiceName,
+      onResumptionHandle,
     ],
   );
 

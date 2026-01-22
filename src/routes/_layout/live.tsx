@@ -8,7 +8,6 @@ import { LiveStatusSection } from "~/lib/dashboard/live/components/LiveStatusSec
 import { LiveTranscript } from "~/lib/dashboard/live/components/LiveVoiceSession";
 import { ObserverPanel } from "~/lib/dashboard/live/components/ObserverPanel";
 import { SessionBlocker } from "~/lib/dashboard/live/components/SessionBlocker";
-import { StatusPill } from "~/lib/dashboard/live/components/StatusPill";
 import {
   DEFAULT_PERSONA_ID,
   getPersonaById,

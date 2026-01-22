@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useMatchRoute } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { LanguageSwitcher } from "~/lib/components/LanguageSwitcher";
 import ThemeToggle from "~/lib/components/ThemeToggle";
@@ -50,9 +50,12 @@ function formatLiveSessionDate(iso: string) {
 
 export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
   const navItems = getDashboardNavItems();
-  const matchRoute = useMatchRoute();
-  const matchedSession = matchRoute({ to: "/live/$sessionId" });
-  const activeSessionId = matchedSession ? matchedSession.sessionId : null;
+  const routerState = useRouterState();
+
+  // Extract sessionId from current route matches
+  const activeSessionId = routerState.matches.find(
+    (match) => match.routeId === "/_layout/live/$sessionId"
+  )?.params?.sessionId ?? null;
   const { data, isLoading, error } = useQuery({
     queryKey: ["live-session-history"],
     queryFn: () => getLiveSessionHistoryFn(),
@@ -135,8 +138,8 @@ export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
                 params={{ sessionId: entry.id }}
                 className={cn(
                   "rounded-lg px-2 py-1.5 text-sm text-muted-foreground",
-                  "transition-colors hover:text-foreground",
-                  isActive && "text-foreground font-semibold",
+                  "transition-colors hover:bg-muted/90 hover:text-foreground",
+                  isActive && "bg-muted/90 text-foreground font-semibold",
                 )}
               >
                 <div className="flex items-center justify-between gap-2">

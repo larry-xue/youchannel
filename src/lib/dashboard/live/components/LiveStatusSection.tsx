@@ -3,6 +3,7 @@ import { memo } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { StatusPill } from "~/lib/dashboard/live/components/StatusPill";
 import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 
 type LiveStatusSectionProps = {
   isRestoringHistory: boolean;
@@ -30,7 +31,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
           )}
         >
           <Loader2 aria-hidden="true" className="h-3.5 w-3.5" />
-          Restoring conversation memory...
+          {m.live_status_restoring_memory()}
         </StatusPill>
       )}
 
@@ -53,7 +54,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
           )}
         >
           <AlertCircle aria-hidden="true" className="h-4 w-4" />
-          <span>{failedSyncCount} message(s) failed to sync</span>
+          <span>{m.live_sync_failed_count({ count: failedSyncCount })}</span>
           <Button
             size="sm"
             variant="ghost"
@@ -61,7 +62,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
             className="h-6 px-2 text-xs"
           >
             <RefreshCw aria-hidden="true" className="mr-1 h-3 w-3" />
-            Retry
+            {m.live_retry()}
           </Button>
         </StatusPill>
       )}

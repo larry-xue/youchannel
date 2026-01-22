@@ -6,7 +6,8 @@ import {
   SelectValue,
 } from "~/lib/components/ui/select";
 import { cn } from "~/lib/utils";
-import { PERSONAS, type Persona } from "../constants";
+import * as m from "~/paraglide/messages";
+import { getPersonas, type Persona } from "../constants";
 
 interface PersonaSelectorProps {
   selectedId: string;
@@ -21,11 +22,13 @@ export function PersonaSelector({
   disabled = false,
   className,
 }: PersonaSelectorProps) {
+  const personas = getPersonas();
+
   return (
     <Select
       value={selectedId}
       onValueChange={(value) => {
-        const persona = PERSONAS.find((p) => p.id === value);
+        const persona = personas.find((p) => p.id === value);
         if (persona) onSelect(persona);
       }}
       disabled={disabled}
@@ -36,10 +39,10 @@ export function PersonaSelector({
           className,
         )}
       >
-        <SelectValue placeholder="Select a persona" />
+        <SelectValue placeholder={m.live_select_persona()} />
       </SelectTrigger>
       <SelectContent>
-        {PERSONAS.map((persona) => (
+        {personas.map((persona) => (
           <SelectItem key={persona.id} value={persona.id}>
             <PersonaInfo persona={persona} />
           </SelectItem>

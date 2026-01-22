@@ -6,6 +6,8 @@ import { cn } from "~/lib/utils";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import { Input } from "~/lib/components/ui/input";
 import { Button } from "~/lib/components/ui/button";
+import * as m from "~/paraglide/messages";
+import { getPersonaById } from "../constants";
 import {
   deleteLiveSessionFn,
   getLiveSessionHistoryFn,
@@ -19,8 +21,14 @@ type LiveHistorySidebarProps = {
 
 function extractMetadataLabel(entry: LiveSessionHistoryEntry) {
   const metadata = entry.metadata;
+  const personaId =
+    metadata && typeof metadata.personaId === "string" ? metadata.personaId : null;
   const personaName =
-    metadata && typeof metadata.personaName === "string" ? metadata.personaName : null;
+    personaId
+      ? getPersonaById(personaId).name
+      : metadata && typeof metadata.personaName === "string"
+        ? metadata.personaName
+        : null;
   const voice =
     metadata && typeof metadata.voice === "string" ? metadata.voice : null;
 
@@ -88,9 +96,11 @@ export function LiveHistorySidebar({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            History
+            {m.live_history_title()}
           </p>
-          <p className="text-lg font-semibold text-foreground">Live Sessions</p>
+          <p className="text-lg font-semibold text-foreground">
+            {m.live_history_subtitle()}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -98,7 +108,7 @@ export function LiveHistorySidebar({
             <span>{sessions.length}</span>
           </div>
           <Button asChild size="icon" variant="outline" className="h-8 w-8">
-            <Link to="/live" aria-label="Start new session">
+            <Link to="/live" aria-label={m.live_history_new_session_aria()}>
               <Plus className="h-4 w-4" />
             </Link>
           </Button>
@@ -110,7 +120,7 @@ export function LiveHistorySidebar({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search sessions..."
+          placeholder={m.live_history_search_placeholder()}
           className="h-10 rounded-xl bg-card pl-10"
         />
       </div>
@@ -119,26 +129,27 @@ export function LiveHistorySidebar({
         {isLoading && (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4" />
-            Loading history...
+            {m.live_history_loading()}
           </div>
         )}
         {!isLoading && error && (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            Failed to load history.
+            {m.live_history_error()}
           </div>
         )}
         {!isLoading && !error && filtered.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
-            <span>No sessions yet.</span>
+            <span>{m.live_history_empty_title()}</span>
             <span className="text-xs text-muted-foreground/80">
-              Start a live call to see it here.
+              {m.live_history_empty_hint()}
             </span>
           </div>
         )}
         <div className="flex flex-col gap-3">
           {filtered.map((entry) => {
             const label = extractMetadataLabel(entry);
-            const lastMessage = entry.lastMessage?.content ?? "No transcript saved.";
+            const lastMessage =
+              entry.lastMessage?.content ?? m.live_history_no_transcript();
             const timeLabel = formatTimeLabel(entry.createdAt);
             const isActive = resolvedActiveSessionId === entry.id;
             return (
@@ -165,7 +176,7 @@ export function LiveHistorySidebar({
                       {label}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-                      {entry.messageCount} messages
+                      {m.live_history_message_count({ count: entry.messageCount })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -176,12 +187,12 @@ export function LiveHistorySidebar({
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                      aria-label="Delete session"
+                      aria-label={m.live_history_delete_aria()}
                       onClick={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
                         const confirmed = window.confirm(
-                          "Delete this session? This cannot be undone.",
+                          m.live_history_delete_confirm(),
                         );
                         if (!confirmed) return;
                         deleteMutation.mutate(entry.id);

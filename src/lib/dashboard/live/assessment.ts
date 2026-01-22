@@ -54,6 +54,10 @@ const assessLiveSessionSchema = z.object({
   uiLocale: z.string().min(1),
 });
 
+const liveSessionAssessmentQuerySchema = z.object({
+  liveSessionId: z.string().uuid(),
+});
+
 type AssessmentResult = {
   assessment: LiveSessionAssessment;
   formattedBy: "live" | "gemini-3";
@@ -425,6 +429,26 @@ ${rawText}`;
   const parsed = JSON.parse(textOutput.text);
   return normalizeAssessmentArray(parsed, uiLocale);
 };
+
+export const getLiveSessionAssessmentFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => liveSessionAssessmentQuerySchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabase } = await getSupabaseAndUser();
+
+    const { data: row, error } = await supabase
+      .from("live_session_assessments")
+      .select("assessment")
+      .eq("live_session_id", data.liveSessionId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message || "Failed to load assessment");
+    }
+
+    return {
+      assessment: normalizeAssessmentArray(row?.assessment),
+    };
+  });
 
 export const evaluateLiveSessionFn = createServerFn({ method: "POST" })
   .inputValidator((data) => assessLiveSessionSchema.parse(data))

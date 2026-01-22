@@ -6,6 +6,7 @@ import { PersonaSelector } from "~/lib/dashboard/live/components/PersonaSelector
 import { VoiceSelector } from "~/lib/dashboard/live/components/LiveVoiceSession";
 import { type Persona } from "~/lib/dashboard/live/constants";
 import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 
 type LiveControlsProps = {
   selectedPersonaId: string;
@@ -47,19 +48,19 @@ export const LiveControls = memo(function LiveControls({
   className,
 }: LiveControlsProps) {
   const statusLabel = isConnecting
-    ? "Connecting"
+    ? m.live_status_connecting()
     : isActiveSession
       ? isPaused
-        ? "Paused"
-        : "Live"
-      : "Offline";
+        ? m.live_status_paused()
+        : m.live_status_live()
+      : m.live_status_offline();
   const statusTone =
     isActiveSession && !isPaused
       ? "bg-muted/70 text-foreground border-border/60"
       : "bg-muted/70 text-muted-foreground border-border/60";
   const messagePlaceholder = isActiveSession
-    ? "Type a message..."
-    : "Connect to start chatting...";
+    ? m.live_message_placeholder_active()
+    : m.live_empty_prompt();
   const callButtonClassName = cn(
     "h-10 min-w-[150px] px-5 text-sm font-semibold",
     isActiveSession
@@ -113,12 +114,12 @@ export const LiveControls = memo(function LiveControls({
               {isRecording ? (
                 <>
                   <Mic aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
-                  Mute
+                  {m.live_mute()}
                 </>
               ) : (
                 <>
                   <MicOff aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
-                  Unmute
+                  {m.live_unmute()}
                 </>
               )}
             </Button>
@@ -134,7 +135,7 @@ export const LiveControls = memo(function LiveControls({
             {isActiveSession ? (
               <>
                 <PhoneOff aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
-                End
+                {m.live_end_call()}
               </>
             ) : (
               <>
@@ -146,7 +147,7 @@ export const LiveControls = memo(function LiveControls({
                 ) : (
                   <Phone aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
                 )}
-                {isConnecting ? "Connecting..." : "Start Call"}
+                {isConnecting ? m.live_status_connecting() : m.live_start_call()}
               </>
             )}
           </Button>
@@ -199,7 +200,7 @@ const MessageComposer = memo(function MessageComposer({
           value={value}
           name="live_message"
           autoComplete="off"
-          aria-label="Message input"
+          aria-label={m.live_message_input_label()}
           onChange={(event) => onValueChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
@@ -212,7 +213,7 @@ const MessageComposer = memo(function MessageComposer({
       <Button
         size="sm"
         type="button"
-        aria-label="Send message"
+        aria-label={m.live_send_message_label()}
         disabled={!canSend}
         onClick={onSend}
         className="h-9 w-9 p-0 shrink-0"

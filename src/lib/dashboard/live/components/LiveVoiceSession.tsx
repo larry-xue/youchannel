@@ -8,7 +8,8 @@ import {
 } from "~/lib/components/ui/select";
 import type { GeminiLiveStatus, Message } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
-import { type Persona, VOICES } from "../constants";
+import * as m from "~/paraglide/messages";
+import { getVoiceOptions, type Persona } from "../constants";
 
 interface LiveTranscriptProps {
   messages: Message[];
@@ -36,7 +37,7 @@ export function LiveTranscript({
     <div className={cn("flex flex-col gap-6 px-1 pb-6 sm:px-2", className)}>
       {messages.length === 0 && isActiveSession && (
         <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-          <p className="text-[15px]">Listening...</p>
+          <p>{m.live_status_listening()}</p>
         </div>
       )}
       {messages.map((message) => {
@@ -51,7 +52,7 @@ export function LiveTranscript({
           >
             <div
               className={cn(
-                "max-w-[720px] whitespace-pre-wrap text-[15px] leading-[1.75] text-foreground",
+                "max-w-[720px] whitespace-pre-wrap leading-[1.75] text-foreground",
                 isUser && "rounded-2xl bg-foreground/20 px-4 py-3",
               )}
             >
@@ -86,13 +87,13 @@ export function VoiceSelector({
           className,
         )}
       >
-        <SelectValue placeholder="Select Voice" />
+        <SelectValue placeholder={m.live_select_voice()} />
       </SelectTrigger>
       <SelectContent
         align="start"
         className="max-h-[320px] rounded-xl bg-popover p-2"
       >
-        {VOICES.map((voice) => (
+        {getVoiceOptions().map((voice) => (
           <SelectItem
             key={voice.name}
             value={voice.name}

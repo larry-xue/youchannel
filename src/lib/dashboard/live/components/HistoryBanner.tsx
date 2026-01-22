@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 
 type HistoryBannerProps = {
   isVisible: boolean;
@@ -15,7 +16,7 @@ export const HistoryBanner = memo(function HistoryBanner({
   const title =
     sessionTitle && sessionTitle.trim().length > 0
       ? sessionTitle
-      : "Untitled session";
+      : m.live_session_untitled();
   return (
     <div
       className={cn(

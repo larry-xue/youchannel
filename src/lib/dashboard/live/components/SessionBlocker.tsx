@@ -1,5 +1,6 @@
 import { useBlocker } from "@tanstack/react-router";
 import { useEffect } from "react";
+import * as m from "~/paraglide/messages";
 
 type SessionBlockerProps = {
   disconnect: () => void;
@@ -9,7 +10,7 @@ export function SessionBlocker({ disconnect }: SessionBlockerProps) {
   useBlocker({
     shouldBlockFn: () => {
       const shouldLeave = window.confirm(
-        "You have an active call. Do you want to end it?",
+        m.live_confirm_leave(),
       );
       if (shouldLeave) {
         disconnect();

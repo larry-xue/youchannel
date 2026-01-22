@@ -1,3 +1,5 @@
+import * as m from "~/paraglide/messages";
+
 export interface Persona {
   id: string;
   name: string;
@@ -8,11 +10,11 @@ export interface Persona {
   emoji: string;
 }
 
-export const PERSONAS: Persona[] = [
+type PersonaDefinition = Omit<Persona, "name" | "description">;
+
+const PERSONA_DEFINITIONS: PersonaDefinition[] = [
   {
     id: "friend",
-    name: "Casual Friend",
-    description: "Relaxed chat partner for everyday conversation",
     systemPrompt: `You are a multilingual conversation trainer. Your role is to:
 1. Proactively find and introduce engaging topics
 2. Be patient, encouraging, and supportive
@@ -25,8 +27,6 @@ Keep responses brief, friendly, and natural. Adapt to the user's language level.
   },
   {
     id: "coach",
-    name: "Interview Coach",
-    description: "Professional interviewer for practice sessions",
     systemPrompt: `You are a professional interview coach. Your role is to:
 1. Ask realistic interview questions
 2. Provide constructive feedback on answers
@@ -40,19 +40,76 @@ Keep questions focused and feedback actionable. Be professional but supportive.`
   },
 ];
 
-export const VOICES = [
-  { name: "Puck", style: "Upbeat, lively" },
-  { name: "Charon", style: "Informative, professional" },
-  { name: "Kore", style: "Calm, composed" },
-  { name: "Fenrir", style: "Excitable, energetic" },
-  { name: "Aoede", style: "Breezy, easygoing" },
-  { name: "Leda", style: "Youthful, playful" },
-  { name: "Orus", style: "Firm, confident" },
-  { name: "Zephyr", style: "Bright, inspiring" },
+const getPersonaStrings = (id: PersonaDefinition["id"]) => {
+  switch (id) {
+    case "friend":
+      return {
+        name: m.live_persona_friend(),
+        description: m.live_persona_friend_desc(),
+      };
+    case "coach":
+      return {
+        name: m.live_persona_coach(),
+        description: m.live_persona_coach_desc(),
+      };
+    default:
+      return {
+        name: m.live_persona_friend(),
+        description: m.live_persona_friend_desc(),
+      };
+  }
+};
+
+const buildPersona = (persona: PersonaDefinition): Persona => {
+  const strings = getPersonaStrings(persona.id);
+  return {
+    ...persona,
+    name: strings.name,
+    description: strings.description,
+  };
+};
+
+export const getPersonas = (): Persona[] =>
+  PERSONA_DEFINITIONS.map((persona) => buildPersona(persona));
+
+const VOICE_DEFINITIONS = [
+  { name: "Puck" },
+  { name: "Charon" },
+  { name: "Kore" },
+  { name: "Fenrir" },
+  { name: "Aoede" },
+  { name: "Leda" },
+  { name: "Orus" },
+  { name: "Zephyr" },
 ] as const;
+
+type VoiceName = (typeof VOICE_DEFINITIONS)[number]["name"];
+
+const VOICE_STYLE_MAP: Record<VoiceName, () => string> = {
+  Puck: m.live_voice_style_puck,
+  Charon: m.live_voice_style_charon,
+  Kore: m.live_voice_style_kore,
+  Fenrir: m.live_voice_style_fenrir,
+  Aoede: m.live_voice_style_aoede,
+  Leda: m.live_voice_style_leda,
+  Orus: m.live_voice_style_orus,
+  Zephyr: m.live_voice_style_zephyr,
+};
+
+export type VoiceOption = {
+  name: VoiceName;
+  style: string;
+};
+
+export const getVoiceOptions = (): VoiceOption[] =>
+  VOICE_DEFINITIONS.map((voice) => ({
+    name: voice.name,
+    style: VOICE_STYLE_MAP[voice.name](),
+  }));
 
 export const DEFAULT_PERSONA_ID = "tutor";
 
 export function getPersonaById(id: string): Persona {
-  return PERSONAS.find((p) => p.id === id) ?? PERSONAS[0];
+  const persona = PERSONA_DEFINITIONS.find((p) => p.id === id);
+  return buildPersona(persona ?? PERSONA_DEFINITIONS[0]);
 }

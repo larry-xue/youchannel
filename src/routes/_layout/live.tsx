@@ -18,6 +18,10 @@ import {
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
 import {
+  getLiveSessionAssessmentFn,
+  type LiveSessionAssessment,
+} from "~/lib/dashboard/live/assessment";
+import {
   MessageSyncQueue,
   retryWithBackoff,
   type MessageSyncState,
@@ -27,6 +31,7 @@ import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { useAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
+import * as m from "~/paraglide/messages";
 import { getLocale } from "~/paraglide/runtime";
 
 type LiveSessionMeta = {
@@ -54,11 +59,11 @@ export const Route = createFileRoute("/_layout/live")({
   head: () => ({
     meta: [
       {
-        title: "Live Voice Chat | Fluentlyby.ai",
+        title: `${m.live_page_title()} | Fluentlyby.ai`,
       },
       {
         name: "description",
-        content: "Practice speaking with AI-powered conversation partners",
+        content: m.live_page_subtitle(),
       },
     ],
   }),
@@ -177,6 +182,14 @@ export function LivePage() {
       }) as Promise<LiveSessionDetailResponse>,
     enabled: Boolean(resolvedSessionId),
   });
+  const assessmentQuery = useQuery<{ assessment: LiveSessionAssessment }>({
+    queryKey: ["live-session-assessment", resolvedSessionId],
+    queryFn: () =>
+      getLiveSessionAssessmentFn({
+        data: { liveSessionId: resolvedSessionId! },
+      }) as Promise<{ assessment: LiveSessionAssessment }>,
+    enabled: Boolean(resolvedSessionId),
+  });
   const historyMessages = useMemo(() => {
     if (!historyQuery.data) return [];
     return historyQuery.data.messages.map((message, index) => ({
@@ -189,6 +202,7 @@ export function LivePage() {
       isStreaming: false,
     }));
   }, [historyQuery.data]);
+  const assessmentEntries = assessmentQuery.data?.assessment ?? [];
 
   const lastHistorySequenceNumber = useMemo(() => {
     if (!historyMessages.length) return 0;
@@ -863,7 +877,7 @@ System Context:
           "focus:py-2 focus:text-sm focus:shadow",
         )}
       >
-        Skip to content
+        {m.live_skip_to_content()}
       </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
 
@@ -874,7 +888,7 @@ System Context:
           className="flex min-w-0 flex-1 flex-col"
         >
           <h1 id="live-title" className="sr-only">
-            Live Voice Session
+            {m.live_page_title()}
           </h1>
 
           <div className="flex flex-1 flex-col">
@@ -912,11 +926,11 @@ System Context:
                         <Sparkles className="h-5 w-5 text-primary" />
                       </div>
                       <h2 className="text-lg font-semibold text-foreground">
-                        Hello, {userName}
+                        {m.live_greeting({ name: userName })}
                       </h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      What would you like to talk about?
+                      {m.live_prompt_question()}
                     </p>
                   </div>
 
@@ -997,6 +1011,8 @@ System Context:
           error={observer.error}
           canTrigger={canTriggerObserver}
           onTrigger={handleTriggerObserver}
+          assessment={isViewingHistory ? assessmentEntries : null}
+          assessmentLocale={uiLocale}
           className=""
         />
       </div>

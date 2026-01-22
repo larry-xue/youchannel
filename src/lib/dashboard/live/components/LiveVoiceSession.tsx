@@ -32,31 +32,29 @@ export function LiveTranscript({
 
   const isActiveSession = status === "connected";
 
-  const personaLabel =
-    persona.name && persona.name.trim().length > 0
-      ? persona.name
-      : "Assistant";
-
   return (
     <div className={cn("flex flex-col gap-6 px-1 pb-6 sm:px-2", className)}>
-      {messages.length === 0 && !isActiveSession && (
-        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-          <p className="text-[15px]">Start a session to begin chatting.</p>
-        </div>
-      )}
       {messages.length === 0 && isActiveSession && (
         <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
           <p className="text-[15px]">Listening...</p>
         </div>
       )}
       {messages.map((message) => {
-        const isModel = message.role === "assistant";
+        const isUser = message.role === "user";
         return (
-          <div key={message.id} className="flex flex-col gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              {isModel ? personaLabel : "You"}
-            </span>
-            <div className="max-w-[720px] whitespace-pre-wrap text-[15px] leading-[1.75] text-foreground">
+          <div
+            key={message.id}
+            className={cn(
+              "flex flex-col gap-3",
+              isUser ? "items-end" : "items-start",
+            )}
+          >
+            <div
+              className={cn(
+                "max-w-[720px] whitespace-pre-wrap text-[15px] leading-[1.75] text-foreground",
+                isUser && "rounded-2xl bg-foreground/20 px-4 py-3",
+              )}
+            >
               {message.content}
             </div>
           </div>

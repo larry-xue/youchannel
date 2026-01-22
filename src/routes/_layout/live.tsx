@@ -831,25 +831,33 @@ System Context:
                     onRetryFailedMessages={handleRetryFailedMessages}
                   />
 
-                  <LiveControls
-                    selectedPersonaId={selectedPersona.id}
-                    onSelectPersona={setSelectedPersona}
-                    selectedVoice={selectedVoice}
-                    onVoiceChange={setSelectedVoice}
-                    isActiveSession={isActiveSession}
-                    isConnecting={isConnecting}
-                    isReadOnlyHistory={isReadOnlyHistory}
-                    isRecording={isRecording}
-                    isPaused={isPaused}
-                    isStartDisabled={isStartDisabled}
-                    onToggleMute={handleToggleMute}
-                    onToggleSession={handleToggleSession}
-                    textInput={textInput}
-                    onTextInputChange={setTextInput}
-                    onSendMessage={handleSendMessage}
-                    canSendText={canSendText}
-                    className="w-full"
-                  />
+                  <div className="relative w-full">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
+                    />
+                    <div className="relative rounded-3xl border border-border/60 bg-background/80 backdrop-blur-md">
+                      <LiveControls
+                        selectedPersonaId={selectedPersona.id}
+                        onSelectPersona={setSelectedPersona}
+                        selectedVoice={selectedVoice}
+                        onVoiceChange={setSelectedVoice}
+                        isActiveSession={isActiveSession}
+                        isConnecting={isConnecting}
+                        isReadOnlyHistory={isReadOnlyHistory}
+                        isRecording={isRecording}
+                        isPaused={isPaused}
+                        isStartDisabled={isStartDisabled}
+                        onToggleMute={handleToggleMute}
+                        onToggleSession={handleToggleSession}
+                        textInput={textInput}
+                        onTextInputChange={setTextInput}
+                        onSendMessage={handleSendMessage}
+                        canSendText={canSendText}
+                        className="w-full bg-transparent border-0 shadow-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="sticky bottom-6 z-20 mt-8">
@@ -861,25 +869,33 @@ System Context:
                       onRetryFailedMessages={handleRetryFailedMessages}
                     />
 
-                    <LiveControls
-                      selectedPersonaId={selectedPersona.id}
-                      onSelectPersona={setSelectedPersona}
-                      selectedVoice={selectedVoice}
-                      onVoiceChange={setSelectedVoice}
-                      isActiveSession={isActiveSession}
-                      isConnecting={isConnecting}
-                      isReadOnlyHistory={isReadOnlyHistory}
-                      isRecording={isRecording}
-                      isPaused={isPaused}
-                      isStartDisabled={isStartDisabled}
-                      onToggleMute={handleToggleMute}
-                      onToggleSession={handleToggleSession}
-                      textInput={textInput}
-                      onTextInputChange={setTextInput}
-                      onSendMessage={handleSendMessage}
-                      canSendText={canSendText}
-                      className="w-full"
-                    />
+                    <div className="relative">
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
+                      />
+                      <div className="relative rounded-3xl border border-border/60 bg-background/80 backdrop-blur-md">
+                        <LiveControls
+                          selectedPersonaId={selectedPersona.id}
+                          onSelectPersona={setSelectedPersona}
+                          selectedVoice={selectedVoice}
+                          onVoiceChange={setSelectedVoice}
+                          isActiveSession={isActiveSession}
+                          isConnecting={isConnecting}
+                          isReadOnlyHistory={isReadOnlyHistory}
+                          isRecording={isRecording}
+                          isPaused={isPaused}
+                          isStartDisabled={isStartDisabled}
+                          onToggleMute={handleToggleMute}
+                          onToggleSession={handleToggleSession}
+                          textInput={textInput}
+                          onTextInputChange={setTextInput}
+                          onSendMessage={handleSendMessage}
+                          canSendText={canSendText}
+                          className="w-full bg-transparent border-0 shadow-none"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

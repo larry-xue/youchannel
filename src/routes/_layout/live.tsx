@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useMatchRoute, useNavigate } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HistoryBanner } from "~/lib/dashboard/live/components/HistoryBanner";
 import { LiveControls } from "~/lib/dashboard/live/components/LiveControls";
@@ -25,6 +26,7 @@ import {
 import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
+import { useAuthUser } from "~/lib/store/auth";
 import { cn } from "~/lib/utils";
 import { getLocale } from "~/paraglide/runtime";
 
@@ -61,6 +63,11 @@ export function LivePage() {
   const matchRoute = useMatchRoute();
   const matchedSession = matchRoute({ to: "/live/$sessionId" });
   const resolvedSessionId = matchedSession ? matchedSession.sessionId : null;
+  const authUser = useAuthUser();
+  const userName =
+    (authUser?.user_metadata?.full_name as string | undefined) ||
+    authUser?.email?.split("@")[0] ||
+    "User";
   const [textInput, setTextInput] = useState("");
   const [isResuming, setIsResuming] = useState(false);
   const [isRestoringHistory, setIsRestoringHistory] = useState(false);
@@ -803,13 +810,27 @@ System Context:
               )}
 
               {isNewSession ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3">
+                <div className="flex flex-1 flex-col items-start justify-center gap-3">
                   <LiveStatusSection
                     isRestoringHistory={isRestoringHistory}
                     sessionError={sessionError}
                     failedSyncCount={failedSyncCount}
                     onRetryFailedMessages={handleRetryFailedMessages}
                   />
+
+                  <div className="flex flex-col items-start justify-center gap-2 pl-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40 shadow-sm border border-border/40">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                      </div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Hello, {userName}
+                      </h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      What would you like to talk about?
+                    </p>
+                  </div>
 
                   <div className="relative w-full">
                     <div

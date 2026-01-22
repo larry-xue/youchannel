@@ -17,6 +17,7 @@ type LiveControlsProps = {
   isReadOnlyHistory: boolean;
   isRecording: boolean;
   isPaused: boolean;
+  isStartDisabled: boolean;
   onToggleMute: () => void;
   onToggleSession: () => void;
   textInput: string;
@@ -36,6 +37,7 @@ export const LiveControls = memo(function LiveControls({
   isReadOnlyHistory,
   isRecording,
   isPaused,
+  isStartDisabled,
   onToggleMute,
   onToggleSession,
   textInput,
@@ -127,7 +129,7 @@ export const LiveControls = memo(function LiveControls({
             variant={isActiveSession ? "outline" : "default"}
             className={callButtonClassName}
             onClick={onToggleSession}
-            disabled={isConnecting || isReadOnlyHistory}
+            disabled={isStartDisabled}
           >
             {isActiveSession ? (
               <>

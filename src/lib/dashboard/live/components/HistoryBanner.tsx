@@ -1,25 +1,20 @@
-import { Loader2 } from "lucide-react";
 import { memo } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { cn } from "~/lib/utils";
 
 type HistoryBannerProps = {
   isVisible: boolean;
-  isConnecting: boolean;
   isLoading: boolean;
   errorMessage: string | null;
   sessionTitle?: string | null;
-  onResume: () => void;
   onRetry: () => void;
 };
 
 export const HistoryBanner = memo(function HistoryBanner({
   isVisible,
-  isConnecting,
   isLoading,
   errorMessage,
   sessionTitle,
-  onResume,
   onRetry,
 }: HistoryBannerProps) {
   if (!isVisible) return null;
@@ -28,18 +23,6 @@ export const HistoryBanner = memo(function HistoryBanner({
     sessionTitle && sessionTitle.trim().length > 0
       ? sessionTitle
       : "Untitled session";
-  const isResumeDisabled = isConnecting || isLoading || Boolean(errorMessage);
-  const resumeLabel = isConnecting
-    ? "Resuming..."
-    : isLoading
-      ? "Loading..."
-      : "Resume";
-  const helperText = errorMessage
-    ? "History failed to load. Retry or start a new session."
-    : isLoading
-      ? "Loading session history..."
-      : "Resume to continue this conversation or start fresh.";
-
   return (
     <div
       className={cn(
@@ -51,7 +34,6 @@ export const HistoryBanner = memo(function HistoryBanner({
         <p className="mt-1 truncate text-sm font-semibold text-foreground">
           {title}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{helperText}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {errorMessage && (
@@ -65,16 +47,6 @@ export const HistoryBanner = memo(function HistoryBanner({
             Retry
           </Button>
         )}
-        <Button
-          onClick={onResume}
-          className="h-8 px-4 text-xs font-semibold"
-          disabled={isResumeDisabled}
-        >
-          {isConnecting || isLoading ? (
-            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4" />
-          ) : null}
-          {resumeLabel}
-        </Button>
       </div>
     </div>
   );

@@ -216,6 +216,13 @@ export function LivePage() {
   const historyError = isViewingHistory ? historyQuery.error : null;
   const historyErrorMessage =
     historyError instanceof Error ? historyError.message : null;
+  const isNewSession =
+    !isViewingHistory && displayMessages.length === 0 && !isActiveSession;
+  const isStartDisabled =
+    isConnecting ||
+    (!isActiveSession &&
+      isViewingHistory &&
+      (isHistoryLoading || Boolean(historyError)));
   const trimmedInput = textInput.trim();
   const canSendText =
     isActiveSession && !isReadOnlyHistory && trimmedInput.length > 0;
@@ -231,6 +238,9 @@ export function LivePage() {
   const handleRetryHistory = useCallback(() => {
     void historyQuery.refetch();
   }, [historyQuery]);
+  const handleStartNewSession = useCallback(() => {
+    navigate({ to: "/live" });
+  }, [navigate]);
 
   const buildSessionMeta = useCallback(
     (): LiveSessionMeta => ({
@@ -624,8 +634,19 @@ System Context:
       disconnect();
       return;
     }
+    if (isViewingHistory) {
+      await connectResumeSession();
+      return;
+    }
     await connectSession();
-  }, [connectSession, disconnect, status, syncPreviousSession]);
+  }, [
+    connectResumeSession,
+    connectSession,
+    disconnect,
+    isViewingHistory,
+    status,
+    syncPreviousSession,
+  ]);
 
   const handleToggleMute = useCallback(() => {
     if (isRecording) {
@@ -763,44 +784,46 @@ System Context:
 
           <div className="flex flex-1 flex-col">
             <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
-              <div className="space-y-3">
-                <HistoryBanner
-                  isVisible={isViewingHistory}
-                  isConnecting={isConnecting}
-                  isLoading={isHistoryLoading}
-                  errorMessage={historyErrorMessage}
-                  sessionTitle={historyQuery.data?.session.title ?? null}
-                  onResume={connectResumeSession}
-                  onRetry={handleRetryHistory}
-                />
+              {!isNewSession && (
+                <>
+                  <div className="space-y-3">
+                    <HistoryBanner
+                      isVisible={isViewingHistory}
+                      isLoading={isHistoryLoading}
+                      errorMessage={historyErrorMessage}
+                      sessionTitle={historyQuery.data?.session.title ?? null}
+                      onRetry={handleRetryHistory}
+                    />
 
-                {(isHistoryLoading || historyError instanceof Error) && (
-                  <div className="space-y-2">
-                    {isHistoryLoading && (
-                      <StatusPill className="border border-border/60 text-xs text-muted-foreground">
-                        Loading session history...
-                      </StatusPill>
-                    )}
-                    {historyError instanceof Error && (
-                      <StatusPill className="border border-destructive/30 text-xs text-destructive">
-                        {historyError.message}
-                      </StatusPill>
+                    {(isHistoryLoading || historyError instanceof Error) && (
+                      <div className="space-y-2">
+                        {isHistoryLoading && (
+                          <StatusPill className="border border-border/60 text-xs text-muted-foreground">
+                            Loading session history...
+                          </StatusPill>
+                        )}
+                        {historyError instanceof Error && (
+                          <StatusPill className="border border-destructive/30 text-xs text-destructive">
+                            {historyError.message}
+                          </StatusPill>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              <div className="min-h-0 flex-1">
-                <LiveTranscript
-                  messages={displayMessages}
-                  status={status}
-                  persona={isViewingHistory ? historyPersona : selectedPersona}
-                  className="w-full"
-                />
-              </div>
+                  <div className="min-h-0 flex-1">
+                    <LiveTranscript
+                      messages={displayMessages}
+                      status={status}
+                      persona={isViewingHistory ? historyPersona : selectedPersona}
+                      className="w-full"
+                    />
+                  </div>
+                </>
+              )}
 
-              <div className="sticky bottom-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-6 -mx-6 px-6 lg:-mx-8 lg:px-8 mt-auto">
-                <div className="flex flex-col gap-3">
+              {isNewSession ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3">
                   <LiveStatusSection
                     isRestoringHistory={isRestoringHistory}
                     sessionError={sessionError}
@@ -818,6 +841,7 @@ System Context:
                     isReadOnlyHistory={isReadOnlyHistory}
                     isRecording={isRecording}
                     isPaused={isPaused}
+                    isStartDisabled={isStartDisabled}
                     onToggleMute={handleToggleMute}
                     onToggleSession={handleToggleSession}
                     textInput={textInput}
@@ -827,7 +851,38 @@ System Context:
                     className="w-full"
                   />
                 </div>
-              </div>
+              ) : (
+                <div className="sticky bottom-6 z-20 mt-8">
+                  <div className="flex flex-col gap-3">
+                    <LiveStatusSection
+                      isRestoringHistory={isRestoringHistory}
+                      sessionError={sessionError}
+                      failedSyncCount={failedSyncCount}
+                      onRetryFailedMessages={handleRetryFailedMessages}
+                    />
+
+                    <LiveControls
+                      selectedPersonaId={selectedPersona.id}
+                      onSelectPersona={setSelectedPersona}
+                      selectedVoice={selectedVoice}
+                      onVoiceChange={setSelectedVoice}
+                      isActiveSession={isActiveSession}
+                      isConnecting={isConnecting}
+                      isReadOnlyHistory={isReadOnlyHistory}
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      isStartDisabled={isStartDisabled}
+                      onToggleMute={handleToggleMute}
+                      onToggleSession={handleToggleSession}
+                      textInput={textInput}
+                      onTextInputChange={setTextInput}
+                      onSendMessage={handleSendMessage}
+                      canSendText={canSendText}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </main>

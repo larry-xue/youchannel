@@ -687,10 +687,14 @@ System Context:
             uiLocale,
           },
         });
+        const languages = result.assessment.map(
+          (entry) => `${entry.language}:${entry.overall_cefr}`,
+        );
         logLiveAssessment("assessment_trigger_success", {
           liveSessionId,
           formattedBy: result.formattedBy,
-          overall: result.assessment.overall_cefr,
+          languageCount: result.assessment.length,
+          languages,
         });
       } catch (err) {
         console.error("[LiveAssessment] Failed to evaluate session", err);

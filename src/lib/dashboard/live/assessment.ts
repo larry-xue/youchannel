@@ -24,7 +24,10 @@ const logAssessment = (...args: unknown[]) => {
 
 const cefrSchema = z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]);
 
-const assessmentSchema = z.object({
+const bcp47Schema = z.string().min(2).max(35);
+
+const assessmentEntrySchema = z.object({
+  language: bcp47Schema,
   overall_cefr: cefrSchema,
   dimensions: z.object({
     pronunciation: cefrSchema,
@@ -40,7 +43,10 @@ const assessmentSchema = z.object({
   recommendations: z.array(z.string()).max(5),
 });
 
-export type LiveSessionAssessment = z.infer<typeof assessmentSchema>;
+const assessmentArraySchema = z.array(assessmentEntrySchema);
+
+export type LiveSessionAssessmentEntry = z.infer<typeof assessmentEntrySchema>;
+export type LiveSessionAssessment = z.infer<typeof assessmentArraySchema>;
 
 const assessLiveSessionSchema = z.object({
   liveSessionId: z.string().uuid(),
@@ -122,19 +128,147 @@ const collectTurnText = async (
   return textChunks.join("").trim();
 };
 
+const bcp47TagPattern = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
+
+const normalizeLanguageTag = (value: string | null | undefined) => {
+  if (!value) return "und";
+  const normalized = value.trim().replace(/_/g, "-");
+  if (!normalized || !bcp47TagPattern.test(normalized)) return "und";
+
+  const parts = normalized.split("-");
+  const [primary, ...rest] = parts;
+  const normalizedParts = [
+    primary.toLowerCase(),
+    ...rest.map((part) => {
+      if (part.length === 4) {
+        return part[0].toUpperCase() + part.slice(1).toLowerCase();
+      }
+      if (part.length === 2 || /^\d{3}$/.test(part)) {
+        return part.toUpperCase();
+      }
+      return part.toLowerCase();
+    }),
+  ];
+
+  return normalizedParts.join("-");
+};
+
+const dedupeAssessments = (entries: LiveSessionAssessmentEntry[]) => {
+  const byLanguage = new Map<string, LiveSessionAssessmentEntry>();
+  const order: string[] = [];
+  for (const entry of entries) {
+    if (!byLanguage.has(entry.language)) {
+      order.push(entry.language);
+    }
+    byLanguage.set(entry.language, entry);
+  }
+  return order.map((language) => byLanguage.get(language)!);
+};
+
+const normalizeAssessmentEntry = (
+  candidate: unknown,
+  fallbackLanguage: string,
+): LiveSessionAssessmentEntry | null => {
+  if (!candidate || typeof candidate !== "object") return null;
+  const record = candidate as Record<string, unknown>;
+  const rawLanguage =
+    typeof record.language === "string"
+      ? record.language
+      : typeof record.lang === "string"
+        ? record.lang
+        : undefined;
+  const language = normalizeLanguageTag(rawLanguage ?? fallbackLanguage);
+  const parsed = assessmentEntrySchema.safeParse({ ...record, language });
+  return parsed.success ? parsed.data : null;
+};
+
+const normalizeAssessmentArray = (
+  input: unknown,
+  fallbackLanguage = "und",
+): LiveSessionAssessment => {
+  const normalizedFallback = normalizeLanguageTag(fallbackLanguage);
+  const normalize = (entry: unknown) =>
+    normalizeAssessmentEntry(entry, normalizedFallback);
+
+  let entries: LiveSessionAssessmentEntry[] = [];
+
+  if (Array.isArray(input)) {
+    entries = input
+      .map((entry) => normalize(entry))
+      .filter((entry): entry is LiveSessionAssessmentEntry => Boolean(entry));
+  } else if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    if (Array.isArray(record.assessments)) {
+      entries = record.assessments
+        .map((entry) => normalize(entry))
+        .filter((entry): entry is LiveSessionAssessmentEntry => Boolean(entry));
+    } else {
+      const single = normalize(input);
+      if (single) entries = [single];
+    }
+  } else {
+    const single = normalize(input);
+    if (single) entries = [single];
+  }
+
+  return dedupeAssessments(entries);
+};
+
+const mergeAssessments = (
+  previous: LiveSessionAssessment | null,
+  next: LiveSessionAssessment,
+) => {
+  if (!previous || previous.length === 0) return next;
+  if (next.length === 0) return previous;
+
+  const nextByLanguage = new Map(
+    next.map((entry) => [entry.language, entry] as const),
+  );
+  const merged: LiveSessionAssessmentEntry[] = [];
+  const used = new Set<string>();
+
+  for (const entry of previous) {
+    const updated = nextByLanguage.get(entry.language);
+    if (updated) {
+      merged.push(updated);
+      used.add(updated.language);
+    } else {
+      merged.push(entry);
+      used.add(entry.language);
+    }
+  }
+
+  for (const entry of next) {
+    if (!used.has(entry.language)) {
+      merged.push(entry);
+      used.add(entry.language);
+    }
+  }
+
+  return dedupeAssessments(merged);
+};
+
 const buildAssessmentPrompt = (
   uiLocale: string,
   previousAssessment: LiveSessionAssessment | null,
 ) => {
-  const previous = previousAssessment
-    ? JSON.stringify(previousAssessment)
-    : "null";
+  const previous =
+    previousAssessment && previousAssessment.length > 0
+      ? JSON.stringify(previousAssessment)
+      : "[]";
 
-  return `You are a CEFR evaluator for spoken language. 
-Evaluate the user's proficiency based ONLY on this Live session memory.
+  return `The user had ended the live session. Now imagine you are a CEFR evaluator for spoken language.
+Analyze ONLY the user's utterances in this Live session memory.
 
-Return a JSON object with this exact schema (no extra keys, no markdown):
+If the user uses multiple languages, return one report per language.
+Use BCP-47 tags in "language" (e.g., en, en-US, zh-Hans).
+Only include a language if there is sufficient user data in this session
+to evaluate it. If insufficient, omit that language. If none qualify,
+return [].
+
+Return a JSON array (no extra keys, no markdown). Each item:
 {
+  "language": "BCP-47",
   "overall_cefr": "A1|A2|B1|B2|C1|C2",
   "dimensions": {
     "pronunciation": "A1|A2|B1|B2|C1|C2",
@@ -152,22 +286,10 @@ Return a JSON object with this exact schema (no extra keys, no markdown):
 
 Write summary/strengths/weaknesses/recommendations in ${uiLocale}.
 
-If previous_assessment is provided, update it with new evidence and
-override fields where needed.
+If previous_assessment is provided, update the relevant language entries
+with new evidence and override fields where needed.
 
 previous_assessment: ${previous}`;
-};
-
-const parseJsonFromText = (text: string) => {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1] : trimmed;
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start >= 0 && end > start) {
-    return JSON.parse(candidate.slice(start, end + 1));
-  }
-  return JSON.parse(candidate);
 };
 
 const formatAssessmentWithGemini = async (
@@ -177,15 +299,18 @@ const formatAssessmentWithGemini = async (
   previousAssessment: LiveSessionAssessment | null,
 ): Promise<LiveSessionAssessment> => {
   const ai = new GoogleGenAI({ apiKey });
-  const previous = previousAssessment
-    ? JSON.stringify(previousAssessment)
-    : "null";
+  const previous =
+    previousAssessment && previousAssessment.length > 0
+      ? JSON.stringify(previousAssessment)
+      : "[]";
 
   const prompt = `Format the following CEFR assessment into strict JSON.
 If the text is vague, infer the best structured output.
 
-Target schema:
+Output must be a JSON object with a single key "assessments", whose value
+is an array of assessment items. Each item must follow this schema:
 {
+  "language": "BCP-47",
   "overall_cefr": "A1|A2|B1|B2|C1|C2",
   "dimensions": {
     "pronunciation": "A1|A2|B1|B2|C1|C2",
@@ -200,6 +325,9 @@ Target schema:
   "weaknesses": ["..."],
   "recommendations": ["..."]
 }
+
+If multiple languages are present, include multiple items.
+Only include languages with sufficient evidence; if none, return [].
 
 Write summary/strengths/weaknesses/recommendations in ${uiLocale}.
 previous_assessment: ${previous}
@@ -213,58 +341,70 @@ ${rawText}`;
     response_format: {
       type: "object",
       properties: {
-        overall_cefr: {
-          type: "string",
-          enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-        },
-        dimensions: {
-          type: "object",
-          properties: {
-            pronunciation: {
-              type: "string",
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+        assessments: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              language: { type: "string" },
+              overall_cefr: {
+                type: "string",
+                enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+              },
+              dimensions: {
+                type: "object",
+                properties: {
+                  pronunciation: {
+                    type: "string",
+                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                  },
+                  fluency: {
+                    type: "string",
+                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                  },
+                  grammar: {
+                    type: "string",
+                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                  },
+                  vocabulary: {
+                    type: "string",
+                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                  },
+                  comprehension: {
+                    type: "string",
+                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                  },
+                },
+                required: [
+                  "pronunciation",
+                  "fluency",
+                  "grammar",
+                  "vocabulary",
+                  "comprehension",
+                ],
+                additionalProperties: false,
+              },
+              confidence: { type: "number" },
+              summary: { type: "string" },
+              strengths: { type: "array", items: { type: "string" } },
+              weaknesses: { type: "array", items: { type: "string" } },
+              recommendations: { type: "array", items: { type: "string" } },
             },
-            fluency: {
-              type: "string",
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-            },
-            grammar: {
-              type: "string",
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-            },
-            vocabulary: {
-              type: "string",
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-            },
-            comprehension: {
-              type: "string",
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-            },
+            required: [
+              "language",
+              "overall_cefr",
+              "dimensions",
+              "confidence",
+              "summary",
+              "strengths",
+              "weaknesses",
+              "recommendations",
+            ],
+            additionalProperties: false,
           },
-          required: [
-            "pronunciation",
-            "fluency",
-            "grammar",
-            "vocabulary",
-            "comprehension",
-          ],
-          additionalProperties: false,
         },
-        confidence: { type: "number" },
-        summary: { type: "string" },
-        strengths: { type: "array", items: { type: "string" } },
-        weaknesses: { type: "array", items: { type: "string" } },
-        recommendations: { type: "array", items: { type: "string" } },
       },
-      required: [
-        "overall_cefr",
-        "dimensions",
-        "confidence",
-        "summary",
-        "strengths",
-        "weaknesses",
-        "recommendations",
-      ],
+      required: ["assessments"],
       additionalProperties: false,
     },
     response_mime_type: "application/json",
@@ -283,7 +423,7 @@ ${rawText}`;
   }
 
   const parsed = JSON.parse(textOutput.text);
-  return assessmentSchema.parse(parsed);
+  return normalizeAssessmentArray(parsed, uiLocale);
 };
 
 export const evaluateLiveSessionFn = createServerFn({ method: "POST" })
@@ -315,15 +455,19 @@ export const evaluateLiveSessionFn = createServerFn({ method: "POST" })
         throw new Error(previousError.message || "Failed to load assessment");
       }
 
-      const previousAssessment = previous?.assessment
-        ? assessmentSchema.safeParse(previous.assessment).data ?? null
-        : null;
+      const previousAssessment = normalizeAssessmentArray(
+        previous?.assessment,
+        data.uiLocale,
+      );
+      const previousForPrompt =
+        previousAssessment.length > 0 ? previousAssessment : null;
 
       logAssessment("previous_assessment_loaded", {
-        exists: Boolean(previousAssessment),
+        count: previousAssessment.length,
+        languages: previousAssessment.map((entry) => entry.language),
       });
 
-      const prompt = buildAssessmentPrompt(data.uiLocale, previousAssessment);
+      const prompt = buildAssessmentPrompt(data.uiLocale, previousForPrompt);
       const messageQueue = createMessageQueue();
 
       let evaluationText = "";
@@ -400,32 +544,34 @@ export const evaluateLiveSessionFn = createServerFn({ method: "POST" })
         session.close();
       }
 
-      let assessment: LiveSessionAssessment | null = null;
-      const formattedBy: AssessmentResult["formattedBy"] = "gemini-3";
-
-
       if (!formatApiKey) {
-        throw new Error(
-          "GOOGLE_API_KEY is not set for assessment formatting.",
-        );
+        throw new Error("GOOGLE_API_KEY is not set for assessment formatting.");
       }
 
-      logAssessment("original_output", { evaluationText })
+      logAssessment("original_output", { evaluationText });
 
-      assessment = await formatAssessmentWithGemini(
+      const assessment = await formatAssessmentWithGemini(
         formatApiKey,
         evaluationText,
         data.uiLocale,
-        previousAssessment,
+        previousForPrompt,
       );
+      const formattedBy: AssessmentResult["formattedBy"] = "gemini-3";
+      logAssessment("gemini3_assessment_parsed", {
+        count: assessment.length,
+        languages: assessment.map((entry) => entry.language),
+      });
+
+      const mergedAssessment = mergeAssessments(previousForPrompt, assessment);
+      const model = formattedBy === "live" ? LIVE_MODEL : FORMAT_MODEL;
 
       const { error: upsertError } = await supabase
         .from("live_session_assessments")
         .upsert(
           {
             live_session_id: data.liveSessionId,
-            assessment,
-            model: FORMAT_MODEL,
+            assessment: mergedAssessment,
+            model,
           },
           { onConflict: "live_session_id" },
         );
@@ -436,10 +582,11 @@ export const evaluateLiveSessionFn = createServerFn({ method: "POST" })
 
       logAssessment("saved", {
         formattedBy,
+        languageCount: mergedAssessment.length,
         durationMs: Date.now() - startedAt,
       });
 
-      return { assessment, formattedBy };
+      return { assessment: mergedAssessment, formattedBy };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logAssessment("error", {

@@ -26,7 +26,15 @@ import {
   retryWithBackoff,
   type MessageSyncState,
 } from "~/lib/dashboard/live/retry";
-import { useLiveObserverSidecar } from "~/lib/dashboard/live/useLiveObserverSidecar";
+import {
+  useLiveObserverSidecar,
+  type LiveObserverOutput,
+} from "~/lib/dashboard/live/useLiveObserverSidecar";
+import {
+  appendLiveObserverOutputFn,
+  getLiveObserverOutputsFn,
+  type LiveObserverOutputRecord,
+} from "~/lib/dashboard/live/observer";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { useAuthUser } from "~/lib/store/auth";
@@ -208,6 +216,14 @@ export function LivePage() {
       }) as Promise<{ assessment: LiveSessionAssessment }>,
     enabled: Boolean(resolvedSessionId),
   });
+  const observerOutputsQuery = useQuery<{ outputs: LiveObserverOutputRecord[] }>({
+    queryKey: ["live-session-observer-outputs", resolvedSessionId],
+    queryFn: () =>
+      getLiveObserverOutputsFn({
+        data: { liveSessionId: resolvedSessionId! },
+      }) as Promise<{ outputs: LiveObserverOutputRecord[] }>,
+    enabled: Boolean(resolvedSessionId),
+  });
   const historyMessages = useMemo(() => {
     if (!historyQuery.data) return [];
     return historyQuery.data.messages.map((message, index) => ({
@@ -221,11 +237,52 @@ export function LivePage() {
     }));
   }, [historyQuery.data]);
   const assessmentEntries = assessmentQuery.data?.assessment ?? [];
+  const observerHistoryOutputs = useMemo<LiveObserverOutput[]>(() => {
+    const outputs = observerOutputsQuery.data?.outputs ?? [];
+    return outputs.map((entry) => ({
+      id: entry.clientOutputId ?? entry.id,
+      createdAt: new Date(entry.createdAt).getTime(),
+      transcript: entry.transcript,
+      suggestions: entry.suggestions,
+      confidence: entry.confidence,
+    }));
+  }, [observerOutputsQuery.data]);
 
   const lastHistorySequenceNumber = useMemo(() => {
     if (!historyMessages.length) return 0;
     return Math.max(...historyMessages.map((message) => message.sequenceNumber));
   }, [historyMessages]);
+
+  const ensureLiveSessionId = useCallback(async (): Promise<string> => {
+    const session = activeSessionRef.current;
+    if (!session) throw new Error("No active session");
+    if (session.liveSessionId) return session.liveSessionId;
+
+    // If session creation is already in progress, wait for it
+    if (sessionCreationPromiseRef.current) {
+      return sessionCreationPromiseRef.current;
+    }
+
+    console.log("[LiveSync] ensureLiveSessionId: creating new live session record");
+
+    // Create promise for session creation
+    const creationPromise = (async () => {
+      try {
+        const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
+        const { liveSessionId } = await createLiveSessionFn({
+          data: { session },
+        });
+        activeSessionRef.current = { ...session, liveSessionId };
+        queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+        return liveSessionId;
+      } finally {
+        sessionCreationPromiseRef.current = null;
+      }
+    })();
+
+    sessionCreationPromiseRef.current = creationPromise;
+    return creationPromise;
+  }, [queryClient]);
 
   const handleResumptionHandle = useCallback(
     (handle: string, resumable: boolean) => {
@@ -262,6 +319,46 @@ export function LivePage() {
     },
   });
 
+  const handleObserverOutput = useCallback(
+    async (output: LiveObserverOutput) => {
+      if (isReadOnlyHistory) return;
+      const session = activeSessionRef.current;
+      if (!session) return;
+
+      let liveSessionId = session.liveSessionId;
+      if (!liveSessionId) {
+        try {
+          liveSessionId = await ensureLiveSessionId();
+        } catch (persistError) {
+          console.warn(
+            "[Observer] Failed to ensure live session id",
+            persistError,
+          );
+          return;
+        }
+      }
+
+      try {
+        await appendLiveObserverOutputFn({
+          data: {
+            liveSessionId,
+            output: {
+              clientOutputId: output.id,
+              transcript: output.transcript,
+              suggestions: output.suggestions,
+              confidence: output.confidence,
+              uiLocale,
+              createdAt: new Date(output.createdAt).toISOString(),
+            },
+          },
+        });
+      } catch (persistError) {
+        console.warn("[Observer] Failed to persist output", persistError);
+      }
+    },
+    [ensureLiveSessionId, isReadOnlyHistory, uiLocale],
+  );
+
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -287,15 +384,30 @@ export function LivePage() {
     onInjectPrompt: (text) => {
       sendContext(formatSidecarInjection(text));
     },
+    onOutput: handleObserverOutput,
   });
   useEffect(() => {
     audioChunkHandlerRef.current = observer.ingestAudioChunk;
   }, [observer.ingestAudioChunk]);
   const canTriggerObserver = observer.canTrigger;
+  const observerPanelOutputs = useMemo(() => {
+    if (!isViewingHistory) return observer.outputs;
+    if (isReadOnlyHistory) return observerHistoryOutputs;
+
+    const byId = new Map<string, LiveObserverOutput>();
+    observerHistoryOutputs.forEach((entry) => {
+      byId.set(entry.id, entry);
+    });
+    observer.outputs.forEach((entry) => {
+      byId.set(entry.id, entry);
+    });
+    return [...byId.values()].sort((a, b) => a.createdAt - b.createdAt);
+  }, [isReadOnlyHistory, isViewingHistory, observer.outputs, observerHistoryOutputs]);
+  const observerPanelError = isReadOnlyHistory
+    ? observerOutputsQuery.error
+    : observer.error;
   const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
   const historyError = isViewingHistory ? historyQuery.error : null;
-  const historyErrorMessage =
-    historyError instanceof Error ? historyError.message : null;
   const isNewSession =
     !isViewingHistory && displayMessages.length === 0 && !isActiveSession;
   const isStartDisabled =
@@ -533,37 +645,6 @@ export function LivePage() {
     },
     [queryClient, saveSyncedIds],
   );
-
-  const ensureLiveSessionId = useCallback(async (): Promise<string> => {
-    const session = activeSessionRef.current;
-    if (!session) throw new Error("No active session");
-    if (session.liveSessionId) return session.liveSessionId;
-
-    // If session creation is already in progress, wait for it
-    if (sessionCreationPromiseRef.current) {
-      return sessionCreationPromiseRef.current;
-    }
-
-    console.log("[LiveSync] ensureLiveSessionId: creating new live session record");
-
-    // Create promise for session creation
-    const creationPromise = (async () => {
-      try {
-        const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
-        const { liveSessionId } = await createLiveSessionFn({
-          data: { session },
-        });
-        activeSessionRef.current = { ...session, liveSessionId };
-        queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
-        return liveSessionId;
-      } finally {
-        sessionCreationPromiseRef.current = null;
-      }
-    })();
-
-    sessionCreationPromiseRef.current = creationPromise;
-    return creationPromise;
-  }, [queryClient]);
 
   const connectSession = useCallback(async () => {
     setSessionError(null);
@@ -1049,8 +1130,8 @@ System Context:
         </main>
 
         <ObserverPanel
-          outputs={observer.outputs}
-          error={observer.error}
+          outputs={observerPanelOutputs}
+          error={observerPanelError}
           canTrigger={canTriggerObserver}
           onTrigger={handleTriggerObserver}
           assessment={isViewingHistory ? assessmentEntries : null}

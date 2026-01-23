@@ -24,6 +24,7 @@ type UseLiveObserverSidecarOptions = {
   isReadOnlyHistory: boolean;
   messages: Message[];
   onInjectPrompt: (text: string) => void;
+  onOutput?: (output: LiveObserverOutput) => void | Promise<void>;
 };
 
 const SAMPLE_RATE = 16000;
@@ -103,6 +104,7 @@ export function useLiveObserverSidecar({
   isReadOnlyHistory,
   messages,
   onInjectPrompt,
+  onOutput,
 }: UseLiveObserverSidecarOptions) {
   const [outputs, setOutputs] = useState<LiveObserverOutput[]>([]);
   const [error, setError] = useState<Error | null>(null);
@@ -266,17 +268,21 @@ export function useLiveObserverSidecar({
           },
         });
 
+        const output: LiveObserverOutput = {
+          id: crypto.randomUUID(),
+          createdAt: now,
+          ...result,
+        };
+
         setOutputs((prev) => {
-          const next = [
-            ...prev,
-            {
-              id: crypto.randomUUID(),
-              createdAt: now,
-              ...result,
-            },
-          ];
+          const next = [...prev, output];
           return next.slice(-12);
         });
+        if (onOutput) {
+          Promise.resolve(onOutput(output)).catch((persistError) => {
+            logSidecar("persist_error", { message: String(persistError) });
+          });
+        }
 
         logSidecar("response", {
           confidence: result.confidence,
@@ -316,6 +322,7 @@ export function useLiveObserverSidecar({
       personaPrompt,
       resetAudioBuffer,
       uiLocale,
+      onOutput,
     ],
   );
 

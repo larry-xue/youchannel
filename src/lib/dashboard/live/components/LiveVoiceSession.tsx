@@ -35,8 +35,7 @@ export function LiveTranscript({
   return (
     <ScrollArea
       className={cn(
-        "flex-1 h-full min-h-[320px] rounded-2xl bg-background/80",
-        "[&_[data-slot=scroll-area-scrollbar]]:hidden",
+        "flex-1 h-full min-h-[320px] rounded-2xl bg-background/80 max-h-[calc(100vh-300px)]",
         className,
       )}
     >

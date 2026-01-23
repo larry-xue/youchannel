@@ -1,6 +1,11 @@
 import { memo, useEffect, useState } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "~/lib/components/ui/accordion";
 import { Badge } from "~/lib/components/ui/badge";
-import { Button } from "~/lib/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { LiveSessionAssessment } from "~/lib/dashboard/live/assessment";
 import type { LiveObserverOutput } from "~/lib/dashboard/live/useLiveObserverSidecar";
@@ -72,6 +77,11 @@ export const ObserverPanel = memo(function ObserverPanel({
     if (Number.isNaN(value)) return "--";
     return `${Math.round(value * 100)}%`;
   };
+  const formatTimestamp = (value: number) =>
+    new Date(value).toLocaleTimeString(assessmentLocale ?? "en", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   const dimensionItems: Array<{ key: DimensionKey; label: string }> = [
     { key: "pronunciation", label: m.live_assessment_dim_pronunciation() },
     { key: "fluency", label: m.live_assessment_dim_fluency() },
@@ -83,12 +93,18 @@ export const ObserverPanel = memo(function ObserverPanel({
   return (
     <aside
       className={cn(
-        "hidden xl:flex flex-col gap-4 text-base w-80 shrink-0 border-l border-border/60 bg-background sticky top-0 h-screen py-4 px-2",
+        "hidden xl:flex flex-col gap-4 text-base w-80 shrink-0",
+        "border-l border-border/60 bg-background sticky top-0 h-screen py-4 px-2",
         className,
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-base font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        <p
+          className={cn(
+            "text-base font-semibold uppercase tracking-[0.2em]",
+            "text-muted-foreground",
+          )}
+        >
           {m.live_observer_title()}
         </p>
         {/* <Button size="sm" variant="ghost" onClick={onTrigger} disabled={!canTrigger}>
@@ -107,9 +123,14 @@ export const ObserverPanel = memo(function ObserverPanel({
       )}
 
       {hasAssessment && (
-        <section className="rounded-2xl border border-border/60 bg-muted/30 p-3">
+        <section className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-base font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <p
+              className={cn(
+                "text-base font-semibold uppercase tracking-[0.2em]",
+                "text-muted-foreground",
+              )}
+            >
               {m.live_assessment_title()}
             </p>
             <span className="text-base text-muted-foreground">
@@ -118,7 +139,7 @@ export const ObserverPanel = memo(function ObserverPanel({
           </div>
 
           {hasMultipleLanguages && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {assessment?.map((entry) => {
                 const isActive = entry.language === activeEntry?.language;
                 return (
@@ -132,7 +153,10 @@ export const ObserverPanel = memo(function ObserverPanel({
                       "transition-colors",
                       isActive
                         ? "border-foreground bg-foreground text-background"
-                        : "border-border/60 bg-background/70 text-muted-foreground hover:text-foreground",
+                        : cn(
+                            "border-border/60 bg-transparent",
+                            "text-muted-foreground hover:text-foreground",
+                          ),
                     )}
                   >
                     {getLanguageName(entry.language)}
@@ -143,67 +167,63 @@ export const ObserverPanel = memo(function ObserverPanel({
           )}
 
           {activeEntry && (
-            <div className="mt-3 relative">
-              {hasMultipleLanguages && (
-                <>
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 -translate-y-2 translate-x-2 rounded-xl border border-border/50 bg-background/60 shadow-sm"
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 -translate-y-4 translate-x-4 rounded-xl border border-border/40 bg-background/40 shadow-sm"
-                  />
-                </>
-              )}
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground truncate">
+                    {getLanguageName(activeEntry.language)}
+                  </p>
+                  <p className="text-base text-muted-foreground">
+                    {activeEntry.language}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-base">
+                    {activeEntry.overall_cefr}
+                  </Badge>
+                  <span className="text-base text-muted-foreground">
+                    {m.live_assessment_confidence_short()}{" "}
+                    {formatConfidence(activeEntry.confidence)}
+                  </span>
+                </div>
+              </div>
 
-              <div className="relative rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-base font-semibold text-foreground truncate">
-                      {getLanguageName(activeEntry.language)}
-                    </p>
-                    <p className="text-base text-muted-foreground">
-                      {activeEntry.language}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge variant="secondary" className="text-base">
-                      {activeEntry.overall_cefr}
-                    </Badge>
-                    <span className="text-base text-muted-foreground">
-                      {m.live_assessment_confidence_short()}{" "}
-                      {formatConfidence(activeEntry.confidence)}
+              <p className="text-base text-foreground/90 leading-relaxed">
+                {activeEntry.summary}
+              </p>
+
+              <div className="space-y-2">
+                {dimensionItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className={cn(
+                      "flex items-center justify-between border-b pb-1",
+                      "border-border/40 last:border-b-0",
+                    )}
+                  >
+                    <span className="text-muted-foreground">{item.label}</span>
+                    <span className="font-semibold text-foreground">
+                      {activeEntry.dimensions[item.key]}
                     </span>
                   </div>
-                </div>
+                ))}
+              </div>
 
-                <p className="text-base text-foreground/90 leading-relaxed">
-                  {activeEntry.summary}
-                </p>
-
-                <div className="grid grid-cols-2 gap-2 text-base">
-                  {dimensionItems.map((item) => (
-                    <div
-                      key={item.key}
-                      className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/40 px-2 py-1"
+              <Accordion type="multiple" className="w-full">
+                {activeEntry.strengths.length > 0 && (
+                  <AccordionItem
+                    value={`${activeEntry.language}-strengths`}
+                    className="border-border/40"
+                  >
+                    <AccordionTrigger
+                      className={cn(
+                        "py-2 text-base font-semibold uppercase tracking-[0.18em]",
+                        "text-muted-foreground hover:no-underline",
+                      )}
                     >
-                      <span className="text-muted-foreground">
-                        {item.label}
-                      </span>
-                      <span className="font-semibold text-foreground">
-                        {activeEntry.dimensions[item.key]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-2 text-base">
-                  {activeEntry.strengths.length > 0 && (
-                    <div>
-                      <p className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        {m.live_assessment_strengths()}
-                      </p>
+                      {m.live_assessment_strengths()}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-base">
                       <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
                         {activeEntry.strengths.map((item, index) => (
                           <li key={`${activeEntry.language}-strength-${index}`}>
@@ -211,14 +231,24 @@ export const ObserverPanel = memo(function ObserverPanel({
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  )}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
 
-                  {activeEntry.weaknesses.length > 0 && (
-                    <div>
-                      <p className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        {m.live_assessment_weaknesses()}
-                      </p>
+                {activeEntry.weaknesses.length > 0 && (
+                  <AccordionItem
+                    value={`${activeEntry.language}-weaknesses`}
+                    className="border-border/40"
+                  >
+                    <AccordionTrigger
+                      className={cn(
+                        "py-2 text-base font-semibold uppercase tracking-[0.18em]",
+                        "text-muted-foreground hover:no-underline",
+                      )}
+                    >
+                      {m.live_assessment_weaknesses()}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-base">
                       <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
                         {activeEntry.weaknesses.map((item, index) => (
                           <li key={`${activeEntry.language}-weakness-${index}`}>
@@ -226,14 +256,24 @@ export const ObserverPanel = memo(function ObserverPanel({
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  )}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
 
-                  {activeEntry.recommendations.length > 0 && (
-                    <div>
-                      <p className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        {m.live_assessment_recommendations()}
-                      </p>
+                {activeEntry.recommendations.length > 0 && (
+                  <AccordionItem
+                    value={`${activeEntry.language}-recommendations`}
+                    className="border-border/40"
+                  >
+                    <AccordionTrigger
+                      className={cn(
+                        "py-2 text-base font-semibold uppercase tracking-[0.18em]",
+                        "text-muted-foreground hover:no-underline",
+                      )}
+                    >
+                      {m.live_assessment_recommendations()}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-base">
                       <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
                         {activeEntry.recommendations.map((item, index) => (
                           <li key={`${activeEntry.language}-rec-${index}`}>
@@ -241,10 +281,10 @@ export const ObserverPanel = memo(function ObserverPanel({
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
             </div>
           )}
         </section>
@@ -257,80 +297,128 @@ export const ObserverPanel = memo(function ObserverPanel({
               {m.live_observer_empty()}
             </p>
           )}
-          {outputs.map((entry) => (
-            <div key={entry.id} className="space-y-3 break-words">
-              {entry.transcript && (
-                <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-base text-muted-foreground">
-                  "{entry.transcript}"
-                </div>
-              )}
-
-              {entry.suggestions.length > 0 && (
-                <div className="space-y-2">
-                  {entry.suggestions.map((suggestion, index) => {
-                    const itemKey = `${entry.id}-${suggestion.type}-${index}`;
-                    const label =
-                      suggestion.type === "grammar"
-                        ? m.live_assessment_dim_grammar()
-                        : suggestion.type === "vocabulary"
-                          ? m.live_assessment_dim_vocabulary()
-                          : suggestion.type === "pronunciation"
-                            ? m.live_assessment_dim_pronunciation()
-                            : suggestion.type === "fluency"
-                              ? m.live_assessment_dim_fluency()
-                              : suggestion.type === "comprehension"
-                                ? m.live_assessment_dim_comprehension()
-                                : m.live_observer_title();
-
-                    return (
-                      <div
-                        key={itemKey}
-                        className="rounded-xl border border-border/60 bg-background/80 px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                            {label}
-                          </span>
-                          <span className="text-base text-muted-foreground">
-                            {formatConfidence(suggestion.confidence)}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-base text-foreground">
-                          {suggestion.text}
-                        </div>
-                        {suggestion.example && (
-                          <div className="mt-1 text-base text-muted-foreground">
-                            "{suggestion.example}"
-                          </div>
+          {hasOutputs && (
+            <Accordion type="multiple" className="w-full">
+              {outputs.map((entry) => (
+                <AccordionItem
+                  key={entry.id}
+                  value={entry.id}
+                  className="border-border/40"
+                >
+                  <AccordionTrigger
+                    className={cn(
+                      "py-2 text-base font-semibold",
+                      "hover:no-underline",
+                    )}
+                  >
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <span
+                        className={cn(
+                          "uppercase tracking-[0.18em]",
+                          "text-muted-foreground",
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {entry.injection && (
-                <div className="rounded-xl border border-foreground/20 bg-foreground/5 px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {m.live_assessment_recommendations()}
-                    </span>
-                    <Badge variant="secondary" className="text-base uppercase">
-                      {entry.injection.priority}
-                    </Badge>
-                  </div>
-                  <div className="mt-1 text-base text-foreground">
-                    {entry.injection.text}
-                  </div>
-                  {entry.injection.reason && (
-                    <div className="mt-1 text-base text-muted-foreground">
-                      {entry.injection.reason}
+                      >
+                        {m.live_observer_title()}
+                      </span>
+                      <span className="text-base text-muted-foreground">
+                        {formatTimestamp(entry.createdAt)}
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-base">
+                    <div className="space-y-3 break-words">
+                      {entry.transcript && (
+                        <p className="text-base text-muted-foreground">
+                          "{entry.transcript}"
+                        </p>
+                      )}
+
+                      {entry.suggestions.length > 0 && (
+                        <div className="space-y-2">
+                          {entry.suggestions.map((suggestion, index) => {
+                            const itemKey = `${entry.id}-${suggestion.type}-${index}`;
+                            const label =
+                              suggestion.type === "grammar"
+                                ? m.live_assessment_dim_grammar()
+                                : suggestion.type === "vocabulary"
+                                  ? m.live_assessment_dim_vocabulary()
+                                  : suggestion.type === "pronunciation"
+                                    ? m.live_assessment_dim_pronunciation()
+                                    : suggestion.type === "fluency"
+                                      ? m.live_assessment_dim_fluency()
+                                      : suggestion.type === "comprehension"
+                                        ? m.live_assessment_dim_comprehension()
+                                        : m.live_observer_title();
+
+                            return (
+                              <div
+                                key={itemKey}
+                                className={cn(
+                                  "space-y-1 border-b pb-2",
+                                  "border-border/40 last:border-b-0",
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span
+                                    className={cn(
+                                      "text-base font-semibold uppercase tracking-[0.18em]",
+                                      "text-muted-foreground",
+                                    )}
+                                  >
+                                    {label}
+                                  </span>
+                                  <span className="text-base text-muted-foreground">
+                                    {formatConfidence(suggestion.confidence)}
+                                  </span>
+                                </div>
+                                <div className="text-base text-foreground">
+                                  {suggestion.text}
+                                </div>
+                                {suggestion.example && (
+                                  <div className="text-base text-muted-foreground">
+                                    "{suggestion.example}"
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {entry.injection && (
+                        <div className="space-y-1 border-l border-border/60 pl-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={cn(
+                                "text-base font-semibold uppercase tracking-[0.18em]",
+                                "text-muted-foreground",
+                              )}
+                            >
+                              {m.live_assessment_recommendations()}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="text-base uppercase"
+                            >
+                              {entry.injection.priority}
+                            </Badge>
+                          </div>
+                          <div className="text-base text-foreground">
+                            {entry.injection.text}
+                          </div>
+                          {entry.injection.reason && (
+                            <div className="text-base text-muted-foreground">
+                              {entry.injection.reason}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
         </div>
       </div>
     </aside>

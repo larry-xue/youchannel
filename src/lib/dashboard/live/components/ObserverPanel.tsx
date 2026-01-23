@@ -83,12 +83,12 @@ export const ObserverPanel = memo(function ObserverPanel({
   return (
     <aside
       className={cn(
-        "hidden xl:flex flex-col gap-4 text-sm w-80 shrink-0 border-l border-border/60 bg-background sticky top-0 h-screen py-4 px-2",
+        "hidden xl:flex flex-col gap-4 text-base w-80 shrink-0 border-l border-border/60 bg-background sticky top-0 h-screen py-4 px-2",
         className,
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        <p className="text-base font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {m.live_observer_title()}
         </p>
         {/* <Button size="sm" variant="ghost" onClick={onTrigger} disabled={!canTrigger}>
@@ -97,7 +97,11 @@ export const ObserverPanel = memo(function ObserverPanel({
       </div>
 
       {error instanceof Error && (
-        <div role="status" aria-live="polite" className="text-xs text-destructive">
+        <div
+          role="status"
+          aria-live="polite"
+          className="text-base text-destructive"
+        >
           {error.message}
         </div>
       )}
@@ -105,10 +109,10 @@ export const ObserverPanel = memo(function ObserverPanel({
       {hasAssessment && (
         <section className="rounded-2xl border border-border/60 bg-muted/30 p-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-base font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               {m.live_assessment_title()}
             </p>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-base text-muted-foreground">
               {languageCountLabel}
             </span>
           </div>
@@ -124,7 +128,7 @@ export const ObserverPanel = memo(function ObserverPanel({
                     onClick={() => setActiveLanguage(entry.language)}
                     aria-pressed={isActive}
                     className={cn(
-                      "rounded-full border px-3 py-1 text-[11px] font-semibold",
+                      "rounded-full border px-3 py-1 text-base font-semibold",
                       "transition-colors",
                       isActive
                         ? "border-foreground bg-foreground text-background"
@@ -156,29 +160,29 @@ export const ObserverPanel = memo(function ObserverPanel({
               <div className="relative rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
+                    <p className="text-base font-semibold text-foreground truncate">
                       {getLanguageName(activeEntry.language)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       {activeEntry.language}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Badge variant="secondary" className="text-[11px]">
+                    <Badge variant="secondary" className="text-base">
                       {activeEntry.overall_cefr}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-base text-muted-foreground">
                       {m.live_assessment_confidence_short()}{" "}
                       {formatConfidence(activeEntry.confidence)}
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-foreground/90 leading-relaxed">
+                <p className="text-base text-foreground/90 leading-relaxed">
                   {activeEntry.summary}
                 </p>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="grid grid-cols-2 gap-2 text-base">
                   {dimensionItems.map((item) => (
                     <div
                       key={item.key}
@@ -194,10 +198,10 @@ export const ObserverPanel = memo(function ObserverPanel({
                   ))}
                 </div>
 
-                <div className="space-y-2 text-xs">
+                <div className="space-y-2 text-base">
                   {activeEntry.strengths.length > 0 && (
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {m.live_assessment_strengths()}
                       </p>
                       <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
@@ -212,7 +216,7 @@ export const ObserverPanel = memo(function ObserverPanel({
 
                   {activeEntry.weaknesses.length > 0 && (
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {m.live_assessment_weaknesses()}
                       </p>
                       <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
@@ -227,7 +231,7 @@ export const ObserverPanel = memo(function ObserverPanel({
 
                   {activeEntry.recommendations.length > 0 && (
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {m.live_assessment_recommendations()}
                       </p>
                       <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
@@ -249,14 +253,14 @@ export const ObserverPanel = memo(function ObserverPanel({
       <div className="flex-1 overflow-auto">
         <div className="space-y-3 pb-2">
           {!hasOutputs && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {m.live_observer_empty()}
             </p>
           )}
           {outputs.map((entry) => (
             <div key={entry.id} className="space-y-3 break-words">
               {entry.transcript && (
-                <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-base text-muted-foreground">
                   "{entry.transcript}"
                 </div>
               )}
@@ -284,18 +288,18 @@ export const ObserverPanel = memo(function ObserverPanel({
                         className="rounded-xl border border-border/60 bg-background/80 px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          <span className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                             {label}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-base text-muted-foreground">
                             {formatConfidence(suggestion.confidence)}
                           </span>
                         </div>
-                        <div className="mt-1 text-xs text-foreground">
+                        <div className="mt-1 text-base text-foreground">
                           {suggestion.text}
                         </div>
                         {suggestion.example && (
-                          <div className="mt-1 text-[11px] text-muted-foreground">
+                          <div className="mt-1 text-base text-muted-foreground">
                             "{suggestion.example}"
                           </div>
                         )}
@@ -308,18 +312,18 @@ export const ObserverPanel = memo(function ObserverPanel({
               {entry.injection && (
                 <div className="rounded-xl border border-foreground/20 bg-foreground/5 px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <span className="text-base font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {m.live_assessment_recommendations()}
                     </span>
-                    <Badge variant="secondary" className="text-[10px] uppercase">
+                    <Badge variant="secondary" className="text-base uppercase">
                       {entry.injection.priority}
                     </Badge>
                   </div>
-                  <div className="mt-1 text-xs text-foreground">
+                  <div className="mt-1 text-base text-foreground">
                     {entry.injection.text}
                   </div>
                   {entry.injection.reason && (
-                    <div className="mt-1 text-[11px] text-muted-foreground">
+                    <div className="mt-1 text-base text-muted-foreground">
                       {entry.injection.reason}
                     </div>
                   )}

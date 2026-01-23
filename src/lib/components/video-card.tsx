@@ -109,9 +109,8 @@ export function VideoCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <label
-                    className={`flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 ${
-                      isSelectable ? "" : "opacity-80"
-                    }`}
+                    className={`flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 ${isSelectable ? "" : "opacity-80"
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -132,9 +131,8 @@ export function VideoCard({
               </Tooltip>
             ) : (
               <label
-                className={`flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 ${
-                  isSelectable ? "" : "opacity-80"
-                }`}
+                className={`flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 ${isSelectable ? "" : "opacity-80"
+                  }`}
               >
                 <input
                   type="checkbox"
@@ -152,7 +150,7 @@ export function VideoCard({
         </div>
 
         {durationLabel && (
-          <div className="absolute bottom-3 right-3 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[10px] font-medium text-background">
+          <div className="absolute bottom-3 right-3 rounded-md bg-foreground/80 px-1.5 py-0.5 text-base font-medium text-background">
             {durationLabel}
           </div>
         )}

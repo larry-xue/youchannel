@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -32,35 +33,43 @@ export function LiveTranscript({
   const isActiveSession = status === "connected";
 
   return (
-    <div className={cn("flex flex-col gap-6 px-1 pb-6 sm:px-2", className)}>
-      {messages.length === 0 && isActiveSession && (
-        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-          <p>{m.live_status_listening()}</p>
-        </div>
+    <ScrollArea
+      className={cn(
+        "flex-1 h-full min-h-[320px] rounded-2xl bg-background/80",
+        "[&_[data-slot=scroll-area-scrollbar]]:hidden",
+        className,
       )}
-      {messages.map((message) => {
-        const isUser = message.role === "user";
-        return (
-          <div
-            key={message.id}
-            className={cn(
-              "flex flex-col gap-3",
-              isUser ? "items-end" : "items-start",
-            )}
-          >
+    >
+      <div className="flex flex-col gap-6 px-3 pb-6 pt-4 sm:px-4">
+        {messages.length === 0 && isActiveSession && (
+          <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+            <p>{m.live_status_listening()}</p>
+          </div>
+        )}
+        {messages.map((message) => {
+          const isUser = message.role === "user";
+          return (
             <div
+              key={message.id}
               className={cn(
-                "max-w-[720px] whitespace-pre-wrap leading-[1.75] text-foreground",
-                isUser && "rounded-2xl bg-foreground/20 px-4 py-3",
+                "flex flex-col gap-3",
+                isUser ? "items-end" : "items-start",
               )}
             >
-              {message.content}
+              <div
+                className={cn(
+                  "max-w-[720px] whitespace-pre-wrap leading-[1.75] text-foreground",
+                  isUser && "rounded-2xl bg-foreground/20 px-4 py-3",
+                )}
+              >
+                {message.content}
+              </div>
             </div>
-          </div>
-        );
-      })}
-      <div ref={bottomRef} />
-    </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+    </ScrollArea>
   );
 }
 

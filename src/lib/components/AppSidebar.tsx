@@ -116,7 +116,7 @@ export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto pr-1">
           {isLoading && (
-            <span className="text-xs text-muted-foreground">Loading sessions...</span>
+            <span className="pl-2 text-xs text-muted-foreground">Loading sessions...</span>
           )}
           {!isLoading && error && (
             <span className="text-xs text-muted-foreground">
@@ -144,11 +144,11 @@ export function AppSidebar({ onSignOut, className }: AppSidebarProps) {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate">{label}</span>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+                  <span className="text-base uppercase tracking-[0.18em] text-muted-foreground/70">
                     {timeLabel}
                   </span>
                 </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/80">
+                <p className="mt-1 line-clamp-2 text-base text-muted-foreground/80">
                   {lastMessage}
                 </p>
               </Link>

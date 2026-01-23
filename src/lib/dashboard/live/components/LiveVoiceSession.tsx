@@ -21,7 +21,6 @@ interface LiveTranscriptProps {
 export function LiveTranscript({
   messages,
   status,
-  persona,
   className,
 }: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -30,7 +29,6 @@ export function LiveTranscript({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length, messages[messages.length - 1]?.content]);
-
   const isActiveSession = status === "connected";
 
   return (

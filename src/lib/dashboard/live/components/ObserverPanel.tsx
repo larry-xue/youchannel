@@ -3,13 +3,13 @@ import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { LiveSessionAssessment } from "~/lib/dashboard/live/assessment";
-import type { ObserverOutput } from "~/lib/dashboard/live/useObserverInsights";
+import type { LiveObserverOutput } from "~/lib/dashboard/live/useLiveObserverSidecar";
 import * as m from "~/paraglide/messages";
 
 type DimensionKey = keyof LiveSessionAssessment[number]["dimensions"];
 
 type ObserverPanelProps = {
-  outputs: ObserverOutput[];
+  outputs: LiveObserverOutput[];
   error: unknown;
   canTrigger: boolean;
   onTrigger: () => void;
@@ -55,14 +55,14 @@ export const ObserverPanel = memo(function ObserverPanel({
   const displayNames =
     typeof Intl !== "undefined" && "DisplayNames" in Intl
       ? (() => {
-          try {
-            return new Intl.DisplayNames([assessmentLocale ?? "en"], {
-              type: "language",
-            });
-          } catch {
-            return null;
-          }
-        })()
+        try {
+          return new Intl.DisplayNames([assessmentLocale ?? "en"], {
+            type: "language",
+          });
+        } catch {
+          return null;
+        }
+      })()
       : null;
   const getLanguageName = (language: string) => {
     if (!displayNames) return language;
@@ -91,9 +91,9 @@ export const ObserverPanel = memo(function ObserverPanel({
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {m.live_observer_title()}
         </p>
-        <Button size="sm" variant="ghost" onClick={onTrigger} disabled={!canTrigger}>
+        {/* <Button size="sm" variant="ghost" onClick={onTrigger} disabled={!canTrigger}>
           {m.live_observer_run()}
-        </Button>
+        </Button> */}
       </div>
 
       {error instanceof Error && (
@@ -255,24 +255,74 @@ export const ObserverPanel = memo(function ObserverPanel({
           )}
           {outputs.map((entry) => (
             <div key={entry.id} className="space-y-3 break-words">
-              {entry.explanation && entry.explanation.length > 0 && (
+              {entry.transcript && (
+                <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  "{entry.transcript}"
+                </div>
+              )}
+
+              {entry.suggestions.length > 0 && (
                 <div className="space-y-2">
-                  {entry.explanation.map((item) => {
-                    const itemKey = `${entry.id}-${item.term}-${item.example}`;
+                  {entry.suggestions.map((suggestion, index) => {
+                    const itemKey = `${entry.id}-${suggestion.type}-${index}`;
+                    const label =
+                      suggestion.type === "grammar"
+                        ? m.live_assessment_dim_grammar()
+                        : suggestion.type === "vocabulary"
+                          ? m.live_assessment_dim_vocabulary()
+                          : suggestion.type === "pronunciation"
+                            ? m.live_assessment_dim_pronunciation()
+                            : suggestion.type === "fluency"
+                              ? m.live_assessment_dim_fluency()
+                              : suggestion.type === "comprehension"
+                                ? m.live_assessment_dim_comprehension()
+                                : m.live_observer_title();
+
                     return (
-                      <div key={itemKey} className="border-l border-border/60 pl-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                          {item.term}
+                      <div
+                        key={itemKey}
+                        className="rounded-xl border border-border/60 bg-background/80 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            {label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatConfidence(suggestion.confidence)}
+                          </span>
                         </div>
                         <div className="mt-1 text-xs text-foreground">
-                          {item.note}
+                          {suggestion.text}
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          "{item.example}"
-                        </div>
+                        {suggestion.example && (
+                          <div className="mt-1 text-[11px] text-muted-foreground">
+                            "{suggestion.example}"
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {entry.injection && (
+                <div className="rounded-xl border border-foreground/20 bg-foreground/5 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {m.live_assessment_recommendations()}
+                    </span>
+                    <Badge variant="secondary" className="text-[10px] uppercase">
+                      {entry.injection.priority}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-foreground">
+                    {entry.injection.text}
+                  </div>
+                  {entry.injection.reason && (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {entry.injection.reason}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

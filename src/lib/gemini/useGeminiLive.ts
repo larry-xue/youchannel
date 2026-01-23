@@ -26,6 +26,10 @@ interface UseGeminiLiveOptions {
   /** Maximum number of messages to keep in memory (default: 200) */
   messageWindowSize?: number;
   onResumptionHandle?: (handle: string, resumable: boolean) => void;
+  onInputAudioChunk?: (chunk: {
+    pcm: Float32Array;
+    sampleCount: number;
+  }) => void;
 }
 
 export function useGeminiLive({
@@ -35,6 +39,7 @@ export function useGeminiLive({
   initialSequenceNumber = 0,
   messageWindowSize = 200,
   onResumptionHandle,
+  onInputAudioChunk,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +66,7 @@ export function useGeminiLive({
     stopRecording: stopAudioRecording,
   } = useGeminiLiveAudio({
     onInputAudio: handleInputAudio,
+    onInputAudioChunk,
     onError: setError,
   });
 
@@ -246,6 +252,18 @@ export function useGeminiLive({
     [appendUserMessage],
   );
 
+  const sendContext = useCallback((text: string) => {
+    if (!sessionRef.current) return;
+    if (typeof (sessionRef.current as any).sendClientContent === "function") {
+      (sessionRef.current as any).sendClientContent({
+        turns: [{ role: "user", parts: [{ text }] }],
+        turnComplete: false,
+      });
+    } else {
+      console.error("sendClientContent not found on session");
+    }
+  }, []);
+
   const sendTurns = useCallback(
     async (
       turns: Array<{ role: "user" | "assistant"; content: string }>,
@@ -283,6 +301,7 @@ export function useGeminiLive({
       startRecording,
       stopRecording,
       sendText,
+      sendContext,
       sendTurns,
       status,
       error,
@@ -298,6 +317,7 @@ export function useGeminiLive({
       startRecording,
       stopRecording,
       sendText,
+      sendContext,
       sendTurns,
       status,
       error,

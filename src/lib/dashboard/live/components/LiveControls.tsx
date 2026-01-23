@@ -16,6 +16,7 @@ type LiveControlsProps = {
   isActiveSession: boolean;
   isConnecting: boolean;
   isReadOnlyHistory: boolean;
+  isViewingHistory: boolean;
   isRecording: boolean;
   isPaused: boolean;
   isStartDisabled: boolean;
@@ -36,6 +37,7 @@ export const LiveControls = memo(function LiveControls({
   isActiveSession,
   isConnecting,
   isReadOnlyHistory,
+  isViewingHistory,
   isRecording,
   isPaused,
   isStartDisabled,
@@ -125,7 +127,7 @@ export const LiveControls = memo(function LiveControls({
             </Button>
           )}
 
-          <Button
+          {!isViewingHistory && <Button
             size="default"
             variant={isActiveSession ? "outline" : "default"}
             className={callButtonClassName}
@@ -151,6 +153,7 @@ export const LiveControls = memo(function LiveControls({
               </>
             )}
           </Button>
+          }
         </div>
       </div>
 

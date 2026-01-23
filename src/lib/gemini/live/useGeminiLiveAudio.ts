@@ -16,6 +16,10 @@ type InlineAudioPart = {
 
 type UseGeminiLiveAudioOptions = {
   onInputAudio: (media: { mimeType: string; data: string }) => void;
+  onInputAudioChunk?: (chunk: {
+    pcm: Float32Array;
+    sampleCount: number;
+  }) => void;
   onError: (message: string) => void;
 };
 
@@ -31,6 +35,7 @@ const calcRmsLevel = (samples: Float32Array, multiplier = LEVEL_MULTIPLIER) => {
 
 export function useGeminiLiveAudio({
   onInputAudio,
+  onInputAudioChunk,
   onError,
 }: UseGeminiLiveAudioOptions) {
   const [isRecording, setIsRecording] = useState(false);
@@ -197,7 +202,12 @@ export function useGeminiLiveAudio({
           lastInputUpdateRef.current = now;
         }
 
-        onInputAudio(createBlob(inputData));
+        const blob = createBlob(inputData);
+        onInputAudio(blob);
+        onInputAudioChunk?.({
+          pcm: inputData,
+          sampleCount: inputData.length,
+        });
       };
 
       sourceNodeRef.current.connect(workletNode);
@@ -209,7 +219,7 @@ export function useGeminiLiveAudio({
       const message = err instanceof Error ? err.message : "Unknown error";
       onError(`Microphone access failed: ${message}`);
     }
-  }, [onError, onInputAudio]);
+  }, [onError, onInputAudio, onInputAudioChunk]);
 
   const stopRecording = useCallback(() => {
     if (processorRef.current && sourceNodeRef.current) {

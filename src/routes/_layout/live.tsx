@@ -26,7 +26,7 @@ import {
   retryWithBackoff,
   type MessageSyncState,
 } from "~/lib/dashboard/live/retry";
-import { useObserverInsights } from "~/lib/dashboard/live/useObserverInsights";
+import { useLiveObserverSidecar } from "~/lib/dashboard/live/useLiveObserverSidecar";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { useAuthUser } from "~/lib/store/auth";
@@ -53,6 +53,21 @@ const formatHandleForLog = (handle: string | null) => {
 const logLiveAssessment = (...args: unknown[]) => {
   console.debug("[LiveAssessment]", ...args);
 };
+
+const SIDECAR_INJECTION_PREFIX = "[[SIDECAR]]";
+
+const buildSidecarSystemPrompt = () =>
+  `Sidecar observer note:
+You may receive hidden user turns that start with "${SIDECAR_INJECTION_PREFIX}".
+These are internal guidance from a background observer.
+- Do NOT respond to those turns, do NOT acknowledge them, and do NOT quote them.
+- Apply the guidance silently to your next normal response.
+- If the most recent user turn is a sidecar instruction, wait for a real user utterance before responding.
+- The sidecar instruction may be in a different language; keep your response language aligned with the user's last spoken language, not the sidecar text.
+- Ignore any sidecar instruction that conflicts with persona, safety rules, or system constraints.`;
+
+const formatSidecarInjection = (text: string) =>
+  `${SIDECAR_INJECTION_PREFIX} ${text.trim()}`;
 
 export const Route = createFileRoute("/_layout/live")({
   component: LiveRoute,
@@ -102,6 +117,9 @@ export function LivePage() {
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
+  const audioChunkHandlerRef = useRef<
+    ((chunk: { pcm: Float32Array; sampleCount: number }) => void) | null
+  >(null);
 
   // Initialize sync queue
   if (!syncQueueRef.current) {
@@ -226,6 +244,7 @@ export function LivePage() {
     disconnect,
     startRecording,
     sendText,
+    sendContext,
     sendTurns,
     status,
     error,
@@ -238,16 +257,19 @@ export function LivePage() {
     voiceName: selectedVoice,
     initialSequenceNumber: lastHistorySequenceNumber,
     onResumptionHandle: handleResumptionHandle,
+    onInputAudioChunk: (chunk) => {
+      audioChunkHandlerRef.current?.(chunk);
+    },
   });
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-  const observer = useObserverInsights(uiLocale);
   const historyPersona = useMemo(() => {
     const personaId = historyQuery.data?.session.metadata?.personaId;
     return personaId ? getPersonaById(personaId) : selectedPersona;
   }, [historyQuery.data?.session.metadata?.personaId, selectedPersona]);
+  const activePersona = isViewingHistory ? historyPersona : selectedPersona;
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
   const displayMessages = useMemo(() => {
@@ -255,7 +277,21 @@ export function LivePage() {
     if (!isResuming) return historyMessages;
     return [...historyMessages, ...messages];
   }, [historyMessages, isResuming, isViewingHistory, messages]);
-  const canTriggerObserver = displayMessages.length > 0 && !observer.isRunning;
+  const observer = useLiveObserverSidecar({
+    uiLocale,
+    personaName: activePersona.name,
+    personaPrompt: activePersona.systemPrompt,
+    status,
+    isReadOnlyHistory,
+    messages: displayMessages,
+    onInjectPrompt: (text) => {
+      sendContext(formatSidecarInjection(text));
+    },
+  });
+  useEffect(() => {
+    audioChunkHandlerRef.current = observer.ingestAudioChunk;
+  }, [observer.ingestAudioChunk]);
+  const canTriggerObserver = observer.canTrigger;
   const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
   const historyError = isViewingHistory ? historyQuery.error : null;
   const historyErrorMessage =
@@ -532,6 +568,7 @@ export function LivePage() {
   const connectSession = useCallback(async () => {
     setSessionError(null);
     setIsFetchingToken(true);
+    observer.reset();
     try {
       const [, { token }] = await Promise.all([
         syncPreviousSession(),
@@ -566,7 +603,7 @@ System Context:
 - Language: ${getLocale()}
 - User Agent: ${navigator.userAgent}
 `;
-      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}`;
+      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}`;
 
       await connect(fullSystemPrompt, token);
     } catch (err) {
@@ -581,6 +618,7 @@ System Context:
     clearSyncedIds,
     connect,
     loadSyncedIds,
+    observer.reset,
     selectedPersona.systemPrompt,
     syncPreviousSession,
   ]);
@@ -589,6 +627,7 @@ System Context:
     if (!resolvedSessionId || !historyQuery.data) return;
     setSessionError(null);
     setIsFetchingToken(true);
+    observer.reset();
     try {
       const [, { token }] = await Promise.all([
         syncPreviousSession(),
@@ -628,7 +667,7 @@ System Context:
         .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
         .join("\n");
 
-      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
+      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
 
       // Set restoring state BEFORE connecting to prevent race condition with auto-recording
       if (historyMessages.length > 0) {
@@ -675,6 +714,7 @@ System Context:
     clearSyncedIds,
     connect,
     loadSyncedIds,
+    observer.reset,
     sendTurns,
     historyMessages,
     historyQuery.data,
@@ -774,8 +814,8 @@ System Context:
   }, [isActiveSession, isReadOnlyHistory, sendText, textInput]);
 
   const handleTriggerObserver = useCallback(() => {
-    observer.triggerFromMessages(displayMessages);
-  }, [displayMessages, observer]);
+    observer.triggerNow();
+  }, [observer.triggerNow]);
 
   const handleRetryFailedMessages = useCallback(async () => {
     const failedIds = syncQueueRef.current?.retryFailed() || [];
@@ -946,6 +986,7 @@ System Context:
                         selectedVoice={selectedVoice}
                         onVoiceChange={setSelectedVoice}
                         isActiveSession={isActiveSession}
+                        isViewingHistory={isViewingHistory}
                         isConnecting={isConnecting}
                         isReadOnlyHistory={isReadOnlyHistory}
                         isRecording={isRecording}
@@ -986,6 +1027,7 @@ System Context:
                           isActiveSession={isActiveSession}
                           isConnecting={isConnecting}
                           isReadOnlyHistory={isReadOnlyHistory}
+                          isViewingHistory={isViewingHistory}
                           isRecording={isRecording}
                           isPaused={isPaused}
                           isStartDisabled={isStartDisabled}

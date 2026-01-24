@@ -79,5 +79,8 @@
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",
     "vite-tsconfig-paths": "^6.0.1"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.1.0"
   }
 }

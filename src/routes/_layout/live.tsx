@@ -1,7 +1,18 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useMatchRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useMatchRoute } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+  usePanelRef,
+} from "~/lib/components/ui/resizable";
+import {
+  evaluateLiveSessionFn,
+  getLiveSessionAssessmentFn,
+  type LiveSessionAssessment,
+} from "~/lib/dashboard/live/assessment";
 import { HistoryBanner } from "~/lib/dashboard/live/components/HistoryBanner";
 import { LiveControls } from "~/lib/dashboard/live/components/LiveControls";
 import { LiveStatusSection } from "~/lib/dashboard/live/components/LiveStatusSection";
@@ -18,9 +29,10 @@ import {
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
 import {
-  getLiveSessionAssessmentFn,
-  type LiveSessionAssessment,
-} from "~/lib/dashboard/live/assessment";
+  appendLiveObserverOutputFn,
+  getLiveObserverOutputsFn,
+  type LiveObserverOutputRecord,
+} from "~/lib/dashboard/live/observer";
 import {
   MessageSyncQueue,
   retryWithBackoff,
@@ -30,11 +42,6 @@ import {
   useLiveObserverSidecar,
   type LiveObserverOutput,
 } from "~/lib/dashboard/live/useLiveObserverSidecar";
-import {
-  appendLiveObserverOutputFn,
-  getLiveObserverOutputsFn,
-  type LiveObserverOutputRecord,
-} from "~/lib/dashboard/live/observer";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { useAuthUser } from "~/lib/store/auth";
@@ -63,6 +70,10 @@ const logLiveAssessment = (...args: unknown[]) => {
 };
 
 const SIDECAR_INJECTION_PREFIX = "[[SIDECAR]]";
+const SIDEBAR_DEFAULT_SIZE = 26;
+const SIDEBAR_MIN_SIZE = 18;
+const SIDEBAR_MAX_SIZE = 40;
+const MAIN_PANEL_MIN_SIZE = 55;
 
 const buildSidecarSystemPrompt = () =>
   `Sidecar observer note:
@@ -76,6 +87,19 @@ These are internal guidance from a background observer.
 
 const formatSidecarInjection = (text: string) =>
   `${SIDECAR_INJECTION_PREFIX} ${text.trim()}`;
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1280); // xl
+    checkDesktop();
+    window.addEventListener("resize", checkDesktop);
+    return () => window.removeEventListener("resize", checkDesktop);
+  }, []);
+
+  return isDesktop;
+}
 
 export const Route = createFileRoute("/_layout/live")({
   component: LiveRoute,
@@ -101,6 +125,7 @@ export function LivePage() {
   const matchedSession = matchRoute({ to: "/live/$sessionId" });
   const resolvedSessionId = matchedSession ? matchedSession.sessionId : null;
   const authUser = useAuthUser();
+  const isDesktop = useIsDesktop();
   const userName =
     (authUser?.user_metadata?.full_name as string | undefined) ||
     authUser?.email?.split("@")[0] ||
@@ -128,6 +153,7 @@ export function LivePage() {
   const audioChunkHandlerRef = useRef<
     ((chunk: { pcm: Float32Array; sampleCount: number }) => void) | null
   >(null);
+  const sidebarPanelRef = usePanelRef();
 
   // Initialize sync queue
   if (!syncQueueRef.current) {
@@ -142,7 +168,6 @@ export function LivePage() {
   const lastSyncedCountRef = useRef<number>(0);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const isViewingHistory = Boolean(resolvedSessionId);
   const isReadOnlyHistory = isViewingHistory && !isResuming;
 
@@ -199,6 +224,16 @@ export function LivePage() {
       setIsResuming(false);
     }
   }, [isViewingHistory]);
+
+  useEffect(() => {
+    const panel = sidebarPanelRef.current;
+    if (!panel) return;
+    if (isDesktop) {
+      panel.expand();
+    } else {
+      panel.collapse();
+    }
+  }, [isDesktop]);
 
   const historyQuery = useQuery<LiveSessionDetailResponse>({
     queryKey: ["live-session-detail", resolvedSessionId],
@@ -284,17 +319,14 @@ export function LivePage() {
     return creationPromise;
   }, [queryClient]);
 
-  const handleResumptionHandle = useCallback(
-    (handle: string, resumable: boolean) => {
-      if (!resumable) return;
-      resumptionHandleRef.current = handle;
-      logLiveAssessment("resumption_handle_update", {
-        resumable,
-        handle: formatHandleForLog(handle),
-      });
-    },
-    [],
-  );
+  const handleResumptionHandle = useCallback((handle: string, resumable: boolean) => {
+    if (!resumable) return;
+    resumptionHandleRef.current = handle;
+    logLiveAssessment("resumption_handle_update", {
+      resumable,
+      handle: formatHandleForLog(handle),
+    });
+  }, []);
 
   const {
     connect,
@@ -330,10 +362,7 @@ export function LivePage() {
         try {
           liveSessionId = await ensureLiveSessionId();
         } catch (persistError) {
-          console.warn(
-            "[Observer] Failed to ensure live session id",
-            persistError,
-          );
+          console.warn("[Observer] Failed to ensure live session id", persistError);
           return;
         }
       }
@@ -413,12 +442,9 @@ export function LivePage() {
     !isViewingHistory && displayMessages.length === 0 && !isActiveSession;
   const isStartDisabled =
     isConnecting ||
-    (!isActiveSession &&
-      isViewingHistory &&
-      (isHistoryLoading || Boolean(historyError)));
+    (!isActiveSession && isViewingHistory && (isHistoryLoading || Boolean(historyError)));
   const trimmedInput = textInput.trim();
-  const canSendText =
-    isActiveSession && !isReadOnlyHistory && trimmedInput.length > 0;
+  const canSendText = isActiveSession && !isReadOnlyHistory && trimmedInput.length > 0;
   const failedSyncCount = useMemo(() => {
     let count = 0;
     syncStates.forEach((state) => {
@@ -428,12 +454,6 @@ export function LivePage() {
     });
     return count;
   }, [syncStates]);
-  const handleRetryHistory = useCallback(() => {
-    void historyQuery.refetch();
-  }, [historyQuery]);
-  const handleStartNewSession = useCallback(() => {
-    navigate({ to: "/live" });
-  }, [navigate]);
 
   const buildSessionMeta = useCallback(
     (): LiveSessionMeta => ({
@@ -652,10 +672,7 @@ export function LivePage() {
     setIsFetchingToken(true);
     observer.reset();
     try {
-      const [, { token }] = await Promise.all([
-        syncPreviousSession(),
-        getGeminiToken(),
-      ]);
+      const [, { token }] = await Promise.all([syncPreviousSession(), getGeminiToken()]);
 
       const session = buildSessionMeta();
       resumptionHandleRef.current = null;
@@ -711,10 +728,7 @@ System Context:
     setIsFetchingToken(true);
     observer.reset();
     try {
-      const [, { token }] = await Promise.all([
-        syncPreviousSession(),
-        getGeminiToken(),
-      ]);
+      const [, { token }] = await Promise.all([syncPreviousSession(), getGeminiToken()]);
 
       const session = buildSessionMeta();
       resumptionHandleRef.current = null;
@@ -761,7 +775,9 @@ System Context:
       // Send history with error handling
       if (historyMessages.length > 0) {
         try {
-          console.log(`[LiveSync] Sending ${historyMessages.length} history messages to Gemini`);
+          console.log(
+            `[LiveSync] Sending ${historyMessages.length} history messages to Gemini`,
+          );
           await sendTurns(
             historyMessages.map((message) => ({
               role: message.role,
@@ -808,9 +824,6 @@ System Context:
   const triggerAssessment = useCallback(
     async (liveSessionId: string, resumptionHandle: string) => {
       try {
-        const { evaluateLiveSessionFn } = await import(
-          "~/lib/dashboard/live/assessment"
-        );
         logLiveAssessment("assessment_trigger", {
           liveSessionId,
           handle: formatHandleForLog(resumptionHandle),
@@ -1003,91 +1016,42 @@ System Context:
       </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
 
-      <div className="flex min-h-[calc(100vh-10rem)]">
-        <main
-          id="live-main"
-          aria-labelledby="live-title"
-          className="flex min-w-0 flex-1 flex-col"
+      <ResizablePanelGroup direction="horizontal" className="min-h-[calc(100vh-10rem)]">
+        <ResizablePanel
+          defaultSize={100 - SIDEBAR_DEFAULT_SIZE}
+          minSize={MAIN_PANEL_MIN_SIZE}
         >
-          <h1 id="live-title" className="sr-only">
-            {m.live_page_title()}
-          </h1>
+          <main
+            id="live-main"
+            aria-labelledby="live-title"
+            className="flex min-w-0 flex-1 flex-col"
+          >
+            <h1 id="live-title" className="sr-only">
+              {m.live_page_title()}
+            </h1>
 
-          <div className="flex flex-1 flex-col">
-            <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
-              {!isNewSession && (
-                <>
-                  <HistoryBanner
-                    isVisible={isViewingHistory}
-                    sessionTitle={historyQuery.data?.session.title ?? null}
-                  />
-
-                  <div className="min-h-0 flex-1">
-                    <LiveTranscript
-                      messages={displayMessages}
-                      status={status}
-                      persona={isViewingHistory ? historyPersona : selectedPersona}
-                      className="w-full"
+            <div className="flex flex-1 flex-col">
+              <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
+                {!isNewSession && (
+                  <>
+                    <HistoryBanner
+                      isVisible={isViewingHistory}
+                      sessionTitle={historyQuery.data?.session.title ?? null}
                     />
-                  </div>
-                </>
-              )}
 
-              {isNewSession ? (
-                <div className="flex flex-1 flex-col items-start justify-center gap-3">
-                  <LiveStatusSection
-                    isRestoringHistory={isRestoringHistory}
-                    sessionError={sessionError}
-                    failedSyncCount={failedSyncCount}
-                    onRetryFailedMessages={handleRetryFailedMessages}
-                  />
-
-                  <div className="flex flex-col items-start justify-center gap-2 pl-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40 shadow-sm border border-border/40">
-                        <Sparkles className="h-5 w-5 text-primary" />
-                      </div>
-                      <h2 className="text-lg font-semibold text-foreground">
-                        {m.live_greeting({ name: userName })}
-                      </h2>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {m.live_prompt_question()}
-                    </p>
-                  </div>
-
-                  <div className="relative w-full">
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
-                    />
-                    <div className="relative rounded-3xl border border-border/60 bg-background/80 backdrop-blur-md">
-                      <LiveControls
-                        selectedPersonaId={selectedPersona.id}
-                        onSelectPersona={setSelectedPersona}
-                        selectedVoice={selectedVoice}
-                        onVoiceChange={setSelectedVoice}
-                        isActiveSession={isActiveSession}
-                        isViewingHistory={isViewingHistory}
-                        isConnecting={isConnecting}
-                        isReadOnlyHistory={isReadOnlyHistory}
-                        isRecording={isRecording}
-                        isPaused={isPaused}
-                        isStartDisabled={isStartDisabled}
-                        onToggleMute={handleToggleMute}
-                        onToggleSession={handleToggleSession}
-                        textInput={textInput}
-                        onTextInputChange={setTextInput}
-                        onSendMessage={handleSendMessage}
-                        canSendText={canSendText}
-                        className="w-full bg-transparent border-0 shadow-none"
+                    <div className="min-h-0 flex-1">
+                      <LiveTranscript
+                        messages={displayMessages}
+                        status={status}
+                        persona={isViewingHistory ? historyPersona : selectedPersona}
+                        className="w-full"
                       />
                     </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="sticky bottom-6 z-20 mt-8">
-                  <div className="flex flex-col gap-3">
+                  </>
+                )}
+
+                {isNewSession ? (
+                  <div className="flex flex-1 flex-col items-start justify-center gap-3">
                     <LiveStatusSection
                       isRestoringHistory={isRestoringHistory}
                       sessionError={sessionError}
@@ -1095,7 +1059,21 @@ System Context:
                       onRetryFailedMessages={handleRetryFailedMessages}
                     />
 
-                    <div className="relative">
+                    <div className="flex flex-col items-start justify-center gap-2 pl-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40 shadow-sm border border-border/40">
+                          <Sparkles className="h-5 w-5 text-primary" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-foreground">
+                          {m.live_greeting({ name: userName })}
+                        </h2>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {m.live_prompt_question()}
+                      </p>
+                    </div>
+
+                    <div className="relative w-full">
                       <div
                         aria-hidden="true"
                         className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
@@ -1107,9 +1085,9 @@ System Context:
                           selectedVoice={selectedVoice}
                           onVoiceChange={setSelectedVoice}
                           isActiveSession={isActiveSession}
+                          isViewingHistory={isViewingHistory}
                           isConnecting={isConnecting}
                           isReadOnlyHistory={isReadOnlyHistory}
-                          isViewingHistory={isViewingHistory}
                           isRecording={isRecording}
                           isPaused={isPaused}
                           isStartDisabled={isStartDisabled}
@@ -1124,23 +1102,73 @@ System Context:
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="sticky bottom-6 z-20 mt-8">
+                    <div className="flex flex-col gap-3">
+                      <LiveStatusSection
+                        isRestoringHistory={isRestoringHistory}
+                        sessionError={sessionError}
+                        failedSyncCount={failedSyncCount}
+                        onRetryFailedMessages={handleRetryFailedMessages}
+                      />
+
+                      <div className="relative">
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
+                        />
+                        <div className="relative rounded-3xl border border-border/60 bg-background/80 backdrop-blur-md">
+                          <LiveControls
+                            selectedPersonaId={selectedPersona.id}
+                            onSelectPersona={setSelectedPersona}
+                            selectedVoice={selectedVoice}
+                            onVoiceChange={setSelectedVoice}
+                            isActiveSession={isActiveSession}
+                            isConnecting={isConnecting}
+                            isReadOnlyHistory={isReadOnlyHistory}
+                            isViewingHistory={isViewingHistory}
+                            isRecording={isRecording}
+                            isPaused={isPaused}
+                            isStartDisabled={isStartDisabled}
+                            onToggleMute={handleToggleMute}
+                            onToggleSession={handleToggleSession}
+                            textInput={textInput}
+                            onTextInputChange={setTextInput}
+                            onSendMessage={handleSendMessage}
+                            canSendText={canSendText}
+                            className="w-full bg-transparent border-0 shadow-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </ResizablePanel>
 
-        <ObserverPanel
-          outputs={observerPanelOutputs}
-          error={observerPanelError}
-          canTrigger={canTriggerObserver}
-          onTrigger={handleTriggerObserver}
-          assessment={isViewingHistory ? assessmentEntries : null}
-          assessmentLocale={uiLocale}
-          className=""
-        />
-      </div>
+        <ResizableHandle withHandle className={cn(!isDesktop && "hidden")} />
 
+        <ResizablePanel
+          panelRef={sidebarPanelRef}
+          defaultSize={SIDEBAR_DEFAULT_SIZE}
+          minSize={SIDEBAR_MIN_SIZE}
+          maxSize={SIDEBAR_MAX_SIZE}
+          collapsible
+          collapsedSize={0}
+        >
+          <ObserverPanel
+            outputs={observerPanelOutputs}
+            error={observerPanelError}
+            canTrigger={canTriggerObserver}
+            onTrigger={handleTriggerObserver}
+            assessment={isViewingHistory ? assessmentEntries : null}
+            assessmentLocale={uiLocale}
+            className=""
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

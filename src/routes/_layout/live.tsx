@@ -70,10 +70,10 @@ const logLiveAssessment = (...args: unknown[]) => {
 };
 
 const SIDECAR_INJECTION_PREFIX = "[[SIDECAR]]";
-const SIDEBAR_DEFAULT_SIZE = 26;
-const SIDEBAR_MIN_SIZE = 18;
-const SIDEBAR_MAX_SIZE = 40;
-const MAIN_PANEL_MIN_SIZE = 55;
+const SIDEBAR_DEFAULT_SIZE = "26%";
+const SIDEBAR_MIN_SIZE = "320px";
+const SIDEBAR_MAX_SIZE = "40%";
+const MAIN_PANEL_MIN_SIZE = "55%";
 
 const buildSidecarSystemPrompt = () =>
   `Sidecar observer note:
@@ -1148,7 +1148,13 @@ System Context:
           </main>
         </ResizablePanel>
 
-        <ResizableHandle withHandle className={cn(!isDesktop && "hidden")} />
+        <ResizableHandle
+          withHandle
+          className={cn(
+            !isDesktop && "hidden",
+            "w-2 bg-border/70 hover:bg-border",
+          )}
+        />
 
         <ResizablePanel
           panelRef={sidebarPanelRef}

@@ -1,4 +1,5 @@
-import { memo, useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
+import { memo, useMemo, useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -6,6 +7,7 @@ import {
   AccordionTrigger,
 } from "~/lib/components/ui/accordion";
 import { Badge } from "~/lib/components/ui/badge";
+import { Button } from "~/lib/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import type { LiveSessionAssessment } from "~/lib/dashboard/live/assessment";
 import type { LiveObserverOutput } from "~/lib/dashboard/live/useLiveObserverSidecar";
@@ -36,71 +38,72 @@ export const ObserverPanel = memo(function ObserverPanel({
 }: ObserverPanelProps) {
   const hasOutputs = outputs.length > 0;
   const hasAssessment = Boolean(assessment && assessment.length > 0);
-  const [activeTab, setActiveTab] = useState<PanelTab>(
+
+  const [activeTab, setActiveTab] = useState<PanelTab>(() =>
     hasAssessment ? "assessment" : "observer",
   );
-  const [activeLanguage, setActiveLanguage] = useState<string | null>(null);
+  const resolvedTab: PanelTab = hasAssessment ? activeTab : "observer";
 
-  useEffect(() => {
-    if (!hasAssessment && activeTab === "assessment") {
-      setActiveTab("observer");
-    }
-  }, [activeTab, hasAssessment]);
+  const [activeLanguage, setActiveLanguage] = useState<string | null>(() => {
+    if (!assessment || assessment.length === 0) return null;
+    return assessment[0].language;
+  });
 
-  useEffect(() => {
-    if (!assessment || assessment.length === 0) {
-      setActiveLanguage(null);
-      return;
+  const resolvedLanguage = useMemo(() => {
+    if (!assessment || assessment.length === 0) return null;
+    if (activeLanguage && assessment.some((entry) => entry.language === activeLanguage)) {
+      return activeLanguage;
     }
-    if (
-      !activeLanguage ||
-      !assessment.some((entry) => entry.language === activeLanguage)
-    ) {
-      setActiveLanguage(assessment[0].language);
-    }
-  }, [assessment, activeLanguage]);
+    return assessment[0].language;
+  }, [activeLanguage, assessment]);
 
-  const activeEntry =
-    assessment?.find((entry) => entry.language === activeLanguage) ??
-    assessment?.[0] ??
-    null;
-  const hasMultipleLanguages = (assessment?.length ?? 0) > 1;
+  const activeEntry = useMemo(() => {
+    if (!assessment || assessment.length === 0) return null;
+    if (!resolvedLanguage) return assessment[0];
+    return (
+      assessment.find((entry) => entry.language === resolvedLanguage) ?? assessment[0]
+    );
+  }, [assessment, resolvedLanguage]);
+
   const languageCount = assessment?.length ?? 0;
+  const hasMultipleLanguages = languageCount > 1;
   const languageCountLabel =
     languageCount === 1
       ? m.live_assessment_language_count_one()
       : m.live_assessment_language_count_many({ count: languageCount });
 
-  const displayNames =
-    typeof Intl !== "undefined" && "DisplayNames" in Intl
-      ? (() => {
-          try {
-            return new Intl.DisplayNames([assessmentLocale ?? "en"], {
-              type: "language",
-            });
-          } catch {
-            return null;
-          }
-        })()
-      : null;
+  const displayNames = useMemo(() => {
+    if (typeof Intl === "undefined") return null;
+    if (!("DisplayNames" in Intl)) return null;
+    try {
+      return new Intl.DisplayNames([assessmentLocale ?? "en"], { type: "language" });
+    } catch {
+      return null;
+    }
+  }, [assessmentLocale]);
+
   const getLanguageName = (language: string) => {
     if (!displayNames) return language;
     return displayNames.of(language) ?? language;
   };
+
   const formatConfidence = (value: number) => {
     if (!Number.isFinite(value)) return "--";
     return `${Math.round(value * 100)}%`;
   };
+
   const formatTimestamp = (value: number) =>
     new Date(value).toLocaleTimeString(assessmentLocale ?? "en", {
       hour: "2-digit",
       minute: "2-digit",
     });
+
   const handleTabChange = (value: string) => {
-    if (value === "observer" || value === "assessment") {
-      setActiveTab(value);
-    }
+    if (value !== "observer" && value !== "assessment") return;
+    if (value === "assessment" && !hasAssessment) return;
+    setActiveTab(value);
   };
+
   const dimensionItems: Array<{ key: DimensionKey; label: string }> = [
     { key: "pronunciation", label: m.live_assessment_dim_pronunciation() },
     { key: "fluency", label: m.live_assessment_dim_fluency() },
@@ -110,84 +113,92 @@ export const ObserverPanel = memo(function ObserverPanel({
   ];
 
   return (
-    <aside
-      className={cn(
-        "hidden xl:flex flex-col gap-4 text-base min-w-0 w-full",
-        "border-l border-border/60 bg-background sticky top-0 h-full py-4 px-2",
-        className,
-      )}
-    >
+    <aside className={cn("flex h-full min-w-0 flex-col", className)}>
       <Tabs
-        value={activeTab}
+        value={resolvedTab}
         onValueChange={handleTabChange}
-        className="flex h-full flex-col"
+        className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3"
       >
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid h-auto w-full grid-cols-2 rounded-none border-b border-border bg-transparent p-0">
           <TabsTrigger
             value="observer"
-            className="text-xs font-semibold uppercase tracking-[0.2em]"
+            className="h-10 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
           >
             {m.live_observer_title()}
           </TabsTrigger>
           <TabsTrigger
             value="assessment"
             disabled={!hasAssessment}
-            className="text-xs font-semibold uppercase tracking-[0.2em]"
+            className="h-10 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
           >
             {m.live_assessment_title()}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="observer" className="mt-0 flex min-h-0 flex-1 flex-col gap-4">
-          {error instanceof Error && (
-            <div role="status" aria-live="polite" className="text-sm text-destructive">
-              {error.message}
-            </div>
-          )}
-
-          <div className="flex-1 overflow-auto pr-1">
-            <div className="space-y-3 pb-2">
-              {!hasOutputs && (
-                <p className="text-sm text-muted-foreground">{m.live_observer_empty()}</p>
+        <TabsContent value="observer" className="mt-3 min-h-0 flex-1">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden border border-border bg-background">
+            <div className="min-h-0 flex-1 overflow-auto p-4">
+              {error instanceof Error && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mb-3 border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+                >
+                  {error.message}
+                </div>
               )}
-              {hasOutputs && (
-                <Accordion type="multiple" className="w-full">
+
+              {!hasOutputs ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">
+                    <Sparkles aria-hidden="true" className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {m.live_observer_empty()}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onTrigger}
+                    disabled={!canTrigger}
+                    className="h-9 rounded-md border-border bg-background px-4"
+                  >
+                    <Sparkles aria-hidden="true" className="h-4 w-4" />
+                    <span className="text-sm font-semibold">{m.live_observer_run()}</span>
+                  </Button>
+                </div>
+              ) : (
+                <Accordion type="multiple" className="border border-border">
                   {outputs.map((entry) => (
-                    <AccordionItem
-                      key={entry.id}
-                      value={entry.id}
-                      className="border-border/40"
-                    >
-                      <AccordionTrigger
-                        className={cn("py-3 text-left", "hover:no-underline")}
-                      >
+                    <AccordionItem key={entry.id} value={entry.id} className="px-4">
+                      <AccordionTrigger className="py-4 text-left hover:no-underline">
                         <div className="flex w-full items-start justify-between gap-3">
-                          <div className="flex flex-col text-left">
-                            <span className="text-base font-semibold text-foreground">
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <span className="text-sm font-semibold text-foreground">
                               {m.live_observer_title()}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTimestamp(entry.createdAt)}
                             </span>
                           </div>
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          <Badge variant="secondary" className="rounded-md text-xs">
                             {m.live_assessment_confidence_short()}{" "}
                             {formatConfidence(entry.confidence)}
-                          </span>
+                          </Badge>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="text-sm">
+                      <AccordionContent className="pb-4 text-sm">
                         <div className="space-y-3 break-words">
                           {entry.transcript && (
-                            <p className="text-sm italic text-muted-foreground">
+                            <p className="border border-border bg-muted/20 px-4 py-3 text-sm italic text-muted-foreground">
                               "{entry.transcript}"
                             </p>
                           )}
 
                           {entry.suggestions.length > 0 && (
                             <div className="space-y-3">
-                              {entry.suggestions.map((suggestion, index) => {
-                                const itemKey = `${entry.id}-${suggestion.type}-${index}`;
+                              {entry.suggestions.map((suggestion) => {
                                 const label =
                                   suggestion.type === "grammar"
                                     ? m.live_assessment_dim_grammar()
@@ -201,32 +212,26 @@ export const ObserverPanel = memo(function ObserverPanel({
                                             ? m.live_assessment_dim_comprehension()
                                             : m.live_observer_title();
 
+                                const itemKey = `${entry.id}-${suggestion.type}-${suggestion.text}`;
+
                                 return (
                                   <div
                                     key={itemKey}
-                                    className={cn(
-                                      "space-y-1 border-b pb-2",
-                                      "border-border/40 last:border-b-0",
-                                    )}
+                                    className="border border-border bg-muted/20 px-4 py-3"
                                   >
                                     <div className="flex items-center justify-between gap-2">
-                                      <span
-                                        className={cn(
-                                          "text-xs font-semibold uppercase tracking-[0.2em]",
-                                          "text-muted-foreground",
-                                        )}
-                                      >
+                                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                                         {label}
                                       </span>
                                       <span className="text-xs text-muted-foreground">
                                         {formatConfidence(suggestion.confidence)}
                                       </span>
                                     </div>
-                                    <div className="text-base text-foreground">
+                                    <div className="mt-2 text-sm leading-relaxed text-foreground">
                                       {suggestion.text}
                                     </div>
                                     {suggestion.example && (
-                                      <div className="text-sm text-muted-foreground">
+                                      <div className="mt-2 text-sm text-muted-foreground">
                                         "{suggestion.example}"
                                       </div>
                                     )}
@@ -237,28 +242,20 @@ export const ObserverPanel = memo(function ObserverPanel({
                           )}
 
                           {entry.injection && (
-                            <div className="space-y-1 border-l border-border/60 pl-3">
+                            <div className="border border-border bg-muted/20 px-4 py-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span
-                                  className={cn(
-                                    "text-xs font-semibold uppercase tracking-[0.2em]",
-                                    "text-muted-foreground",
-                                  )}
-                                >
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                                   {m.live_assessment_recommendations()}
                                 </span>
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] uppercase"
-                                >
+                                <Badge variant="secondary" className="rounded-md text-xs">
                                   {entry.injection.priority}
                                 </Badge>
                               </div>
-                              <div className="text-base text-foreground">
+                              <div className="mt-2 text-sm leading-relaxed text-foreground">
                                 {entry.injection.text}
                               </div>
                               {entry.injection.reason && (
-                                <div className="text-sm text-muted-foreground">
+                                <div className="mt-2 text-sm text-muted-foreground">
                                   {entry.injection.reason}
                                 </div>
                               )}
@@ -274,179 +271,182 @@ export const ObserverPanel = memo(function ObserverPanel({
           </div>
         </TabsContent>
 
-        <TabsContent
-          value="assessment"
-          className="mt-0 flex min-h-0 flex-1 flex-col gap-4"
-        >
-          {hasAssessment && (
-            <div className="flex-1 overflow-auto pr-1">
-              <section className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p
-                    className={cn(
-                      "text-base font-semibold uppercase tracking-[0.2em]",
-                      "text-muted-foreground",
-                    )}
-                  >
-                    {m.live_assessment_title()}
-                  </p>
-                  <span className="text-base text-muted-foreground">
-                    {languageCountLabel}
-                  </span>
-                </div>
-
-                {hasMultipleLanguages && (
-                  <div className="flex flex-wrap gap-2">
-                    {assessment?.map((entry) => {
-                      const isActive = entry.language === activeEntry?.language;
-                      return (
-                        <button
-                          key={entry.language}
-                          type="button"
-                          onClick={() => setActiveLanguage(entry.language)}
-                          aria-pressed={isActive}
-                          className={cn(
-                            "rounded-full border px-3 py-1 text-base font-semibold",
-                            "transition-colors",
-                            isActive
-                              ? "border-foreground bg-foreground text-background"
-                              : cn(
-                                  "border-border/60 bg-transparent",
-                                  "text-muted-foreground hover:text-foreground",
-                                ),
-                          )}
-                        >
-                          {getLanguageName(entry.language)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {activeEntry && (
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-semibold text-foreground truncate">
-                          {getLanguageName(activeEntry.language)}
-                        </p>
-                        <p className="text-base text-muted-foreground">
-                          {activeEntry.language}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-base">
-                          {activeEntry.overall_cefr}
-                        </Badge>
-                        <span className="text-base text-muted-foreground">
-                          {m.live_assessment_confidence_short()}{" "}
-                          {formatConfidence(activeEntry.confidence)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-base text-foreground/90 leading-relaxed">
-                      {activeEntry.summary}
+        <TabsContent value="assessment" className="mt-3 min-h-0 flex-1">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden border border-border bg-background">
+            <div className="min-h-0 flex-1 overflow-auto p-4">
+              {hasAssessment && (
+                <section className="space-y-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {m.live_assessment_title()}
                     </p>
+                    <span className="text-sm text-muted-foreground">
+                      {languageCountLabel}
+                    </span>
+                  </div>
 
-                    <div className="space-y-2">
-                      {dimensionItems.map((item) => (
-                        <div
-                          key={item.key}
-                          className={cn(
-                            "flex items-center justify-between border-b pb-1",
-                            "border-border/40 last:border-b-0",
-                          )}
-                        >
-                          <span className="text-muted-foreground">{item.label}</span>
-                          <span className="font-semibold text-foreground">
-                            {activeEntry.dimensions[item.key]}
+                  {hasMultipleLanguages && (
+                    <div className="flex flex-wrap gap-2">
+                      {assessment?.map((entry) => {
+                        const isActive = entry.language === activeEntry?.language;
+                        return (
+                          <button
+                            key={entry.language}
+                            type="button"
+                            onClick={() => setActiveLanguage(entry.language)}
+                            aria-pressed={isActive}
+                            className={cn(
+                              "rounded-md border border-border px-3 py-1 text-sm font-semibold",
+                              "transition-colors",
+                              isActive
+                                ? "border-primary/30 bg-primary/10 text-foreground"
+                                : cn(
+                                    "border-border bg-background",
+                                    "text-muted-foreground hover:bg-muted/20 hover:text-foreground",
+                                  ),
+                            )}
+                          >
+                            {getLanguageName(entry.language)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {activeEntry && (
+                    <div className="space-y-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {getLanguageName(activeEntry.language)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {activeEntry.language}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="rounded-md text-sm">
+                            {activeEntry.overall_cefr}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {m.live_assessment_confidence_short()}{" "}
+                            {formatConfidence(activeEntry.confidence)}
                           </span>
                         </div>
-                      ))}
+                      </div>
+
+                      <p className="text-sm leading-relaxed text-foreground/90">
+                        {activeEntry.summary}
+                      </p>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {dimensionItems.map((item) => (
+                          <div
+                            key={item.key}
+                            className="border border-border bg-muted/20 px-4 py-3"
+                          >
+                            <p className="text-xs text-muted-foreground">{item.label}</p>
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              {activeEntry.dimensions[item.key]}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Accordion type="multiple" className="border border-border">
+                        {activeEntry.strengths.length > 0 && (
+                          <AccordionItem
+                            value={`${activeEntry.language}-strengths`}
+                            className="px-4"
+                          >
+                            <AccordionTrigger className="py-4 text-left hover:no-underline">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                {m.live_assessment_strengths()}
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-4 text-sm">
+                              <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
+                                {activeEntry.strengths.map((item) => (
+                                  <li
+                                    key={`${activeEntry.language}-strength-${item}`}
+                                    className="flex gap-2"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/60"
+                                    />
+                                    <span className="min-w-0">{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )}
+
+                        {activeEntry.weaknesses.length > 0 && (
+                          <AccordionItem
+                            value={`${activeEntry.language}-weaknesses`}
+                            className="px-4"
+                          >
+                            <AccordionTrigger className="py-4 text-left hover:no-underline">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                {m.live_assessment_weaknesses()}
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-4 text-sm">
+                              <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
+                                {activeEntry.weaknesses.map((item) => (
+                                  <li
+                                    key={`${activeEntry.language}-weakness-${item}`}
+                                    className="flex gap-2"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[color:var(--brand-blue)]/60"
+                                    />
+                                    <span className="min-w-0">{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )}
+
+                        {activeEntry.recommendations.length > 0 && (
+                          <AccordionItem
+                            value={`${activeEntry.language}-recommendations`}
+                            className="px-4"
+                          >
+                            <AccordionTrigger className="py-4 text-left hover:no-underline">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                {m.live_assessment_recommendations()}
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-4 text-sm">
+                              <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
+                                {activeEntry.recommendations.map((item) => (
+                                  <li
+                                    key={`${activeEntry.language}-recommendation-${item}`}
+                                    className="flex gap-2"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[color:var(--brand-green)]/60"
+                                    />
+                                    <span className="min-w-0">{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )}
+                      </Accordion>
                     </div>
-
-                    <Accordion type="multiple" className="w-full">
-                      {activeEntry.strengths.length > 0 && (
-                        <AccordionItem
-                          value={`${activeEntry.language}-strengths`}
-                          className="border-border/40"
-                        >
-                          <AccordionTrigger
-                            className={cn(
-                              "py-2 text-base font-semibold uppercase tracking-[0.18em]",
-                              "text-muted-foreground hover:no-underline",
-                            )}
-                          >
-                            {m.live_assessment_strengths()}
-                          </AccordionTrigger>
-                          <AccordionContent className="text-base">
-                            <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
-                              {activeEntry.strengths.map((item, index) => (
-                                <li key={`${activeEntry.language}-strength-${index}`}>
-                                  {item}
-                                </li>
-                              ))}
-                            </ul>
-                          </AccordionContent>
-                        </AccordionItem>
-                      )}
-
-                      {activeEntry.weaknesses.length > 0 && (
-                        <AccordionItem
-                          value={`${activeEntry.language}-weaknesses`}
-                          className="border-border/40"
-                        >
-                          <AccordionTrigger
-                            className={cn(
-                              "py-2 text-base font-semibold uppercase tracking-[0.18em]",
-                              "text-muted-foreground hover:no-underline",
-                            )}
-                          >
-                            {m.live_assessment_weaknesses()}
-                          </AccordionTrigger>
-                          <AccordionContent className="text-base">
-                            <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
-                              {activeEntry.weaknesses.map((item, index) => (
-                                <li key={`${activeEntry.language}-weakness-${index}`}>
-                                  {item}
-                                </li>
-                              ))}
-                            </ul>
-                          </AccordionContent>
-                        </AccordionItem>
-                      )}
-
-                      {activeEntry.recommendations.length > 0 && (
-                        <AccordionItem
-                          value={`${activeEntry.language}-recommendations`}
-                          className="border-border/40"
-                        >
-                          <AccordionTrigger
-                            className={cn(
-                              "py-2 text-base font-semibold uppercase tracking-[0.18em]",
-                              "text-muted-foreground hover:no-underline",
-                            )}
-                          >
-                            {m.live_assessment_recommendations()}
-                          </AccordionTrigger>
-                          <AccordionContent className="text-base">
-                            <ul className="mt-1 space-y-1 list-disc list-inside text-foreground/90">
-                              {activeEntry.recommendations.map((item, index) => (
-                                <li key={`${activeEntry.language}-rec-${index}`}>
-                                  {item}
-                                </li>
-                              ))}
-                            </ul>
-                          </AccordionContent>
-                        </AccordionItem>
-                      )}
-                    </Accordion>
-                  </div>
-                )}
-              </section>
+                  )}
+                </section>
+              )}
             </div>
-          )}
+          </div>
         </TabsContent>
       </Tabs>
     </aside>

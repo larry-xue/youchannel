@@ -1,9 +1,9 @@
-import { Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
+import { History, Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
 import { memo, useCallback, type KeyboardEvent } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Textarea } from "~/lib/components/ui/textarea";
-import { PersonaSelector } from "~/lib/dashboard/live/components/PersonaSelector";
 import { VoiceSelector } from "~/lib/dashboard/live/components/LiveVoiceSession";
+import { PersonaSelector } from "~/lib/dashboard/live/components/PersonaSelector";
 import { type Persona } from "~/lib/dashboard/live/constants";
 import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
@@ -56,50 +56,55 @@ export const LiveControls = memo(function LiveControls({
         ? m.live_status_paused()
         : m.live_status_live()
       : m.live_status_offline();
+
+  const statusDotClassName = isConnecting
+    ? "bg-primary motion-safe:animate-pulse motion-reduce:animate-none"
+    : isActiveSession && !isPaused
+      ? "bg-[color:var(--brand-green)]"
+      : isActiveSession && isPaused
+        ? "bg-[color:var(--brand-blue)]"
+        : "bg-muted-foreground/60";
+
   const statusTone =
-    isActiveSession && !isPaused
-      ? "bg-muted/70 text-foreground border-border/60"
-      : "bg-muted/70 text-muted-foreground border-border/60";
+    isActiveSession && !isPaused ? "text-foreground" : "text-muted-foreground";
   const messagePlaceholder = isActiveSession
     ? m.live_message_placeholder_active()
     : m.live_empty_prompt();
-  const callButtonClassName = cn(
-    "h-10 min-w-[150px] px-5 text-sm font-semibold",
-    isActiveSession
-      ? "text-destructive"
-      : "bg-foreground text-background hover:bg-foreground/90",
-  );
 
   return (
     <div
       className={cn(
-        "shrink-0 rounded-2xl border border-border/60 bg-background px-4 py-3",
-        "z-20 flex flex-col gap-3 shadow-sm",
+        "shrink-0 border border-border bg-background px-4 py-3",
+        "z-20 flex flex-col gap-3",
         className,
       )}
     >
-      <div className="flex flex-wrap items-center gap-2 justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <PersonaSelector
             selectedId={selectedPersonaId}
             onSelect={onSelectPersona}
-            className="w-[180px] h-9"
+            className="h-10 w-full sm:w-[220px]"
           />
           <VoiceSelector
             value={selectedVoice}
             onValueChange={onVoiceChange}
             disabled={isActiveSession || isConnecting || isReadOnlyHistory}
-            className="w-[140px] h-9"
+            className="h-10 w-full sm:w-[180px]"
           />
           <span
             role="status"
             aria-live="polite"
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-semibold uppercase",
-              "tracking-wide",
+              "inline-flex items-center gap-2 rounded-md border border-border",
+              "bg-muted/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]",
               statusTone,
             )}
           >
+            <span
+              aria-hidden="true"
+              className={cn("h-1.5 w-1.5 rounded-full", statusDotClassName)}
+            />
             {statusLabel}
           </span>
         </div>
@@ -107,53 +112,60 @@ export const LiveControls = memo(function LiveControls({
         <div className="flex items-center gap-2">
           {isActiveSession && !isReadOnlyHistory && (
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
               aria-pressed={isRecording}
-              className="h-9 px-3 text-xs font-medium"
+              className="h-10 w-10 rounded-md border-border bg-background"
               onClick={onToggleMute}
+              title={isRecording ? m.live_mute() : m.live_unmute()}
             >
               {isRecording ? (
                 <>
-                  <Mic aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
-                  {m.live_mute()}
+                  <Mic aria-hidden="true" className="h-4 w-4" />
+                  <span className="sr-only">{m.live_mute()}</span>
                 </>
               ) : (
                 <>
-                  <MicOff aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
-                  {m.live_unmute()}
+                  <MicOff aria-hidden="true" className="h-4 w-4" />
+                  <span className="sr-only">{m.live_unmute()}</span>
                 </>
               )}
             </Button>
           )}
 
-          {!isViewingHistory && <Button
-            size="default"
+          <Button
+            size="lg"
             variant={isActiveSession ? "outline" : "default"}
-            className={callButtonClassName}
+            className={cn(
+              "h-10 w-full justify-center rounded-md px-6 text-sm font-semibold sm:w-auto",
+              isActiveSession &&
+                "border-destructive/30 text-destructive hover:bg-destructive/10",
+            )}
             onClick={onToggleSession}
             disabled={isStartDisabled}
           >
             {isActiveSession ? (
               <>
-                <PhoneOff aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
+                <PhoneOff aria-hidden="true" className="mr-2 h-4 w-4" />
                 {m.live_end_call()}
               </>
             ) : (
               <>
                 {isConnecting ? (
-                  <Loader2
-                    aria-hidden="true"
-                    className="mr-2 h-3.5 w-3.5"
-                  />
+                  <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Phone aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
+                  <>
+                    {isViewingHistory ? (
+                      <History aria-hidden="true" className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Phone aria-hidden="true" className="mr-2 h-4 w-4" />
+                    )}
+                  </>
                 )}
                 {isConnecting ? m.live_status_connecting() : m.live_start_call()}
               </>
             )}
           </Button>
-          }
         </div>
       </div>
 
@@ -209,7 +221,8 @@ const MessageComposer = memo(function MessageComposer({
           placeholder={placeholder}
           disabled={isDisabled}
           className={cn(
-            "min-h-[36px] max-h-[120px] py-2 px-3 rounded-2xl resize-none text-sm",
+            "min-h-[44px] max-h-[140px] resize-none rounded-md border-border bg-background px-4 py-3 text-sm leading-relaxed shadow-none",
+            "focus-visible:ring-ring/40 focus-visible:ring-[3px]",
           )}
         />
       </div>
@@ -217,9 +230,9 @@ const MessageComposer = memo(function MessageComposer({
         size="sm"
         type="button"
         aria-label={m.live_send_message_label()}
-        disabled={!canSend}
+        disabled={!canSend || isDisabled}
         onClick={onSend}
-        className="h-9 w-9 p-0 shrink-0"
+        className="h-11 w-11 shrink-0 rounded-md p-0"
       >
         <Send aria-hidden="true" className="h-4 w-4" />
       </Button>

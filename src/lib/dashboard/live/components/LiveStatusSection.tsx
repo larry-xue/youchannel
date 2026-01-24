@@ -27,7 +27,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
         <StatusPill
           className={cn(
             "mx-auto flex items-center gap-2 text-xs",
-            "font-medium text-muted-foreground border border-border/60",
+            "font-medium text-muted-foreground border border-border",
           )}
         >
           <Loader2 aria-hidden="true" className="h-3.5 w-3.5" />
@@ -50,7 +50,7 @@ export const LiveStatusSection = memo(function LiveStatusSection({
         <StatusPill
           className={cn(
             "mx-auto flex items-center gap-2 text-xs",
-            "font-medium text-foreground border border-border/60",
+            "font-medium text-foreground border border-border",
           )}
         >
           <AlertCircle aria-hidden="true" className="h-4 w-4" />

@@ -35,7 +35,7 @@ export function PersonaSelector({
     >
       <SelectTrigger
         className={cn(
-          "h-9 w-full min-w-[200px] border-border/60 bg-card [&_.persona-desc]:hidden",
+          "h-9 w-full min-w-[200px] border-border bg-background shadow-none [&_.persona-desc]:hidden",
           className,
         )}
       >

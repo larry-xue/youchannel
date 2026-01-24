@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { User } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
   Select,
@@ -19,7 +20,12 @@ interface LiveTranscriptProps {
   className?: string;
 }
 
-export function LiveTranscript({ messages, status, className }: LiveTranscriptProps) {
+export function LiveTranscript({
+  messages,
+  status,
+  persona,
+  className,
+}: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to bottom
@@ -28,32 +34,74 @@ export function LiveTranscript({ messages, status, className }: LiveTranscriptPr
   }, [messages.length, messages[messages.length - 1]?.content]);
   const isActiveSession = status === "connected";
 
+  const assistantInitial = useMemo(() => {
+    const trimmed = persona.name?.trim() ?? "";
+    const initial = trimmed.length > 0 ? trimmed.slice(0, 1).toUpperCase() : "A";
+    return initial;
+  }, [persona.name]);
+
   return (
-    <ScrollArea className={cn("flex-1 min-h-0 rounded-2xl", className)}>
-      <div className="flex flex-col gap-6 px-3 pb-6 pt-4 sm:px-4">
-        {messages.length === 0 && isActiveSession && (
-          <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-            <p>{m.live_status_listening()}</p>
-          </div>
-        )}
-        {messages.map((message) => {
-          const isUser = message.role === "user";
-          return (
-            <div
-              key={message.id}
-              className={cn("flex flex-col gap-3", isUser ? "items-end" : "items-start")}
-            >
-              <div
+    <ScrollArea className={cn("h-full min-h-0", className)}>
+      <div className="flex flex-col gap-5 px-4 pb-6 pt-5 sm:px-6">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-muted/20">
+              <span
+                aria-hidden="true"
                 className={cn(
-                  "max-w-[720px] whitespace-pre-wrap leading-[1.75] text-foreground",
-                  isUser && "rounded-2xl bg-foreground/20 px-4 py-3",
+                  "h-1.5 w-1.5 rounded-full",
+                  isActiveSession ? "bg-[color:var(--brand-green)]" : "bg-primary",
+                )}
+              />
+            </div>
+            <p className="text-sm font-semibold text-foreground">
+              {isActiveSession ? m.live_status_listening() : m.live_empty_prompt()}
+            </p>
+            <p className="text-sm text-muted-foreground">{m.live_page_subtitle()}</p>
+          </div>
+        ) : (
+          messages.map((message) => {
+            const isUser = message.role === "user";
+            return (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex items-start gap-3",
+                  isUser ? "justify-end" : "justify-start",
                 )}
               >
-                {message.content}
+                {!isUser && (
+                  <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-muted/20 text-xs font-semibold text-foreground">
+                    <span aria-hidden="true">{assistantInitial}</span>
+                    <span className="sr-only">{persona.name}</span>
+                  </div>
+                )}
+
+                <div className={cn("flex min-w-0 flex-col", isUser && "items-end")}>
+                  <div
+                    className={cn(
+                      "w-fit max-w-[42rem] whitespace-pre-wrap break-words border-l-2 px-4 py-3",
+                      "text-sm leading-relaxed text-foreground",
+                      isUser
+                        ? "border-l-primary bg-primary/5"
+                        : "border-l-muted-foreground/30 bg-muted/20",
+                    )}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+
+                {isUser && (
+                  <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-primary/5 text-primary">
+                    <User aria-hidden="true" className="h-4 w-4" />
+                    <span className="sr-only">User</span>
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
+
         <div ref={bottomRef} />
       </div>
     </ScrollArea>
@@ -77,7 +125,7 @@ export function VoiceSelector({
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger
         className={cn(
-          "h-9 w-[160px] rounded-xl border-border/60 bg-card px-3 text-sm font-medium hover:bg-muted/50 transition-colors [&_.voice-desc]:hidden",
+          "h-10 w-full rounded-md border-border bg-background px-3 text-sm font-medium shadow-none transition-colors hover:bg-muted/20 [&_.voice-desc]:hidden",
           className,
         )}
       >

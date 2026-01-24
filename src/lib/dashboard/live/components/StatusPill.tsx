@@ -14,7 +14,7 @@ export const StatusPill = memo(function StatusPill({
     <div
       role="status"
       aria-live="polite"
-      className={cn("rounded-full px-4 py-1.5", className)}
+      className={cn("rounded-md px-4 py-1.5", className)}
     >
       {children}
     </div>

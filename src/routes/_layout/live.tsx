@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useMatchRoute } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "~/lib/components/ui/dialog";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -70,7 +71,6 @@ const logLiveAssessment = (...args: unknown[]) => {
 };
 
 const SIDECAR_INJECTION_PREFIX = "[[SIDECAR]]";
-const SIDEBAR_DEFAULT_SIZE = "26%";
 const SIDEBAR_MIN_SIZE = "320px";
 const SIDEBAR_MAX_SIZE = "40%";
 const MAIN_PANEL_MIN_SIZE = "55%";
@@ -126,6 +126,7 @@ export function LivePage() {
   const resolvedSessionId = matchedSession ? matchedSession.sessionId : null;
   const authUser = useAuthUser();
   const isDesktop = useIsDesktop();
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const userName =
     (authUser?.user_metadata?.full_name as string | undefined) ||
     authUser?.email?.split("@")[0] ||
@@ -1003,7 +1004,7 @@ System Context:
   }, []);
 
   return (
-    <div className="relative h-[calc(100vh-10rem)]">
+    <div className="relative flex h-screen min-h-0 flex-col">
       <a
         href="#live-main"
         className={cn(
@@ -1016,156 +1017,211 @@ System Context:
       </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
 
-      <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-        <ResizablePanel
-          defaultSize={100 - SIDEBAR_DEFAULT_SIZE}
-          minSize={MAIN_PANEL_MIN_SIZE}
-        >
-          <main
-            id="live-main"
-            aria-labelledby="live-title"
-            className="flex min-h-0 min-w-0 flex-1 flex-col"
-          >
-            <h1 id="live-title" className="sr-only">
-              {m.live_page_title()}
-            </h1>
+      <div className="flex min-h-0 w-full flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        {!isDesktop && (
+          <Dialog open={isInsightsOpen} onOpenChange={setIsInsightsOpen}>
+            <DialogContent
+              className={cn(
+                "inset-0 max-w-none translate-x-0 translate-y-0",
+                "h-dvh w-screen overflow-hidden rounded-none border-0 bg-background p-0 shadow-none",
+              )}
+            >
+              <DialogTitle className="sr-only">{m.live_observer_title()}</DialogTitle>
+              <ObserverPanel
+                outputs={observerPanelOutputs}
+                error={observerPanelError}
+                canTrigger={canTriggerObserver}
+                onTrigger={handleTriggerObserver}
+                assessment={isViewingHistory ? assessmentEntries : null}
+                assessmentLocale={uiLocale}
+                className="h-full w-full"
+              />
+            </DialogContent>
+          </Dialog>
+        )}
 
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="mx-auto flex min-h-0 w-full max-w-[760px] flex-1 flex-col px-6 py-6 lg:px-8">
-                {isNewSession ? (
-                  <div className="flex flex-1 flex-col items-start justify-center gap-3">
+        {isDesktop ? (
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="min-h-0 flex-1 overflow-hidden border border-border bg-background "
+          >
+            <ResizablePanel
+              minSize={MAIN_PANEL_MIN_SIZE}
+            >
+              <main id="live-main" className="flex h-full min-w-0 flex-col">
+                <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
+                  <HistoryBanner
+                    isVisible={isViewingHistory}
+                    sessionTitle={historyQuery.data?.session.title ?? null}
+                  />
+
+                  <section
+                    aria-label={m.live_page_title()}
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+                  >
+                    {isNewSession ? (
+                      <div className="flex flex-1 flex-col items-start justify-center gap-4 px-6 py-10">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">
+                            <Sparkles
+                              aria-hidden="true"
+                              className="h-5 w-5 text-primary"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-lg font-semibold text-foreground">
+                              {m.live_greeting({ name: userName })}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {m.live_prompt_question()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                          {m.live_status_ready()}
+                        </div>
+                      </div>
+                    ) : (
+                      <LiveTranscript
+                        messages={displayMessages}
+                        status={status}
+                        persona={isViewingHistory ? historyPersona : selectedPersona}
+                        className="h-full w-full"
+                      />
+                    )}
+                  </section>
+
+                  <div className="mt-auto flex flex-col gap-3">
                     <LiveStatusSection
                       isRestoringHistory={isRestoringHistory}
                       sessionError={sessionError}
                       failedSyncCount={failedSyncCount}
                       onRetryFailedMessages={handleRetryFailedMessages}
                     />
+                    {!isViewingHistory && <LiveControls
+                      selectedPersonaId={selectedPersona.id}
+                      onSelectPersona={setSelectedPersona}
+                      selectedVoice={selectedVoice}
+                      onVoiceChange={setSelectedVoice}
+                      isActiveSession={isActiveSession}
+                      isViewingHistory={isViewingHistory}
+                      isConnecting={isConnecting}
+                      isReadOnlyHistory={isReadOnlyHistory}
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      isStartDisabled={isStartDisabled}
+                      onToggleMute={handleToggleMute}
+                      onToggleSession={handleToggleSession}
+                      textInput={textInput}
+                      onTextInputChange={setTextInput}
+                      onSendMessage={handleSendMessage}
+                      canSendText={canSendText}
+                      className="w-full"
+                    />}
+                  </div>
+                </div>
+              </main>
+            </ResizablePanel>
 
-                    <div className="flex flex-col items-start justify-center gap-2 pl-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40 shadow-sm border border-border/40">
-                          <Sparkles className="h-5 w-5 text-primary" />
-                        </div>
-                        <h2 className="text-lg font-semibold text-foreground">
-                          {m.live_greeting({ name: userName })}
-                        </h2>
+            <ResizableHandle withHandle className="bg-border/70 hover:bg-border" />
+
+            <ResizablePanel
+              panelRef={sidebarPanelRef}
+              minSize={SIDEBAR_MIN_SIZE}
+              maxSize={SIDEBAR_MAX_SIZE}
+              collapsible
+              collapsedSize={0}
+            >
+              <ObserverPanel
+                outputs={observerPanelOutputs}
+                error={observerPanelError}
+                canTrigger={canTriggerObserver}
+                onTrigger={handleTriggerObserver}
+                assessment={isViewingHistory ? assessmentEntries : null}
+                assessmentLocale={uiLocale}
+                className="h-full w-full"
+              />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          <main
+            id="live-main"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden border-y border-border bg-background"
+          >
+            <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+              <HistoryBanner
+                isVisible={isViewingHistory}
+                sessionTitle={historyQuery.data?.session.title ?? null}
+              />
+
+              <section
+                aria-label={m.live_page_title()}
+                className="flex min-h-0 flex-1 flex-col overflow-hidden border border-border bg-background"
+              >
+                {isNewSession ? (
+                  <div className="flex flex-1 flex-col items-start justify-center gap-4 px-5 py-10">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">
+                        <Sparkles aria-hidden="true" className="h-5 w-5 text-primary" />
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {m.live_prompt_question()}
-                      </p>
+                      <div>
+                        <p className="text-lg font-semibold text-foreground">
+                          {m.live_greeting({ name: userName })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {m.live_prompt_question()}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="relative w-full">
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
-                      />
-                      <div className="relative rounded-3xl border border-border/60 bg-background/80 backdrop-blur-md">
-                        <LiveControls
-                          selectedPersonaId={selectedPersona.id}
-                          onSelectPersona={setSelectedPersona}
-                          selectedVoice={selectedVoice}
-                          onVoiceChange={setSelectedVoice}
-                          isActiveSession={isActiveSession}
-                          isViewingHistory={isViewingHistory}
-                          isConnecting={isConnecting}
-                          isReadOnlyHistory={isReadOnlyHistory}
-                          isRecording={isRecording}
-                          isPaused={isPaused}
-                          isStartDisabled={isStartDisabled}
-                          onToggleMute={handleToggleMute}
-                          onToggleSession={handleToggleSession}
-                          textInput={textInput}
-                          onTextInputChange={setTextInput}
-                          onSendMessage={handleSendMessage}
-                          canSendText={canSendText}
-                          className="w-full bg-transparent border-0 shadow-none"
-                        />
-                      </div>
+                    <div className="border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                      {m.live_status_ready()}
                     </div>
                   </div>
                 ) : (
-                  <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] gap-6">
-                    <HistoryBanner
-                      isVisible={isViewingHistory}
-                      sessionTitle={historyQuery.data?.session.title ?? null}
-                    />
-
-                    <LiveTranscript
-                      messages={displayMessages}
-                      status={status}
-                      persona={isViewingHistory ? historyPersona : selectedPersona}
-                      className="h-full w-full"
-                    />
-
-                    <div className="flex flex-col gap-3">
-                      <LiveStatusSection
-                        isRestoringHistory={isRestoringHistory}
-                        sessionError={sessionError}
-                        failedSyncCount={failedSyncCount}
-                        onRetryFailedMessages={handleRetryFailedMessages}
-                      />
-
-                      <div className="relative">
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute -inset-4 rounded-[28px] bg-background/70 blur-2xl"
-                        />
-                        <div className="relative rounded-3xl border border-border/60 bg-background/80 backdrop-blur-md">
-                          <LiveControls
-                            selectedPersonaId={selectedPersona.id}
-                            onSelectPersona={setSelectedPersona}
-                            selectedVoice={selectedVoice}
-                            onVoiceChange={setSelectedVoice}
-                            isActiveSession={isActiveSession}
-                            isConnecting={isConnecting}
-                            isReadOnlyHistory={isReadOnlyHistory}
-                            isViewingHistory={isViewingHistory}
-                            isRecording={isRecording}
-                            isPaused={isPaused}
-                            isStartDisabled={isStartDisabled}
-                            onToggleMute={handleToggleMute}
-                            onToggleSession={handleToggleSession}
-                            textInput={textInput}
-                            onTextInputChange={setTextInput}
-                            onSendMessage={handleSendMessage}
-                            canSendText={canSendText}
-                            className="w-full bg-transparent border-0 shadow-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <LiveTranscript
+                    messages={displayMessages}
+                    status={status}
+                    persona={isViewingHistory ? historyPersona : selectedPersona}
+                    className="h-full w-full"
+                  />
                 )}
+              </section>
+
+              <div className="mt-auto flex flex-col gap-3">
+                <LiveStatusSection
+                  isRestoringHistory={isRestoringHistory}
+                  sessionError={sessionError}
+                  failedSyncCount={failedSyncCount}
+                  onRetryFailedMessages={handleRetryFailedMessages}
+                />
+
+                <LiveControls
+                  selectedPersonaId={selectedPersona.id}
+                  onSelectPersona={setSelectedPersona}
+                  selectedVoice={selectedVoice}
+                  onVoiceChange={setSelectedVoice}
+                  isActiveSession={isActiveSession}
+                  isViewingHistory={isViewingHistory}
+                  isConnecting={isConnecting}
+                  isReadOnlyHistory={isReadOnlyHistory}
+                  isRecording={isRecording}
+                  isPaused={isPaused}
+                  isStartDisabled={isStartDisabled}
+                  onToggleMute={handleToggleMute}
+                  onToggleSession={handleToggleSession}
+                  textInput={textInput}
+                  onTextInputChange={setTextInput}
+                  onSendMessage={handleSendMessage}
+                  canSendText={canSendText}
+                  className="w-full"
+                />
               </div>
             </div>
           </main>
-        </ResizablePanel>
-
-        <ResizableHandle
-          withHandle
-          className={cn(!isDesktop && "hidden", "w-2 bg-border/70 hover:bg-border")}
-        />
-
-        <ResizablePanel
-          panelRef={sidebarPanelRef}
-          defaultSize={SIDEBAR_DEFAULT_SIZE}
-          minSize={SIDEBAR_MIN_SIZE}
-          maxSize={SIDEBAR_MAX_SIZE}
-          collapsible
-          collapsedSize={0}
-        >
-          <ObserverPanel
-            outputs={observerPanelOutputs}
-            error={observerPanelError}
-            canTrigger={canTriggerObserver}
-            onTrigger={handleTriggerObserver}
-            assessment={isViewingHistory ? assessmentEntries : null}
-            assessmentLocale={uiLocale}
-            className=""
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        )}
+      </div>
     </div>
   );
 }

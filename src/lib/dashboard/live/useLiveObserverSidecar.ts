@@ -23,6 +23,7 @@ type UseLiveObserverSidecarOptions = {
   status: GeminiLiveStatus;
   isReadOnlyHistory: boolean;
   messages: Message[];
+  minSequenceNumber?: number;
   onInjectPrompt: (text: string) => void;
   onOutput?: (output: LiveObserverOutput) => void | Promise<void>;
 };
@@ -103,6 +104,7 @@ export function useLiveObserverSidecar({
   status,
   isReadOnlyHistory,
   messages,
+  minSequenceNumber = 0,
   onInjectPrompt,
   onOutput,
 }: UseLiveObserverSidecarOptions) {
@@ -112,8 +114,7 @@ export function useLiveObserverSidecar({
 
   const messagesRef = useRef<Message[]>([]);
   const isRunningRef = useRef(false);
-  const lastFinalMessageIdRef = useRef<string | null>(null);
-  const lastAssistantFinalIdRef = useRef<string | null>(null);
+  const lastFinalUserMessageIdRef = useRef<string | null>(null);
   const lastTriggeredAssistantIdRef = useRef<string | null>(null);
   const pendingTurnAssistantIdRef = useRef<string | null>(null);
   const pendingTurnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,8 +141,7 @@ export function useLiveObserverSidecar({
   const reset = useCallback(() => {
     setOutputs([]);
     setError(null);
-    lastFinalMessageIdRef.current = null;
-    lastAssistantFinalIdRef.current = null;
+    lastFinalUserMessageIdRef.current = null;
     lastTriggeredAssistantIdRef.current = null;
     pendingTurnAssistantIdRef.current = null;
     if (pendingTurnTimerRef.current) {
@@ -328,24 +328,40 @@ export function useLiveObserverSidecar({
 
   useEffect(() => {
     if (!isActiveSession || isReadOnlyHistory) return;
-    const finalMessages = messages.filter((message) => !message.isStreaming);
-    const lastFinal = finalMessages[finalMessages.length - 1];
-    if (!lastFinal || lastFinal.id === lastFinalMessageIdRef.current) return;
+    const finalMessages = messages.filter(
+      (message) =>
+        !message.isStreaming && message.sequenceNumber > minSequenceNumber,
+    );
+    if (finalMessages.length === 0) return;
 
-    lastFinalMessageIdRef.current = lastFinal.id;
-
-    if (lastFinal.role === "assistant") {
-      lastAssistantFinalIdRef.current = lastFinal.id;
-      logSidecar("turn_assistant_final", { messageId: lastFinal.id });
-      return;
+    let lastFinalUser: Message | undefined;
+    let lastAssistantBeforeUser: Message | undefined;
+    // Walk backward to find the latest finalized user message and its prior assistant.
+    for (let i = finalMessages.length - 1; i >= 0; i -= 1) {
+      const message = finalMessages[i];
+      if (!lastFinalUser && message.role === "user") {
+        lastFinalUser = message;
+        continue;
+      }
+      if (
+        lastFinalUser &&
+        message.role === "assistant" &&
+        message.sequenceNumber < lastFinalUser.sequenceNumber
+      ) {
+        lastAssistantBeforeUser = message;
+        break;
+      }
     }
 
-    const assistantId = lastAssistantFinalIdRef.current;
+    if (!lastFinalUser) return;
+    if (lastFinalUser.id === lastFinalUserMessageIdRef.current) return;
+
+    lastFinalUserMessageIdRef.current = lastFinalUser.id;
+
+    const assistantId = lastAssistantBeforeUser?.id ?? null;
     if (!assistantId) {
-      logSidecar("turn_skip_no_assistant", { messageId: lastFinal.id });
-      return;
-    }
-    if (assistantId === lastTriggeredAssistantIdRef.current) {
+      logSidecar("turn_trigger_no_assistant", { messageId: lastFinalUser.id });
+    } else if (assistantId === lastTriggeredAssistantIdRef.current) {
       logSidecar("turn_skip_already_triggered", { assistantId });
       return;
     }
@@ -355,10 +371,12 @@ export function useLiveObserverSidecar({
       clearTimeout(pendingTurnTimerRef.current);
     }
 
-    const userMessageId = lastFinal.id;
+    const userMessageId = lastFinalUser.id;
     pendingTurnTimerRef.current = setTimeout(() => {
       if (pendingTurnAssistantIdRef.current !== assistantId) return;
-      lastTriggeredAssistantIdRef.current = assistantId;
+      if (assistantId) {
+        lastTriggeredAssistantIdRef.current = assistantId;
+      }
       pendingTurnAssistantIdRef.current = null;
       pendingTurnTimerRef.current = null;
       logSidecar("turn_trigger", {
@@ -367,7 +385,13 @@ export function useLiveObserverSidecar({
       });
       void runSidecar(true);
     }, USER_TURN_DEBOUNCE_MS);
-  }, [isActiveSession, isReadOnlyHistory, messages, runSidecar]);
+  }, [
+    isActiveSession,
+    isReadOnlyHistory,
+    messages,
+    minSequenceNumber,
+    runSidecar,
+  ]);
 
   const triggerNow = useCallback(() => {
     void runSidecar(true);

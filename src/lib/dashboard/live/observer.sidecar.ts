@@ -1,4 +1,4 @@
-import { GoogleGenAI, type Interactions } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -122,79 +122,77 @@ export const runLiveObserverSidecarFn = createServerFn({ method: "POST" })
 
     const prompt = buildSidecarPrompt(data);
     const audioChunks = data.audioChunks ?? [];
-    const contents: Array<Interactions.Content> = [
-      ...audioChunks.map((chunk) => ({
-        type: "audio" as const,
-        data: chunk.data,
-        mime_type: chunk.mimeType,
-      })),
-      { type: "text" as const, text: prompt },
-    ];
 
     const ai = new GoogleGenAI({ apiKey });
-    const interaction = await ai.interactions.create({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      input: contents,
-      response_format: {
-        type: "object",
-        properties: {
-          transcript: { type: "string" },
-          suggestions: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                type: {
-                  type: "string",
-                  enum: [
-                    "grammar",
-                    "vocabulary",
-                    "pronunciation",
-                    "fluency",
-                    "comprehension",
-                    "other",
-                  ],
-                },
-                text: { type: "string" },
-                example: { type: ["string", "null"] },
-                confidence: { type: "number" },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            ...audioChunks.map((chunk) => ({
+              inlineData: {
+                mimeType: "audio/pcm",
+                data: chunk.data,
               },
-              required: ["type", "text", "confidence"],
-              additionalProperties: false,
-            },
-          },
-          injection: {
-            type: ["object", "null"],
-            properties: {
-              text: { type: "string" },
-              priority: { type: "string", enum: ["low", "medium", "high"] },
-              reason: { type: ["string", "null"] },
-            },
-            required: ["text", "priority"],
-            additionalProperties: false,
-          },
-          confidence: { type: "number" },
+            })),
+            { text: prompt },
+          ],
         },
-        required: ["transcript", "suggestions", "confidence"],
-        additionalProperties: false,
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            transcript: { type: Type.STRING },
+            suggestions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: {
+                    type: Type.STRING,
+                    enum: [
+                      "grammar",
+                      "vocabulary",
+                      "pronunciation",
+                      "fluency",
+                      "comprehension",
+                      "other",
+                    ],
+                  },
+                  text: { type: Type.STRING },
+                  example: { type: Type.STRING, nullable: true },
+                  confidence: { type: Type.NUMBER },
+                },
+                required: ["type", "text", "confidence"],
+              },
+            },
+            injection: {
+              type: Type.OBJECT,
+              nullable: true,
+              properties: {
+                text: { type: Type.STRING },
+                priority: { type: Type.STRING, enum: ["low", "medium", "high"] },
+                reason: { type: Type.STRING, nullable: true },
+              },
+              required: ["text", "priority"],
+            },
+            confidence: { type: Type.NUMBER },
+          },
+          required: ["transcript", "suggestions", "confidence"],
+        },
       },
-      response_mime_type: "application/json",
     });
-    const textOutput = interaction.outputs?.find(
-      (output): output is Interactions.TextContent => {
-        if (!output || typeof output !== "object") return false;
-        const candidate = output as Partial<Interactions.TextContent>;
-        return candidate.type === "text" && typeof candidate.text === "string";
-      },
-    );
-
-    if (!textOutput?.text) {
+    const textOutput = response.text;
+    if (!textOutput) {
       throw new Error("Observer sidecar returned empty output.");
     }
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(textOutput.text);
+      parsed = JSON.parse(textOutput);
     } catch (error) {
       console.error("[ObserverSidecar] Failed to parse JSON", error);
       throw new Error("Observer sidecar returned invalid JSON.");

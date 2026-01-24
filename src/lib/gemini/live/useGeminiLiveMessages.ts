@@ -87,7 +87,7 @@ export function useGeminiLiveMessages({
 
   const handleOutputText = useCallback(
     (message: LiveServerMessage) => {
-      let outputText = message.serverContent?.outputTranscription?.text;
+      const outputText = message.serverContent?.outputTranscription?.text;
       if (!outputText) return;
 
       const isFinalChunk = Boolean(message.serverContent?.turnComplete);
@@ -110,10 +110,7 @@ export function useGeminiLiveMessages({
         const newId = crypto.randomUUID();
         currentModelMessageIdRef.current = newId;
 
-        const prevUserMsgId = currentUserMessageIdRef.current;
-        currentUserMessageIdRef.current = null;
-
-        const updatedPrev = finalizeStreamingMessage(prev, prevUserMsgId);
+        const updatedPrev = prev;
 
         const newMessage: Message = {
           id: newId,
@@ -156,10 +153,7 @@ export function useGeminiLiveMessages({
         const newId = crypto.randomUUID();
         currentUserMessageIdRef.current = newId;
 
-        const prevModelMsgId = currentModelMessageIdRef.current;
-        currentModelMessageIdRef.current = null;
-
-        const updatedPrev = finalizeStreamingMessage(prev, prevModelMsgId);
+        const updatedPrev = prev;
 
         const newMessage: Message = {
           id: newId,
@@ -177,13 +171,31 @@ export function useGeminiLiveMessages({
 
   const handleTurnComplete = useCallback(
     (message: LiveServerMessage) => {
-      if (!message.serverContent?.turnComplete) return;
-      const currentModelId = currentModelMessageIdRef.current;
-      if (!currentModelId) return;
+      const isTurnComplete = message.serverContent?.turnComplete;
+      const isInterrupted = message.serverContent?.interrupted;
 
-      setMessages((prev) =>
-        applyMessageWindow(finalizeStreamingMessage(prev, currentModelId)),
-      );
+      if (!isTurnComplete && !isInterrupted) return;
+      const currentModelId = currentModelMessageIdRef.current;
+      const currentUserId = currentUserMessageIdRef.current;
+      if (!currentModelId && !currentUserId) return;
+
+      if (currentUserId) {
+        currentUserMessageIdRef.current = null;
+      }
+      if (currentModelId) {
+        currentModelMessageIdRef.current = null;
+      }
+
+      setMessages((prev) => {
+        let next = prev;
+        if (currentUserId) {
+          next = finalizeStreamingMessage(next, currentUserId);
+        }
+        if (currentModelId) {
+          next = finalizeStreamingMessage(next, currentModelId);
+        }
+        return applyMessageWindow(next);
+      });
     },
     [applyMessageWindow],
   );

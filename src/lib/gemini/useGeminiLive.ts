@@ -239,8 +239,8 @@ export function useGeminiLive({
           appendUserMessage(text);
         }
 
-        if (typeof (sessionRef.current as any).sendClientContent === "function") {
-          (sessionRef.current as any).sendClientContent({
+        if (typeof (sessionRef.current).sendClientContent === "function") {
+          (sessionRef.current).sendClientContent({
             turns: [{ role: "user", parts: [{ text }] }],
             turnComplete: true,
           });
@@ -254,8 +254,8 @@ export function useGeminiLive({
 
   const sendContext = useCallback((text: string) => {
     if (!sessionRef.current) return;
-    if (typeof (sessionRef.current as any).sendClientContent === "function") {
-      (sessionRef.current as any).sendClientContent({
+    if (typeof (sessionRef.current).sendClientContent === "function") {
+      (sessionRef.current).sendClientContent({
         turns: [{ role: "user", parts: [{ text }] }],
         turnComplete: false,
       });
@@ -275,8 +275,8 @@ export function useGeminiLive({
         appendTurns(turns);
       }
 
-      if (typeof (sessionRef.current as any).sendClientContent === "function") {
-        await (sessionRef.current as any).sendClientContent({
+      if (typeof (sessionRef.current).sendClientContent === "function") {
+        await (sessionRef.current).sendClientContent({
           turns: turns.map((turn) => ({
             role: turn.role === "assistant" ? "model" : turn.role,
             parts: [{ text: turn.content }],

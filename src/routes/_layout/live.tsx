@@ -381,6 +381,7 @@ export function LivePage() {
     status,
     isReadOnlyHistory,
     messages: displayMessages,
+    minSequenceNumber: lastHistorySequenceNumber,
     onInjectPrompt: (text) => {
       sendContext(formatSidecarInjection(text));
     },

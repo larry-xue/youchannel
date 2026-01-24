@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Library, Loader2, LogOut, PieChart, Play, RefreshCw } from "lucide-react";
+import { Library, LogOut, PieChart, Play, RefreshCw } from "lucide-react";
 import { getUserActiveQuotaFn } from "~/lib/server/quotas";
 import { Button } from "./ui/button";
 import {
@@ -92,17 +92,12 @@ function UserQuotas() {
           onClick={handleRefresh}
           disabled={isRefetching}
         >
-          <RefreshCw
-            className="h-3 w-3 text-muted-foreground transition-colors hover:text-foreground"
-          />
+          <RefreshCw className="h-3 w-3 text-muted-foreground transition-colors hover:text-foreground" />
         </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link
-          to="/quotas"
-          className="rounded-lg border border-border/60 bg-card p-3"
-        >
+        <Link to="/quotas" className="rounded-lg border border-border/60 bg-card p-3">
           <p className="text-xs font-semibold text-muted-foreground">
             {m.quota_video_label()}
           </p>
@@ -119,7 +114,11 @@ function UserQuotas() {
           <p className="mt-1 text-sm font-semibold text-foreground">
             {quota.chatPercent.toFixed(0)}%
           </p>
-          <Progress value={quota.chatPercent} className="mt-2 h-1" />
+          <Progress
+            value={quota.chatPercent}
+            className="mt-2 h-1 bg-[color:var(--brand-blue)]/20"
+            indicatorClassName="bg-[color:var(--brand-blue)]"
+          />
         </Link>
       </div>
     </div>
@@ -147,12 +146,12 @@ export function UserPanel({ onSignOut, showMenuItems = true }: UserPanelProps) {
   return (
     <>
       <DropdownMenu>
-      <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
-        {userAvatar ? (
-          <img
-            src={userAvatar}
-            alt="Avatar"
-            className="h-8 w-8 rounded-full object-cover"
+        <DropdownMenuTrigger className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+          {userAvatar ? (
+            <img
+              src={userAvatar}
+              alt="Avatar"
+              className="h-8 w-8 rounded-full object-cover"
             />
           ) : (
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">

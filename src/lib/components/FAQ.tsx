@@ -1,10 +1,10 @@
-import * as m from "~/paraglide/messages";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "./ui/accordion";
+} from "~/lib/components/ui/accordion";
+import * as m from "~/paraglide/messages";
 
 const faqs = () => [
   {
@@ -27,7 +27,7 @@ const faqs = () => [
 
 export function FAQ() {
   return (
-    <section className="mx-auto max-w-3xl py-12">
+    <section className="mx-auto max-w-5xl py-14">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="mb-4 type-h2 text-foreground">{m.faq_title()}</h2>
         <p className="text-sm text-muted-foreground">{m.faq_subtitle()}</p>
@@ -39,12 +39,12 @@ export function FAQ() {
             <AccordionItem
               key={index}
               value={`item-${index}`}
-              className="rounded-2xl border border-border/60 bg-card px-5"
+              className="rounded-3xl border border-border/60 bg-card/70 px-6 shadow-sm backdrop-blur transition-colors hover:bg-card/80"
             >
-              <AccordionTrigger className="py-5 text-left text-sm font-semibold hover:no-underline">
+              <AccordionTrigger className="py-6 text-left text-sm font-semibold hover:no-underline">
                 {faq.question}
               </AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed text-muted-foreground pb-5">
+              <AccordionContent className="pb-6 text-sm leading-relaxed text-muted-foreground">
                 {faq.answer}
               </AccordionContent>
             </AccordionItem>

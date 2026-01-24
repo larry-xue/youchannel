@@ -21,7 +21,7 @@ export const HistoryBanner = memo(function HistoryBanner({
     <div
       className={cn(
         "sticky top-0 w-full flex flex-wrap items-center justify-center gap-3",
-        "border-b border-border/60 bg-background pb-3 pt-2 pb-2",
+        "border-b border-border/60 pt-2 pb-2",
       )}
     >
       <div className="min-w-0">

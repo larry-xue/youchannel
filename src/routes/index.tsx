@@ -28,7 +28,7 @@ function Home() {
     <div className="min-h-screen app-shell">
       <Header onSignOut={handleSignOut} />
       <main id="main-content" className="flex-1">
-        <div className="container mx-auto max-w-5xl px-6">
+        <div className="container mx-auto max-w-6xl px-6">
           <Hero />
           <Features />
           <FAQ />

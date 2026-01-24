@@ -1003,7 +1003,7 @@ System Context:
   }, []);
 
   return (
-    <div className="relative min-h-[calc(100vh-10rem)]">
+    <div className="relative h-[calc(100vh-10rem)]">
       <a
         href="#live-main"
         className={cn(
@@ -1016,7 +1016,7 @@ System Context:
       </a>
       {isActiveSession && <SessionBlocker disconnect={disconnect} />}
 
-      <ResizablePanelGroup direction="horizontal" className="min-h-[calc(100vh-10rem)]">
+      <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
         <ResizablePanel
           defaultSize={100 - SIDEBAR_DEFAULT_SIZE}
           minSize={MAIN_PANEL_MIN_SIZE}
@@ -1024,32 +1024,14 @@ System Context:
           <main
             id="live-main"
             aria-labelledby="live-title"
-            className="flex min-w-0 flex-1 flex-col"
+            className="flex min-h-0 min-w-0 flex-1 flex-col"
           >
             <h1 id="live-title" className="sr-only">
               {m.live_page_title()}
             </h1>
 
-            <div className="flex flex-1 flex-col">
-              <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-6 px-6 py-6 lg:px-8">
-                {!isNewSession && (
-                  <>
-                    <HistoryBanner
-                      isVisible={isViewingHistory}
-                      sessionTitle={historyQuery.data?.session.title ?? null}
-                    />
-
-                    <div className="min-h-0 flex-1">
-                      <LiveTranscript
-                        messages={displayMessages}
-                        status={status}
-                        persona={isViewingHistory ? historyPersona : selectedPersona}
-                        className="w-full"
-                      />
-                    </div>
-                  </>
-                )}
-
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="mx-auto flex min-h-0 w-full max-w-[760px] flex-1 flex-col px-6 py-6 lg:px-8">
                 {isNewSession ? (
                   <div className="flex flex-1 flex-col items-start justify-center gap-3">
                     <LiveStatusSection
@@ -1103,7 +1085,19 @@ System Context:
                     </div>
                   </div>
                 ) : (
-                  <div className="sticky bottom-6 z-20 mt-8">
+                  <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] gap-6">
+                    <HistoryBanner
+                      isVisible={isViewingHistory}
+                      sessionTitle={historyQuery.data?.session.title ?? null}
+                    />
+
+                    <LiveTranscript
+                      messages={displayMessages}
+                      status={status}
+                      persona={isViewingHistory ? historyPersona : selectedPersona}
+                      className="h-full w-full"
+                    />
+
                     <div className="flex flex-col gap-3">
                       <LiveStatusSection
                         isRestoringHistory={isRestoringHistory}
@@ -1150,10 +1144,7 @@ System Context:
 
         <ResizableHandle
           withHandle
-          className={cn(
-            !isDesktop && "hidden",
-            "w-2 bg-border/70 hover:bg-border",
-          )}
+          className={cn(!isDesktop && "hidden", "w-2 bg-border/70 hover:bg-border")}
         />
 
         <ResizablePanel

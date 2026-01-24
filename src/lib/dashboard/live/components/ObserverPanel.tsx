@@ -113,7 +113,7 @@ export const ObserverPanel = memo(function ObserverPanel({
     <aside
       className={cn(
         "hidden xl:flex flex-col gap-4 text-base min-w-0 w-full",
-        "border-l border-border/60 bg-background sticky top-0 h-screen py-4 px-2",
+        "border-l border-border/60 bg-background sticky top-0 h-full py-4 px-2",
         className,
       )}
     >

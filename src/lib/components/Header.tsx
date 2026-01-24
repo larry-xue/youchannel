@@ -36,16 +36,19 @@ export function Header({ onSignOut, className, showMenu = false }: HeaderProps) 
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 w-full border-b border-border/60 bg-background/90",
+        "sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/70",
         className,
       )}
     >
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-6">
-        <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-xs font-semibold text-background">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-6">
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-sm font-semibold text-foreground"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground ring-1 ring-border/60">
             F
           </span>
-          <span>
+          <span className="font-display tracking-tight">
             {m.app_name_part1()}
             {m.app_name_part2()}
           </span>
@@ -55,7 +58,11 @@ export function Header({ onSignOut, className, showMenu = false }: HeaderProps) 
           {showMenu && authUser && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-lg text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                >
                   <Menu className="h-4 w-4" />
                   <span className="sr-only">Open menu</span>
                 </Button>
@@ -90,7 +97,7 @@ export function Header({ onSignOut, className, showMenu = false }: HeaderProps) 
           {authUser ? (
             <UserPanel onSignOut={onSignOut} showMenuItems={false} />
           ) : (
-            <Button asChild variant="ghost">
+            <Button asChild variant="outline" size="sm" className="rounded-full">
               <Link to="/signin">{m.sign_in()}</Link>
             </Button>
           )}

@@ -98,9 +98,12 @@ function AuthPage() {
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="flex min-h-screen flex-col">
         <Header onSignOut={handleSignOut} />
-        <main id="main-content" className="flex flex-1 items-center justify-center px-6 py-12">
-          <Card className="w-full max-w-md">
-            <CardHeader className="space-y-1 pb-6 pt-8 text-center">
+        <main
+          id="main-content"
+          className="flex flex-1 items-center justify-center px-6 py-14"
+        >
+          <Card className="w-full max-w-md rounded-3xl border-border/60 bg-card/70 shadow-sm backdrop-blur">
+            <CardHeader className="space-y-2 pb-6 pt-10 text-center">
               <CardTitle className="text-lg font-semibold text-card-foreground">
                 {m.signin_welcome()}
               </CardTitle>
@@ -108,7 +111,7 @@ function AuthPage() {
                 {m.signin_description()}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8 pb-8">
+            <CardContent className="space-y-8 pb-10">
               {error && (
                 <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
                   {error}

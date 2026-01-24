@@ -19,11 +19,7 @@ interface LiveTranscriptProps {
   className?: string;
 }
 
-export function LiveTranscript({
-  messages,
-  status,
-  className,
-}: LiveTranscriptProps) {
+export function LiveTranscript({ messages, status, className }: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to bottom
@@ -33,12 +29,7 @@ export function LiveTranscript({
   const isActiveSession = status === "connected";
 
   return (
-    <ScrollArea
-      className={cn(
-        "flex-1 h-full min-h-[320px] rounded-2xl bg-background/80 max-h-[calc(100vh-300px)]",
-        className,
-      )}
-    >
+    <ScrollArea className={cn("flex-1 min-h-0 rounded-2xl", className)}>
       <div className="flex flex-col gap-6 px-3 pb-6 pt-4 sm:px-4">
         {messages.length === 0 && isActiveSession && (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
@@ -50,10 +41,7 @@ export function LiveTranscript({
           return (
             <div
               key={message.id}
-              className={cn(
-                "flex flex-col gap-3",
-                isUser ? "items-end" : "items-start",
-              )}
+              className={cn("flex flex-col gap-3", isUser ? "items-end" : "items-start")}
             >
               <div
                 className={cn(
@@ -95,10 +83,7 @@ export function VoiceSelector({
       >
         <SelectValue placeholder={m.live_select_voice()} />
       </SelectTrigger>
-      <SelectContent
-        align="start"
-        className="max-h-[320px] rounded-xl bg-popover p-2"
-      >
+      <SelectContent align="start" className="max-h-[320px] rounded-xl bg-popover p-2">
         {getVoiceOptions().map((voice) => (
           <SelectItem
             key={voice.name}

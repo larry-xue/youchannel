@@ -63,39 +63,25 @@ const STACK_VISIBLE_RANGE = 4;
 const EMPTY_VIDEOS: PlaylistVideo[] = [];
 const QUOTA_COLORS = [
   {
-    fill: "rgba(134, 167, 200, 0.35)",
-    fillActive: "rgba(134, 167, 200, 0.9)",
-    border: "rgba(134, 167, 200, 0.65)",
-    glow: "rgba(134, 167, 200, 0.35)",
-    glowActive: "rgba(134, 167, 200, 0.55)",
+    fill: "rgba(217, 119, 87, 0.28)",
+    fillActive: "rgba(217, 119, 87, 0.9)",
+    border: "rgba(217, 119, 87, 0.6)",
+    glow: "rgba(217, 119, 87, 0.25)",
+    glowActive: "rgba(217, 119, 87, 0.45)",
   },
   {
-    fill: "rgba(238, 165, 145, 0.35)",
-    fillActive: "rgba(238, 165, 145, 0.9)",
-    border: "rgba(238, 165, 145, 0.65)",
-    glow: "rgba(238, 165, 145, 0.35)",
-    glowActive: "rgba(238, 165, 145, 0.55)",
+    fill: "rgba(106, 155, 204, 0.28)",
+    fillActive: "rgba(106, 155, 204, 0.9)",
+    border: "rgba(106, 155, 204, 0.6)",
+    glow: "rgba(106, 155, 204, 0.25)",
+    glowActive: "rgba(106, 155, 204, 0.45)",
   },
   {
-    fill: "rgba(90, 124, 166, 0.35)",
-    fillActive: "rgba(90, 124, 166, 0.9)",
-    border: "rgba(90, 124, 166, 0.65)",
-    glow: "rgba(90, 124, 166, 0.35)",
-    glowActive: "rgba(90, 124, 166, 0.55)",
-  },
-  {
-    fill: "rgba(70, 100, 148, 0.35)",
-    fillActive: "rgba(70, 100, 148, 0.9)",
-    border: "rgba(70, 100, 148, 0.65)",
-    glow: "rgba(70, 100, 148, 0.35)",
-    glowActive: "rgba(70, 100, 148, 0.55)",
-  },
-  {
-    fill: "rgba(51, 76, 130, 0.35)",
-    fillActive: "rgba(51, 76, 130, 0.9)",
-    border: "rgba(51, 76, 130, 0.65)",
-    glow: "rgba(51, 76, 130, 0.35)",
-    glowActive: "rgba(51, 76, 130, 0.55)",
+    fill: "rgba(120, 140, 93, 0.28)",
+    fillActive: "rgba(120, 140, 93, 0.9)",
+    border: "rgba(120, 140, 93, 0.6)",
+    glow: "rgba(120, 140, 93, 0.25)",
+    glowActive: "rgba(120, 140, 93, 0.45)",
   },
 ] as const;
 
@@ -317,9 +303,9 @@ function DashboardPlaylists() {
       ? m.quota_zero_seconds()
       : selectionQuota.unknownCount > 0
         ? m.quota_with_unknown({
-          time: formatSeconds(selectionQuota.totalSeconds),
-          count: selectionQuota.unknownCount,
-        })
+            time: formatSeconds(selectionQuota.totalSeconds),
+            count: selectionQuota.unknownCount,
+          })
         : formatSeconds(selectionQuota.totalSeconds);
   const activeQuotaLabel = activeSelectedVideo
     ? formatSeconds(selectionQuota.perVideoSeconds.get(activeSelectedVideo.id) ?? null)
@@ -336,8 +322,8 @@ function DashboardPlaylists() {
     const averageKnown =
       knownSeconds.length > 0
         ? Math.round(
-          knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
-        )
+            knownSeconds.reduce((sum, value) => sum + value, 0) / knownSeconds.length,
+          )
         : 1;
     const fallbackSeconds = Math.max(averageKnown, 1);
     const weights = secondsList.map((seconds) =>
@@ -397,9 +383,9 @@ function DashboardPlaylists() {
       const skippedText =
         result.skipped > 0
           ? m.toast_skipped_message({
-            count: result.skipped,
-            reasons: skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
-          })
+              count: result.skipped,
+              reasons: skippedReasons.length > 0 ? ` (${skippedReasons.join(", ")})` : "",
+            })
           : "";
 
       if (result.enqueued > 0) {
@@ -556,7 +542,7 @@ function DashboardPlaylists() {
   };
 
   return (
-    <div className="mx-auto w-full px-6 py-10">
+    <div className="mx-auto w-full max-w-6xl px-6 py-10">
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -673,7 +659,8 @@ function DashboardPlaylists() {
                                 {truncate(video.title || "Video", 40)}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {video.source_playlist_title || m.review_source_selected()}
+                                {video.source_playlist_title ||
+                                  m.review_source_selected()}
                               </p>
                             </div>
                           </div>
@@ -689,8 +676,8 @@ function DashboardPlaylists() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {activeSelectedVideo?.source_playlist_title
                           ? m.review_source_from({
-                            source: activeSelectedVideo.source_playlist_title,
-                          })
+                              source: activeSelectedVideo.source_playlist_title,
+                            })
                           : m.review_source_selected()}
                         {activeSelectedVideo?.published_at
                           ? ` �?${formatDate(activeSelectedVideo.published_at)}`

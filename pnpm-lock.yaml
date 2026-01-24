@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/lora':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/poppins':
+        specifier: ^5.2.7
+        version: 5.2.7
       '@google/genai':
         specifier: ^1.37.0
         version: 1.37.0(bufferutil@4.1.0)
@@ -591,6 +597,12 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@fontsource/lora@5.2.8':
+    resolution: {integrity: sha512-AQlfsHw4TP1x/eb2IZ6VjQ70ctKa39m9JN9A4zlvDOeKYLrCs+GaYIEQ86Y6YfSPGHn01bErXkRcyktOW0LOPQ==}
+
+  '@fontsource/poppins@5.2.7':
+    resolution: {integrity: sha512-6uQyPmseo4FgI97WIhA4yWRlNaoLk4vSDK/PyRwdqqZb5zAEuc+Kunt8JTMcsHYUEGYBtN15SNkMajMdqUSUmg==}
 
   '@google/genai@1.37.0':
     resolution: {integrity: sha512-of85LwNqretPhBHHEljUY05OSsQVUPyw5n1RdNkUpKR36kgHq7CVVEGY4GplVbFaqbdT3DXfLSv5B/Avbe5vXw==}
@@ -3904,6 +3916,10 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@fontsource/lora@5.2.8': {}
+
+  '@fontsource/poppins@5.2.7': {}
 
   '@google/genai@1.37.0(bufferutil@4.1.0)':
     dependencies:

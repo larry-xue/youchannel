@@ -75,7 +75,7 @@ function QuotaPage() {
     : m.quota_period_long();
 
   return (
-    <div className="mx-auto w-full px-6 py-10 space-y-8">
+    <div className="mx-auto w-full max-w-6xl px-6 py-10 space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -126,10 +126,7 @@ function QuotaPage() {
                   </div>
                 </div>
 
-                <Progress
-                  value={quota.videoPercent}
-                  className="h-2 w-full"
-                />
+                <Progress value={quota.videoPercent} className="h-2 w-full" />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span className="font-mono opacity-80">
@@ -140,10 +137,7 @@ function QuotaPage() {
                   </span>
                   {quota.perVideoLimitSeconds !== null &&
                     quota.perVideoLimitSeconds > 0 && (
-                      <Badge
-                        variant="secondary"
-                        className="font-normal rounded-full"
-                      >
+                      <Badge variant="secondary" className="font-normal rounded-full">
                         {m.quota_per_video({
                           limit: formatSeconds(quota.perVideoLimitSeconds),
                         })}
@@ -180,7 +174,8 @@ function QuotaPage() {
 
                 <Progress
                   value={quota.chatPercent}
-                  className="h-2 w-full"
+                  className="h-2 w-full bg-[color:var(--brand-blue)]/20"
+                  indicatorClassName="bg-[color:var(--brand-blue)]"
                 />
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -224,8 +219,8 @@ function QuotaPage() {
               const expiryDate = grant.validTo ? new Date(grant.validTo) : null;
               const daysUntilExpiry = expiryDate
                 ? Math.ceil(
-                  (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-                )
+                    (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                  )
                 : null;
 
               let sourceLabel = grant.sourceType;
@@ -254,8 +249,8 @@ function QuotaPage() {
                               ? daysUntilExpiry && daysUntilExpiry <= 7
                                 ? m.quota_grant_expires_soon({ days: daysUntilExpiry })
                                 : m.quota_grant_expires({
-                                  date: expiryDate.toLocaleDateString(),
-                                })
+                                    date: expiryDate.toLocaleDateString(),
+                                  })
                               : m.quota_grant_no_expiry()}
                           </span>
                         </div>
@@ -290,10 +285,7 @@ function QuotaPage() {
                         )}
                       </div>
                       {grant.maxVideoSeconds > 0 && (
-                        <Progress
-                          value={grantVideoPercent}
-                          className="h-1.5 w-full"
-                        />
+                        <Progress value={grantVideoPercent} className="h-1.5 w-full" />
                       )}
                     </div>
 
@@ -314,7 +306,8 @@ function QuotaPage() {
                       </div>
                       <Progress
                         value={grantChatPercent}
-                        className="h-1.5 w-full"
+                        className="h-1.5 w-full bg-[color:var(--brand-blue)]/20"
+                        indicatorClassName="bg-[color:var(--brand-blue)]"
                       />
                     </div>
                   </CardContent>

@@ -77,7 +77,7 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
             )`}
         </ScriptOnce>
 
-        <div className="app-shell relative flex min-h-screen flex-col font-sans antialiased selection:bg-primary/20 selection:text-primary">
+        <div className="app-shell relative flex min-h-screen flex-col font-sans antialiased selection:bg-primary/20 selection:text-primary-foreground">
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-4 focus:px-4 focus:py-2 rounded-lg bg-muted text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"

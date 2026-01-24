@@ -16,7 +16,6 @@ import {
 } from "~/lib/components/ui/pagination";
 import { VideoCard } from "~/lib/components/video-card";
 import { getVideosFn, getYouTubeAccountStatusFn } from "~/lib/dashboard/data";
-import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
 import { Video } from "~/schema";
 
@@ -62,7 +61,7 @@ function DashboardPlaylists() {
   };
 
   return (
-    <div className="mx-auto w-full px-6 py-10">
+    <div className="mx-auto w-full max-w-6xl px-6 py-10">
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -105,7 +104,7 @@ function DashboardPlaylists() {
                     video={video}
                     isSelected={false}
                     hideCheckbox={true}
-                    onSelect={() => { }}
+                    onSelect={() => {}}
                     isSelectable={false}
                     onOpen={handleOpenVideo}
                   />
@@ -122,9 +121,9 @@ function DashboardPlaylists() {
                     href={
                       page > 1
                         ? router.buildLocation({
-                          to: "/library",
-                          search: { page: page - 1 },
-                        }).href
+                            to: "/library",
+                            search: { page: page - 1 },
+                          }).href
                         : undefined
                     }
                     className={
@@ -212,9 +211,9 @@ function DashboardPlaylists() {
                     href={
                       page < totalPages
                         ? router.buildLocation({
-                          to: "/library",
-                          search: { page: page + 1 },
-                        }).href
+                            to: "/library",
+                            search: { page: page + 1 },
+                          }).href
                         : undefined
                     }
                     className={

@@ -3,48 +3,66 @@
 
 @import "tw-animate-css";
 
+@import "@fontsource/poppins/latin-600.css";
+@import "@fontsource/poppins/latin-ext-600.css";
+@import "@fontsource/poppins/latin-700.css";
+@import "@fontsource/poppins/latin-ext-700.css";
+@import "@fontsource/lora/latin-400.css";
+@import "@fontsource/lora/latin-ext-400.css";
+@import "@fontsource/lora/latin-500.css";
+@import "@fontsource/lora/latin-ext-500.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #0b0b0b;
+  --brand-dark: #141413;
+  --brand-light: #faf9f5;
+  --brand-mid: #b0aea5;
+  --brand-light-gray: #e8e6dc;
+  --brand-orange: #d97757;
+  --brand-blue: #6a9bcc;
+  --brand-green: #788c5d;
+  --outline-variant: var(--brand-mid);
+  --secondary-container: var(--brand-light-gray);
+
+  --background: var(--brand-light);
+  --foreground: var(--brand-dark);
   --card: #ffffff;
-  --card-foreground: #0b0b0b;
+  --card-foreground: var(--brand-dark);
   --popover: #ffffff;
-  --popover-foreground: #0b0b0b;
-  --primary: #0b0b0b;
-  --primary-foreground: #ffffff;
-  --secondary: #fcfcfc;
-  --secondary-foreground: #0b0b0b;
-  --muted: #fcfcfc;
-  --muted-foreground: #1f1f1f;
-  --accent: #fdfdfd;
-  --accent-foreground: #0b0b0b;
+  --popover-foreground: var(--brand-dark);
+  --primary: var(--brand-orange);
+  --primary-foreground: var(--brand-dark);
+  --secondary: var(--brand-light-gray);
+  --secondary-foreground: var(--brand-dark);
+  --muted: var(--brand-light-gray);
+  --muted-foreground: #6b6a64;
+  --accent: rgb(217 119 87 / 0.12);
+  --accent-foreground: var(--brand-dark);
   --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.12);
+  --destructive-foreground: var(--brand-light);
+  --border: rgb(176 174 165 / 0.65);
   --input: #ffffff;
-  --ring: rgba(0, 0, 0, 0.35);
-  --chart-1: #0b0b0b;
-  --chart-2: #2b2b2b;
-  --chart-3: #4b4b4b;
-  --chart-4: #6b6b6b;
-  --chart-5: #8b8b8b;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0b0b0b;
-  --sidebar-primary: #0b0b0b;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fcfcfc;
-  --sidebar-accent-foreground: #0b0b0b;
-  --sidebar-border: rgba(0, 0, 0, 0.12);
-  --sidebar-ring: rgba(0, 0, 0, 0.35);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-serif: ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  --ring: rgb(217 119 87 / 0.45);
+  --chart-1: var(--brand-orange);
+  --chart-2: var(--brand-blue);
+  --chart-3: var(--brand-green);
+  --chart-4: var(--brand-mid);
+  --chart-5: var(--brand-dark);
+  --sidebar: var(--brand-light);
+  --sidebar-foreground: var(--brand-dark);
+  --sidebar-primary: var(--brand-orange);
+  --sidebar-primary-foreground: var(--brand-dark);
+  --sidebar-accent: rgb(217 119 87 / 0.12);
+  --sidebar-accent-foreground: var(--brand-dark);
+  --sidebar-border: rgb(176 174 165 / 0.65);
+  --sidebar-ring: rgb(217 119 87 / 0.45);
+  --font-sans: Lora, Georgia, "Times New Roman", serif;
+  --font-display: Poppins, Arial, sans-serif;
+  --font-serif: Lora, Georgia, "Times New Roman", serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   --radius: 1rem;
   --shadow-x: 0px;
   --shadow-y: 1px;
@@ -54,62 +72,57 @@
   --shadow-color: hsl(0 0% 0%);
   --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.06);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.06);
-  --shadow-xl: 0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.06);
-  --shadow-2xl: 0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-2xl: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.06);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
 
 .dark {
-  --background: #0b0b0b;
-  --foreground: #f5f5f5;
-  --card: #0f0f0f;
-  --card-foreground: #f5f5f5;
-  --popover: #0f0f0f;
-  --popover-foreground: #f5f5f5;
-  --primary: #ffffff;
-  --primary-foreground: #0b0b0b;
-  --secondary: #121212;
-  --secondary-foreground: #f5f5f5;
-  --muted: #121212;
-  --muted-foreground: #d1d1d1;
-  --accent: #121212;
-  --accent-foreground: #f5f5f5;
+  --background: var(--brand-dark);
+  --foreground: var(--brand-light);
+  --outline-variant: var(--brand-mid);
+  --secondary-container: rgb(232 230 220 / 0.16);
+  --card: rgb(250 249 245 / 0.06);
+  --card-foreground: var(--brand-light);
+  --popover: rgb(250 249 245 / 0.07);
+  --popover-foreground: var(--brand-light);
+  --primary: var(--brand-orange);
+  --primary-foreground: var(--brand-dark);
+  --secondary: rgb(232 230 220 / 0.08);
+  --secondary-foreground: var(--brand-light);
+  --muted: rgb(232 230 220 / 0.06);
+  --muted-foreground: var(--brand-mid);
+  --accent: rgb(217 119 87 / 0.18);
+  --accent-foreground: var(--brand-light);
   --destructive: #f87171;
-  --destructive-foreground: #0b0b0b;
-  --border: rgba(255, 255, 255, 0.12);
-  --input: #0f0f0f;
-  --ring: rgba(255, 255, 255, 0.4);
-  --chart-1: #ffffff;
-  --chart-2: #d9d9d9;
-  --chart-3: #b5b5b5;
-  --chart-4: #8f8f8f;
-  --chart-5: #6b6b6b;
-  --sidebar: #0b0b0b;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #0b0b0b;
-  --sidebar-accent: #121212;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: rgba(255, 255, 255, 0.12);
-  --sidebar-ring: rgba(255, 255, 255, 0.4);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-serif: ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  --destructive-foreground: var(--brand-dark);
+  --border: rgb(176 174 165 / 0.25);
+  --input: rgb(250 249 245 / 0.06);
+  --ring: rgb(217 119 87 / 0.55);
+  --chart-1: var(--brand-orange);
+  --chart-2: var(--brand-blue);
+  --chart-3: var(--brand-green);
+  --chart-4: var(--brand-mid);
+  --chart-5: var(--brand-light);
+  --sidebar: var(--brand-dark);
+  --sidebar-foreground: var(--brand-light);
+  --sidebar-primary: var(--brand-orange);
+  --sidebar-primary-foreground: var(--brand-dark);
+  --sidebar-accent: rgb(217 119 87 / 0.18);
+  --sidebar-accent-foreground: var(--brand-light);
+  --sidebar-border: rgb(176 174 165 / 0.25);
+  --sidebar-ring: rgb(217 119 87 / 0.55);
+  --font-sans: Lora, Georgia, "Times New Roman", serif;
+  --font-display: Poppins, Arial, sans-serif;
+  --font-serif: Lora, Georgia, "Times New Roman", serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   --radius: 1rem;
   --shadow-x: 0px;
   --shadow-y: 1px;
@@ -119,23 +132,19 @@
   --shadow-color: hsl(0 0% 0%);
   --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-2xl: 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-2xl: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-outline-variant: var(--outline-variant);
+  --color-secondary-container: var(--secondary-container);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -199,6 +208,17 @@
 
   .app-shell {
     background-color: var(--background);
+    background-image:
+      radial-gradient(900px circle at 18% 12%, rgb(217 119 87 / 0.18), transparent 60%),
+      radial-gradient(900px circle at 82% 5%, rgb(106 155 204 / 0.14), transparent 58%),
+      radial-gradient(900px circle at 48% 100%, rgb(120 140 93 / 0.12), transparent 62%);
+  }
+
+  .dark .app-shell {
+    background-image:
+      radial-gradient(900px circle at 18% 12%, rgb(217 119 87 / 0.22), transparent 62%),
+      radial-gradient(900px circle at 82% 5%, rgb(106 155 204 / 0.18), transparent 60%),
+      radial-gradient(900px circle at 48% 100%, rgb(120 140 93 / 0.16), transparent 64%);
   }
 }
 

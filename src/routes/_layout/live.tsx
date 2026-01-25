@@ -148,7 +148,7 @@ export function LivePage() {
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
-  const audioChunkHandlerRef = useRef<
+  const observerSpeechHandlerRef = useRef<
     ((chunk: { pcm: Float32Array; sampleCount: number }) => void) | null
   >(null);
   const sidebarPanelRef = usePanelRef();
@@ -362,8 +362,8 @@ export function LivePage() {
     voiceName: selectedVoice,
     initialSequenceNumber: lastHistorySequenceNumber,
     onResumptionHandle: handleResumptionHandle,
-    onInputAudioChunk: (chunk) => {
-      audioChunkHandlerRef.current?.(chunk);
+    onUserSpeechEnd: (chunk) => {
+      observerSpeechHandlerRef.current?.(chunk);
     },
   });
 
@@ -430,8 +430,8 @@ export function LivePage() {
     onOutput: handleObserverOutput,
   });
   useEffect(() => {
-    audioChunkHandlerRef.current = observer.ingestAudioChunk;
-  }, [observer.ingestAudioChunk]);
+    observerSpeechHandlerRef.current = observer.ingestSpeechSegment;
+  }, [observer.ingestSpeechSegment]);
   const canTriggerObserver = observer.canTrigger;
   const observerPanelOutputs = useMemo(() => {
     if (!isViewingHistory) return observer.outputs;
@@ -612,7 +612,10 @@ export function LivePage() {
 
       // Filter out streaming messages (incomplete) and already synced ones
       const unsynced = turnMessages.filter(
-        (message) => !message.isStreaming && !syncedMessageIdsRef.current.has(message.id),
+        (message) =>
+          !message.isStreaming &&
+          message.content.trim().length > 0 &&
+          !syncedMessageIdsRef.current.has(message.id),
       );
       if (unsynced.length === 0) return;
 
@@ -1194,10 +1197,6 @@ System Context:
                           {m.live_prompt_question()}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                      {m.live_status_ready()}
                     </div>
                   </div>
                 ) : (

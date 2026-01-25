@@ -17,6 +17,13 @@ const finalizeStreamingMessage = (messages: Message[], messageId: string | null)
   return next;
 };
 
+const revokeObjectUrl = (url: string | undefined) => {
+  if (!url) return;
+  if (typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return;
+  if (!url.startsWith("blob:")) return;
+  URL.revokeObjectURL(url);
+};
+
 export function useGeminiLiveMessages({
   initialSequenceNumber,
   messageWindowSize,
@@ -37,6 +44,8 @@ export function useGeminiLiveMessages({
       if (nextMessages.length <= messageWindowSize) {
         return nextMessages;
       }
+      const removed = nextMessages.slice(0, nextMessages.length - messageWindowSize);
+      removed.forEach((message) => revokeObjectUrl(message.audioUrl));
       return nextMessages.slice(-messageWindowSize);
     },
     [messageWindowSize],
@@ -46,7 +55,10 @@ export function useGeminiLiveMessages({
     sequenceCounterRef.current = nextSequenceNumber;
     currentUserMessageIdRef.current = null;
     currentModelMessageIdRef.current = null;
-    setMessages([]);
+    setMessages((prev) => {
+      prev.forEach((message) => revokeObjectUrl(message.audioUrl));
+      return [];
+    });
   }, []);
 
   const resolveStreamingAssistantIndex = useCallback((nextMessages: Message[]) => {
@@ -221,6 +233,75 @@ export function useGeminiLiveMessages({
     [applyMessageWindow, getNextSequenceNumber],
   );
 
+  const beginUserAudioMessage = useCallback((): string => {
+    const previousUserId = currentUserMessageIdRef.current;
+    const previousModelId = currentModelMessageIdRef.current;
+    const newId = crypto.randomUUID();
+    currentUserMessageIdRef.current = newId;
+    currentModelMessageIdRef.current = null;
+
+    setMessages((prev) => {
+      let nextPrev = prev;
+      if (previousUserId) {
+        nextPrev = finalizeStreamingMessage(nextPrev, previousUserId);
+      }
+      if (previousModelId) {
+        nextPrev = finalizeStreamingMessage(nextPrev, previousModelId);
+      }
+      const newMessage: Message = {
+        id: newId,
+        role: "user",
+        content: "",
+        timestamp: new Date(),
+        sequenceNumber: getNextSequenceNumber(),
+        isStreaming: true,
+      };
+      return applyMessageWindow([...nextPrev, newMessage]);
+    });
+
+    return newId;
+  }, [applyMessageWindow, getNextSequenceNumber]);
+
+  const attachAudioToMessage = useCallback(
+    (messageId: string, audioUrl: string) => {
+      setMessages((prev) => {
+        const idx = prev.findIndex((message) => message.id === messageId);
+        if (idx < 0) return prev;
+
+        const existing = prev[idx];
+        if (existing.audioUrl && existing.audioUrl !== audioUrl) {
+          revokeObjectUrl(existing.audioUrl);
+        }
+
+        const next = [...prev];
+        next[idx] = { ...existing, audioUrl };
+        return next;
+      });
+    },
+    [],
+  );
+
+  const removeMessage = useCallback((messageId: string) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((message) => message.id === messageId);
+      if (idx < 0) return prev;
+
+      const message = prev[idx];
+      revokeObjectUrl(message.audioUrl);
+
+      if (currentUserMessageIdRef.current === messageId) {
+        currentUserMessageIdRef.current = null;
+      }
+      if (currentModelMessageIdRef.current === messageId) {
+        currentModelMessageIdRef.current = null;
+      }
+
+      const next = [...prev];
+      next.splice(idx, 1);
+      return next;
+    });
+  }, []);
+
   const appendTurns = useCallback(
     (turns: Array<{ role: "user" | "assistant"; content: string }>) => {
       setMessages((prev) =>
@@ -246,6 +327,9 @@ export function useGeminiLiveMessages({
     messages,
     appendTurns,
     appendUserMessage,
+    beginUserAudioMessage,
+    attachAudioToMessage,
+    removeMessage,
     handleInputText,
     handleOutputText,
     handleTurnComplete,

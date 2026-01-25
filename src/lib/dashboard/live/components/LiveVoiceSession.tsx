@@ -62,6 +62,15 @@ export function LiveTranscript({
         ) : (
           messages.map((message) => {
             const isUser = message.role === "user";
+            const trimmedContent = message.content.trim();
+            const showBubble =
+              !isUser || trimmedContent.length > 0 || message.isStreaming === true;
+            const bubbleText =
+              trimmedContent.length > 0
+                ? message.content
+                : isUser && message.isStreaming
+                  ? m.live_status_listening()
+                  : message.content;
             return (
               <div
                 key={message.id}
@@ -78,17 +87,27 @@ export function LiveTranscript({
                 )}
 
                 <div className={cn("flex min-w-0 flex-col", isUser && "items-end")}>
-                  <div
-                    className={cn(
-                      "w-fit max-w-[42rem] whitespace-pre-wrap break-words border-l-2 px-4 py-3",
-                      "text-sm leading-relaxed text-foreground",
-                      isUser
-                        ? "border-l-primary bg-primary/5"
-                        : "border-l-muted-foreground/30 bg-muted/20",
-                    )}
-                  >
-                    {message.content}
-                  </div>
+                  {showBubble && (
+                    <div
+                      className={cn(
+                        "w-fit max-w-[42rem] whitespace-pre-wrap break-words border-l-2 px-4 py-3",
+                        "text-sm leading-relaxed text-foreground",
+                        isUser
+                          ? "border-l-primary bg-primary/5"
+                          : "border-l-muted-foreground/30 bg-muted/20",
+                      )}
+                    >
+                      {bubbleText}
+                    </div>
+                  )}
+                  {isUser && message.audioUrl && (
+                    <audio
+                      className="mt-2 w-full max-w-[42rem]"
+                      controls
+                      preload="metadata"
+                      src={message.audioUrl}
+                    />
+                  )}
                 </div>
 
                 {isUser && (

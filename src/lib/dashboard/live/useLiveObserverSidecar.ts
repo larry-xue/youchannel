@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeminiLiveStatus, Message } from "~/lib/gemini/useGeminiLive";
-import { arrayBufferToBase64, float32ToInt16 } from "~/lib/gemini/utils";
+import { createWavBlob } from "~/lib/gemini/utils";
 import {
   runLiveObserverSidecarFn,
   type LiveObserverSidecarResponse,
 } from "./observer.sidecar";
 
-type LiveObserverAudioChunk = {
+type LiveObserverSpeechChunk = {
   pcm: Float32Array;
   sampleCount: number;
 };
 
-export type LiveObserverOutput = LiveObserverSidecarResponse & {
+type ObserverTurn = {
+  assistantTranscript: string;
+  userPcm: Float32Array;
+};
+
+export type LiveObserverOutput = Omit<LiveObserverSidecarResponse, "summary"> & {
+  /**
+   * The sidecar always returns a running summary, but persisted history rows may
+   * not include it (we only store transcript/suggestions/confidence).
+   */
+  summary?: LiveObserverSidecarResponse["summary"];
   id: string;
   createdAt: number;
 };
@@ -29,72 +39,11 @@ type UseLiveObserverSidecarOptions = {
 };
 
 const SAMPLE_RATE = 16000;
-const MAX_AUDIO_SECONDS = 10;
-const MIN_AUDIO_SECONDS = 6;
-const MIN_WORDS = 18;
-const MIN_CHARS = 60;
-const MIN_INTERVAL_MS = 6000;
 const INJECTION_COOLDOWN_MS = 15000;
 const INJECTION_MIN_CONFIDENCE = 0.7;
-const USER_TURN_DEBOUNCE_MS = 1500;
 
 const logSidecar = (...args: unknown[]) => {
   console.debug("[ObserverSidecar]", ...args);
-};
-
-const countWords = (text: string) => {
-  const trimmed = text.trim();
-  if (!trimmed) return 0;
-  return trimmed.split(/\s+/).filter(Boolean).length;
-};
-
-const mergeAudioChunks = (chunks: LiveObserverAudioChunk[]) => {
-  const totalSamples = chunks.reduce(
-    (sum, chunk) => sum + chunk.sampleCount,
-    0,
-  );
-  const merged = new Float32Array(totalSamples);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk.pcm, offset);
-    offset += chunk.sampleCount;
-  }
-  return merged;
-};
-
-const encodePcmBase64 = (pcm: Float32Array) => {
-  const pcm16 = float32ToInt16(pcm);
-  return arrayBufferToBase64(pcm16.buffer);
-};
-
-const buildTranscriptWindow = (messages: Message[]) => {
-  const finalMessages = messages.filter((message) => !message.isStreaming);
-  const windowMessages = finalMessages.slice(-10);
-  const transcript = windowMessages
-    .map(
-      (message) =>
-        `${message.role === "user" ? "User" : "Assistant"}: ${message.content}`,
-    )
-    .join("\n");
-  const trimmedTranscript =
-    transcript.length > 4000 ? transcript.slice(-4000) : transcript;
-  const latestUserUtterance =
-    [...windowMessages].reverse().find((message) => message.role === "user")
-      ?.content ?? "";
-  const trimmedLatestUserUtterance =
-    latestUserUtterance.length > 800
-      ? latestUserUtterance.slice(-800)
-      : latestUserUtterance;
-  const userText = windowMessages
-    .filter((message) => message.role === "user")
-    .map((message) => message.content)
-    .join(" ");
-  return {
-    transcript: trimmedTranscript,
-    latestUserUtterance: trimmedLatestUserUtterance,
-    wordCount: countWords(userText),
-    charCount: userText.replace(/\s+/g, "").length,
-  };
 };
 
 export function useLiveObserverSidecar({
@@ -112,184 +61,106 @@ export function useLiveObserverSidecar({
   const [error, setError] = useState<Error | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  const messagesRef = useRef<Message[]>([]);
   const isRunningRef = useRef(false);
-  const lastFinalUserMessageIdRef = useRef<string | null>(null);
-  const lastTriggeredAssistantIdRef = useRef<string | null>(null);
-  const pendingTurnAssistantIdRef = useRef<string | null>(null);
-  const pendingTurnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastTriggerAtRef = useRef<number>(0);
+  const sessionIdRef = useRef<string>(crypto.randomUUID());
+  const summaryRef = useRef<string | null>(null);
+  const turnQueueRef = useRef<ObserverTurn[]>([]);
+
+  const lastAssistantTranscriptRef = useRef<string | null>(null);
   const lastInjectionAtRef = useRef<number>(0);
   const lastInjectionTextRef = useRef<string | null>(null);
-  const sessionIdRef = useRef<string>(crypto.randomUUID());
-  const audioChunksRef = useRef<LiveObserverAudioChunk[]>([]);
-  const audioSamplesRef = useRef<number>(0);
 
   const isActiveSession = status === "connected";
-  const maxAudioSamples = MAX_AUDIO_SECONDS * SAMPLE_RATE;
-  const minAudioSamples = MIN_AUDIO_SECONDS * SAMPLE_RATE;
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  const resetAudioBuffer = useCallback(() => {
-    audioChunksRef.current = [];
-    audioSamplesRef.current = 0;
-  }, []);
 
   const reset = useCallback(() => {
     setOutputs([]);
     setError(null);
-    lastFinalUserMessageIdRef.current = null;
-    lastTriggeredAssistantIdRef.current = null;
-    pendingTurnAssistantIdRef.current = null;
-    if (pendingTurnTimerRef.current) {
-      clearTimeout(pendingTurnTimerRef.current);
-      pendingTurnTimerRef.current = null;
-    }
-    lastTriggerAtRef.current = 0;
+    setIsRunning(false);
+    isRunningRef.current = false;
     lastInjectionAtRef.current = 0;
     lastInjectionTextRef.current = null;
     sessionIdRef.current = crypto.randomUUID();
-    resetAudioBuffer();
-  }, [resetAudioBuffer]);
+    summaryRef.current = null;
+    turnQueueRef.current = [];
+    lastAssistantTranscriptRef.current = null;
+  }, []);
 
   useEffect(() => {
-    if (!isActiveSession) {
-      resetAudioBuffer();
-      pendingTurnAssistantIdRef.current = null;
-      if (pendingTurnTimerRef.current) {
-        clearTimeout(pendingTurnTimerRef.current);
-        pendingTurnTimerRef.current = null;
-      }
+    if (isActiveSession) return;
+
+    turnQueueRef.current = [];
+    summaryRef.current = null;
+    lastAssistantTranscriptRef.current = null;
+  }, [isActiveSession]);
+
+  useEffect(() => {
+    if (!isActiveSession || isReadOnlyHistory) return;
+
+    const scopedMessages = messages.filter(
+      (message) => message.sequenceNumber > minSequenceNumber,
+    );
+    const reversed = [...scopedMessages].reverse();
+    const lastAssistant = reversed.find(
+      (message) => message.role === "assistant" && message.isStreaming !== true,
+    );
+    if (lastAssistant) {
+      lastAssistantTranscriptRef.current = lastAssistant.content;
     }
-  }, [isActiveSession, resetAudioBuffer]);
+  }, [isActiveSession, isReadOnlyHistory, messages, minSequenceNumber]);
 
-  const ingestAudioChunk = useCallback(
-    (chunk: LiveObserverAudioChunk) => {
-      if (!isActiveSession || isReadOnlyHistory) return;
-      const pcm = new Float32Array(chunk.pcm);
-      audioChunksRef.current.push({ pcm, sampleCount: pcm.length });
-      audioSamplesRef.current += pcm.length;
+  const processQueue = useCallback(async () => {
+    if (!isActiveSession || isReadOnlyHistory || isRunningRef.current) return;
+    if (turnQueueRef.current.length === 0) return;
 
-      while (
-        audioSamplesRef.current > maxAudioSamples &&
-        audioChunksRef.current.length > 0
-      ) {
-        const removed = audioChunksRef.current.shift();
-        if (removed) {
-          audioSamplesRef.current -= removed.sampleCount;
-        }
-      }
-    },
-    [isActiveSession, isReadOnlyHistory, maxAudioSamples],
-  );
+    isRunningRef.current = true;
+    setIsRunning(true);
+    setError(null);
 
-  const runSidecar = useCallback(
-    async (force: boolean) => {
-      if (!isActiveSession || isReadOnlyHistory || isRunningRef.current) {
-        logSidecar("skip", {
-          force,
-          isActiveSession,
-          isReadOnlyHistory,
-          isRunning: isRunningRef.current,
-        });
-        return;
-      }
-      const now = Date.now();
-      if (!force && now - lastTriggerAtRef.current < MIN_INTERVAL_MS) {
-        logSidecar("skip_interval", {
-          sinceLastMs: now - lastTriggerAtRef.current,
-        });
-        return;
-      }
+    try {
+      while (turnQueueRef.current.length > 0) {
+        const turns = turnQueueRef.current.slice(0, 2);
+        const summary = summaryRef.current ?? undefined;
+        const requestAt = Date.now();
 
-      const snapshot = buildTranscriptWindow(messagesRef.current);
-      if (!snapshot.transcript.trim()) {
-        logSidecar("skip_empty_transcript");
-        return;
-      }
-
-      const shouldTrigger =
-        audioSamplesRef.current >= minAudioSamples ||
-        snapshot.wordCount >= MIN_WORDS ||
-        snapshot.charCount >= MIN_CHARS;
-
-      if (!force && !shouldTrigger) {
-        logSidecar("skip_thresholds", {
-          audioSamples: audioSamplesRef.current,
-          wordCount: snapshot.wordCount,
-          charCount: snapshot.charCount,
-        });
-        return;
-      }
-      if (audioChunksRef.current.length === 0 && !force) {
-        logSidecar("skip_no_audio");
-        return;
-      }
-
-      const audioChunks = audioChunksRef.current;
-      resetAudioBuffer();
-      lastTriggerAtRef.current = now;
-
-      isRunningRef.current = true;
-      setIsRunning(true);
-      setError(null);
-
-      try {
         logSidecar("request_start", {
-          audioSeconds: audioChunks.reduce((sum, chunk) => sum + chunk.sampleCount, 0)
-            / SAMPLE_RATE,
-          transcriptLength: snapshot.transcript.length,
-          wordCount: snapshot.wordCount,
-          charCount: snapshot.charCount,
-          force,
+          turns: turns.length,
+          summaryLength: summary?.length ?? 0,
         });
-        const pcm = audioChunks.length > 0 ? mergeAudioChunks(audioChunks) : null;
-        const encodedAudio = pcm
-          ? [
-              {
-                mimeType: "audio/pcm;rate=16000",
-                data: encodePcmBase64(pcm),
-              },
-            ]
-          : undefined;
+
+        const turnsForRequest = turns.map((turn) => ({
+          assistantTranscript: turn.assistantTranscript,
+          userAudioChunks: [createWavBlob(turn.userPcm, SAMPLE_RATE, 1)],
+        }));
 
         const result = await runLiveObserverSidecarFn({
           data: {
             sessionId: sessionIdRef.current,
             uiLocale,
-            transcript: snapshot.transcript,
-            latestUserUtterance: snapshot.latestUserUtterance,
+            summary,
+            turns: turnsForRequest,
             assistantName,
             assistantPrompt,
-            audioChunks: encodedAudio,
           },
         });
 
+        summaryRef.current = result.summary;
+        turnQueueRef.current = turnQueueRef.current.slice(turns.length);
+
         const output: LiveObserverOutput = {
           id: crypto.randomUUID(),
-          createdAt: now,
+          createdAt: requestAt,
           ...result,
         };
 
-        setOutputs((prev) => {
-          const next = [...prev, output];
-          return next.slice(-12);
-        });
+        setOutputs((prev) => [...prev, output].slice(-12));
         if (onOutput) {
           Promise.resolve(onOutput(output)).catch((persistError) => {
             logSidecar("persist_error", { message: String(persistError) });
           });
         }
 
-        logSidecar("response", {
-          confidence: result.confidence,
-          suggestions: result.suggestions.length,
-          injection: Boolean(result.injection?.text),
-        });
         const injection = result.injection;
+        const now = Date.now();
         if (
           injection &&
           result.confidence >= INJECTION_MIN_CONFIDENCE &&
@@ -304,113 +175,72 @@ export function useLiveObserverSidecar({
           });
           onInjectPrompt(injection.text);
         }
-      } catch (err) {
-        const nextError = err instanceof Error ? err : new Error(String(err));
-        logSidecar("error", { message: nextError.message });
-        setError(nextError);
-      } finally {
-        isRunningRef.current = false;
-        setIsRunning(false);
       }
-    },
-    [
-      isActiveSession,
-      isReadOnlyHistory,
-      minAudioSamples,
-      onInjectPrompt,
-      assistantName,
-      assistantPrompt,
-      resetAudioBuffer,
-      uiLocale,
-      onOutput,
-    ],
-  );
-
-  useEffect(() => {
-    if (!isActiveSession || isReadOnlyHistory) return;
-    const finalMessages = messages.filter(
-      (message) =>
-        !message.isStreaming && message.sequenceNumber > minSequenceNumber,
-    );
-    if (finalMessages.length === 0) return;
-
-    let lastFinalUser: Message | undefined;
-    let lastAssistantBeforeUser: Message | undefined;
-    // Walk backward to find the latest finalized user message and its prior assistant.
-    for (let i = finalMessages.length - 1; i >= 0; i -= 1) {
-      const message = finalMessages[i];
-      if (!lastFinalUser && message.role === "user") {
-        lastFinalUser = message;
-        continue;
-      }
-      if (
-        lastFinalUser &&
-        message.role === "assistant" &&
-        message.sequenceNumber < lastFinalUser.sequenceNumber
-      ) {
-        lastAssistantBeforeUser = message;
-        break;
-      }
+    } catch (err) {
+      const nextError = err instanceof Error ? err : new Error(String(err));
+      logSidecar("error", { message: nextError.message });
+      setError(nextError);
+    } finally {
+      isRunningRef.current = false;
+      setIsRunning(false);
     }
-
-    if (!lastFinalUser) return;
-    if (lastFinalUser.id === lastFinalUserMessageIdRef.current) return;
-
-    lastFinalUserMessageIdRef.current = lastFinalUser.id;
-
-    const assistantId = lastAssistantBeforeUser?.id ?? null;
-    if (!assistantId) {
-      logSidecar("turn_trigger_no_assistant", { messageId: lastFinalUser.id });
-    } else if (assistantId === lastTriggeredAssistantIdRef.current) {
-      logSidecar("turn_skip_already_triggered", { assistantId });
-      return;
-    }
-
-    pendingTurnAssistantIdRef.current = assistantId;
-    if (pendingTurnTimerRef.current) {
-      clearTimeout(pendingTurnTimerRef.current);
-    }
-
-    const userMessageId = lastFinalUser.id;
-    pendingTurnTimerRef.current = setTimeout(() => {
-      if (pendingTurnAssistantIdRef.current !== assistantId) return;
-      if (assistantId) {
-        lastTriggeredAssistantIdRef.current = assistantId;
-      }
-      pendingTurnAssistantIdRef.current = null;
-      pendingTurnTimerRef.current = null;
-      logSidecar("turn_trigger", {
-        assistantId,
-        userMessageId,
-      });
-      void runSidecar(true);
-    }, USER_TURN_DEBOUNCE_MS);
   }, [
+    assistantName,
+    assistantPrompt,
     isActiveSession,
     isReadOnlyHistory,
-    messages,
-    minSequenceNumber,
-    runSidecar,
+    onInjectPrompt,
+    onOutput,
+    uiLocale,
   ]);
 
+  const ingestSpeechSegment = useCallback(
+    (chunk: LiveObserverSpeechChunk) => {
+      if (!isActiveSession || isReadOnlyHistory) return;
+
+      const assistantTranscript = lastAssistantTranscriptRef.current?.trim() ?? "";
+      if (!assistantTranscript) {
+        logSidecar("turn_skip", { reason: "assistant_transcript_empty" });
+        return;
+      }
+
+      const safeAssistantTranscript =
+        assistantTranscript.length > 2200
+          ? assistantTranscript.slice(-2200)
+          : assistantTranscript;
+
+      const pcm = new Float32Array(chunk.pcm);
+      if (pcm.length === 0) {
+        logSidecar("turn_skip", { reason: "no_audio" });
+        return;
+      }
+
+      const turn: ObserverTurn = {
+        assistantTranscript: safeAssistantTranscript,
+        userPcm: pcm,
+      };
+
+      turnQueueRef.current = [...turnQueueRef.current, turn];
+      logSidecar("turn_enqueued", { audioSeconds: pcm.length / SAMPLE_RATE });
+      void processQueue();
+    },
+    [isActiveSession, isReadOnlyHistory, processQueue],
+  );
+
   const triggerNow = useCallback(() => {
-    void runSidecar(true);
-  }, [runSidecar]);
+    if (!isActiveSession || isReadOnlyHistory) return;
+    void processQueue();
+  }, [isActiveSession, isReadOnlyHistory, processQueue]);
 
   const canTrigger = useMemo(() => {
-    return (
-      isActiveSession &&
-      !isReadOnlyHistory &&
-      !isRunning &&
-      messages.length > 0
-    );
+    return isActiveSession && !isReadOnlyHistory && !isRunning && messages.length > 0;
   }, [isActiveSession, isReadOnlyHistory, isRunning, messages.length]);
 
   return {
     outputs,
     error,
     isRunning,
-    ingestAudioChunk,
+    ingestSpeechSegment,
     triggerNow,
     canTrigger,
     reset,

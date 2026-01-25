@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGeminiLiveAudio } from "~/lib/gemini/live/useGeminiLiveAudio";
 import { useGeminiLiveMessages } from "~/lib/gemini/live/useGeminiLiveMessages";
 import type { GeminiLiveStatus } from "~/lib/gemini/live/types";
+import { float32ToWavBuffer } from "~/lib/gemini/utils";
 
 export type { GeminiLiveStatus, Message } from "~/lib/gemini/live/types";
 
@@ -30,6 +31,7 @@ interface UseGeminiLiveOptions {
     pcm: Float32Array;
     sampleCount: number;
   }) => void;
+  onUserSpeechEnd?: (chunk: { pcm: Float32Array; sampleCount: number }) => void;
 }
 
 export function useGeminiLive({
@@ -40,6 +42,7 @@ export function useGeminiLive({
   messageWindowSize = 200,
   onResumptionHandle,
   onInputAudioChunk,
+  onUserSpeechEnd,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +52,55 @@ export function useGeminiLive({
 
   const handleInputAudio = useCallback((media: { mimeType: string; data: string }) => {
     if (sessionRef.current) {
-      sessionRef.current.sendRealtimeInput({ media });
+      sessionRef.current.sendRealtimeInput({ audio: media });
     }
   }, []);
+
+  const {
+    messages,
+    appendTurns,
+    appendUserMessage,
+    beginUserAudioMessage,
+    attachAudioToMessage,
+    removeMessage,
+    handleInputText,
+    handleOutputText,
+    handleTurnComplete,
+    resetMessages,
+  } = useGeminiLiveMessages({
+    initialSequenceNumber,
+    messageWindowSize,
+  });
+
+  const currentUserAudioMessageIdRef = useRef<string | null>(null);
+
+  const handleSpeechStart = useCallback(() => {
+    if (!sessionRef.current) return;
+    if (currentUserAudioMessageIdRef.current) return;
+    currentUserAudioMessageIdRef.current = beginUserAudioMessage();
+    sessionRef.current.sendRealtimeInput({ activityStart: {} });
+  }, [beginUserAudioMessage]);
+
+  const handleSpeechEnd = useCallback(
+    (chunk: { pcm: Float32Array; sampleCount: number }) => {
+      if (!sessionRef.current) return;
+      sessionRef.current.sendRealtimeInput({ activityEnd: {} });
+
+      const messageId = currentUserAudioMessageIdRef.current;
+      currentUserAudioMessageIdRef.current = null;
+
+      if (messageId && typeof URL !== "undefined") {
+        const wavBuffer = float32ToWavBuffer(chunk.pcm, 16000, 1);
+        const audioUrl = URL.createObjectURL(
+          new Blob([wavBuffer], { type: "audio/wav" }),
+        );
+        attachAudioToMessage(messageId, audioUrl);
+      }
+
+      onUserSpeechEnd?.(chunk);
+    },
+    [attachAudioToMessage, onUserSpeechEnd],
+  );
 
   const {
     ensureAudioContexts,
@@ -67,20 +116,19 @@ export function useGeminiLive({
   } = useGeminiLiveAudio({
     onInputAudio: handleInputAudio,
     onInputAudioChunk,
+    onSpeechStart: handleSpeechStart,
+    onSpeechEnd: handleSpeechEnd,
+    onVADMisfire: () => {
+      const messageId = currentUserAudioMessageIdRef.current;
+      currentUserAudioMessageIdRef.current = null;
+      if (messageId) {
+        removeMessage(messageId);
+      }
+      if (sessionRef.current) {
+        sessionRef.current.sendRealtimeInput({ activityEnd: {} });
+      }
+    },
     onError: setError,
-  });
-
-  const {
-    messages,
-    appendTurns,
-    appendUserMessage,
-    handleInputText,
-    handleOutputText,
-    handleTurnComplete,
-    resetMessages,
-  } = useGeminiLiveMessages({
-    initialSequenceNumber,
-    messageWindowSize,
   });
 
   const connect = useCallback(
@@ -114,6 +162,8 @@ export function useGeminiLive({
           outputAudioTranscription: {},
           inputAudioTranscription: {},
           sessionResumption: onResumptionHandle ? {} : undefined,
+          realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
+          temperature: 0.4,
         };
 
         sessionRef.current = await clientRef.current.live.connect({

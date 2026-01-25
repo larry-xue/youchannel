@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { appendFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 
 const suggestionTypeSchema = z.enum([
   "grammar",
@@ -24,22 +26,23 @@ const injectionSchema = z.object({
   reason: z.string().min(1).max(160).optional().nullable(),
 });
 
+const audioChunkSchema = z.object({
+  mimeType: z.string().min(1),
+  data: z.string().min(1),
+});
+
+const turnSchema = z.object({
+  assistantTranscript: z.string().min(1).max(2200),
+  userAudioChunks: z.array(audioChunkSchema).min(1).max(120),
+});
+
 const sidecarRequestSchema = z.object({
   sessionId: z.string().min(1),
   uiLocale: z.string().min(2),
-  transcript: z.string().min(1).max(4000),
-  latestUserUtterance: z.string().max(800).optional().nullable(),
+  summary: z.string().max(2000).optional().nullable(),
+  turns: z.array(turnSchema).min(1).max(2),
   assistantName: z.string().max(120).optional().nullable(),
   assistantPrompt: z.string().max(2200).optional().nullable(),
-  audioChunks: z
-    .array(
-      z.object({
-        mimeType: z.string().min(1),
-        data: z.string().min(1),
-      }),
-    )
-    .max(120)
-    .optional(),
 });
 
 const sidecarResponseSchema = z.object({
@@ -47,26 +50,70 @@ const sidecarResponseSchema = z.object({
   suggestions: z.array(suggestionSchema).max(6),
   injection: injectionSchema.optional().nullable(),
   confidence: z.number().min(0).max(1),
+  summary: z.string().min(1).max(2000),
 });
 
 export type LiveObserverSidecarResponse = z.infer<typeof sidecarResponseSchema>;
+
+type SidecarContentPart = {
+  text?: string;
+  inlineData?: { mimeType: string; data: string };
+};
+
+type SidecarContentEntry = {
+  role: "model" | "user";
+  parts: SidecarContentPart[];
+};
 
 const logSidecar = (...args: unknown[]) => {
   console.debug("[ObserverSidecar][server]", ...args);
 };
 
-const buildSidecarPrompt = (data: z.infer<typeof sidecarRequestSchema>) => {
+const observerContentsLogDir = path.resolve(process.cwd(), "logs");
+const observerContentsLogFile = path.join(
+  observerContentsLogDir,
+  "observer-sidecar-contents.log",
+);
+
+const persistContentsLog = async (
+  sessionId: string,
+  contents: SidecarContentEntry[],
+) => {
+  try {
+    await mkdir(observerContentsLogDir, { recursive: true });
+    const record = {
+      timestamp: new Date().toISOString(),
+      sessionId,
+      contents,
+    };
+    await appendFile(observerContentsLogFile, `${JSON.stringify(record)}\n`);
+  } catch (error) {
+    console.error("[ObserverSidecar] Failed to persist contents log", error);
+  }
+};
+
+const buildSidecarSystemInstruction = (
+  data: z.infer<typeof sidecarRequestSchema>,
+) => {
   const assistantName = data.assistantName?.trim() || "the assistant";
   const assistantPrompt =
     data.assistantPrompt?.trim() || "Use the existing assistant guidance.";
-  const latestUserUtterance =
-    data.latestUserUtterance?.trim() || "No explicit latest utterance provided.";
+  const previousSummary = data.summary?.trim() ?? "";
+  const summarySection = previousSummary
+    ? `Conversation summary so far:
+${previousSummary}`
+    : "Conversation summary so far: (none)";
 
   return `You are a sidecar observer for a live voice conversation.
 
-Use audio as the primary evidence for what the user actually said. The transcript
-may contain ASR errors. Your job is to provide concise language-learning guidance
-for the USER, plus an optional prompt injection to guide the assistant.
+Use audio as the primary evidence for what the user actually said. The assistant
+transcript provides context for what the assistant said. Your job is to provide
+concise language-learning guidance for the USER, plus an optional prompt injection
+to guide the assistant, and maintain a running conversation summary.
+
+The conversation history is provided in the request contents:
+- Each turn is: role "model" (assistant transcript) then role "user" (audio).
+- The LAST role "user" audio message is the utterance you must transcribe.
 
 Output MUST be strict JSON with this schema:
 {
@@ -84,25 +131,23 @@ Output MUST be strict JSON with this schema:
     "priority": "low|medium|high",
     "reason": "short rationale in ${data.uiLocale} or null"
   },
-  "confidence": 0-1
+  "confidence": 0-1,
+  "summary": "string (updated summary after processing the provided turns)"
 }
 
 Rules:
 - Do NOT add any extra keys.
 - Suggestions: 1-4 items max, only if meaningful. Use "other" sparingly.
-- Use audio to correct the transcript if needed.
 - Keep all user-facing strings in ${data.uiLocale}.
 - The injection should be short, actionable, and align with the assistant guidance.
 - If no injection is needed, return "injection": null.
+- Update "summary" by merging the previous summary with the new turns.
+- Keep "summary" concise (<= 900 chars). Prefer bullet-like sentences.
 
 Assistant name: ${assistantName}
 Assistant guidance: ${assistantPrompt}
 
-Conversation transcript (most recent first is not guaranteed):
-${data.transcript}
-
-Latest user utterance (if available):
-${latestUserUtterance}`;
+${summarySection}`;
 };
 
 export const runLiveObserverSidecarFn = createServerFn({ method: "POST" })
@@ -116,33 +161,31 @@ export const runLiveObserverSidecarFn = createServerFn({ method: "POST" })
     logSidecar("request", {
       sessionId: data.sessionId,
       uiLocale: data.uiLocale,
-      transcriptLength: data.transcript.length,
-      audioChunks: data.audioChunks?.length ?? 0,
+      summaryLength: data.summary?.length ?? 0,
+      turns: data.turns.length,
+      audioChunks: data.turns.reduce((sum, turn) => sum + turn.userAudioChunks.length, 0),
       hasAssistantContext: Boolean(data.assistantPrompt || data.assistantName),
     });
 
-    const prompt = buildSidecarPrompt(data);
-    const audioChunks = data.audioChunks ?? [];
+    const systemInstruction = buildSidecarSystemInstruction(data);
+    const contents: SidecarContentEntry[] = data.turns.flatMap((turn) => [
+      { role: "model" as const, parts: [{ text: turn.assistantTranscript }] },
+      {
+        role: "user" as const,
+        parts: turn.userAudioChunks.map((chunk) => ({
+          inlineData: { mimeType: chunk.mimeType, data: chunk.data },
+        })),
+      },
+    ]);
+    await persistContentsLog(data.sessionId, contents);
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            ...audioChunks.map((chunk) => ({
-              inlineData: {
-                mimeType: "audio/pcm",
-                data: chunk.data,
-              },
-            })),
-            { text: prompt },
-          ],
-        },
-      ],
+      contents,
       config: {
         responseMimeType: "application/json",
+        systemInstruction,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -181,8 +224,9 @@ export const runLiveObserverSidecarFn = createServerFn({ method: "POST" })
               required: ["text", "priority"],
             },
             confidence: { type: Type.NUMBER },
+            summary: { type: Type.STRING },
           },
-          required: ["transcript", "suggestions", "confidence"],
+          required: ["transcript", "suggestions", "confidence", "summary"],
         },
       },
     });

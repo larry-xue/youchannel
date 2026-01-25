@@ -129,11 +129,17 @@ export function useGeminiLiveAudio({
     }
   }, []);
 
-  const handleAudioChunk = useCallback(async (message: LiveServerMessage) => {
+  const handleAudioChunk = useCallback(
+    async (message: LiveServerMessage): Promise<Uint8Array | null> => {
     const parts = message.serverContent?.modelTurn?.parts;
     const audioPart = parts?.find((part) => (part as InlineAudioPart).inlineData);
-    if (!audioPart?.inlineData || !outputContextRef.current || !outputNodeRef.current) {
-      return;
+    const inlineData = audioPart?.inlineData;
+    if (!inlineData?.data) return null;
+
+    const pcm16Bytes = decode(inlineData.data);
+
+    if (!outputContextRef.current || !outputNodeRef.current) {
+      return pcm16Bytes;
     }
 
     const ctx = outputContextRef.current;
@@ -141,7 +147,7 @@ export function useGeminiLiveAudio({
 
     try {
       const audioBuffer = await decodeAudioData(
-        decode(audioPart.inlineData.data || ""),
+        pcm16Bytes,
         ctx,
         OUTPUT_SAMPLE_RATE,
         1,
@@ -167,7 +173,10 @@ export function useGeminiLiveAudio({
     } catch (err) {
       console.error("Error decoding audio", err);
     }
-  }, []);
+      return pcm16Bytes;
+    },
+    [],
+  );
 
   const resetPreSpeechBuffer = useCallback(() => {
     preSpeechFramesRef.current = [];

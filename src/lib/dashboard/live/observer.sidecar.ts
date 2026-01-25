@@ -1,8 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 
 const suggestionTypeSchema = z.enum([
   "grammar",
@@ -21,7 +21,7 @@ const suggestionSchema = z.object({
 });
 
 const injectionSchema = z.object({
-  text: z.string().min(1).max(220),
+  text: z.string().min(1).max(600),
   priority: z.enum(["low", "medium", "high"]),
   reason: z.string().min(1).max(160).optional().nullable(),
 });
@@ -75,10 +75,7 @@ const observerContentsLogFile = path.join(
   "observer-sidecar-contents.log",
 );
 
-const persistContentsLog = async (
-  sessionId: string,
-  contents: SidecarContentEntry[],
-) => {
+const persistContentsLog = async (sessionId: string, contents: SidecarContentEntry[]) => {
   try {
     await mkdir(observerContentsLogDir, { recursive: true });
     const record = {
@@ -92,9 +89,7 @@ const persistContentsLog = async (
   }
 };
 
-const buildSidecarSystemInstruction = (
-  data: z.infer<typeof sidecarRequestSchema>,
-) => {
+const buildSidecarSystemInstruction = (data: z.infer<typeof sidecarRequestSchema>) => {
   const assistantName = data.assistantName?.trim() || "the assistant";
   const assistantPrompt =
     data.assistantPrompt?.trim() || "Use the existing assistant guidance.";
@@ -104,12 +99,14 @@ const buildSidecarSystemInstruction = (
 ${previousSummary}`
     : "Conversation summary so far: (none)";
 
-  return `You are a sidecar observer for a live voice conversation.
+  return `You are a sidecar observer ("director") for a live voice conversation.
 
 Use audio as the primary evidence for what the user actually said. The assistant
-transcript provides context for what the assistant said. Your job is to provide
-concise language-learning guidance for the USER, plus an optional prompt injection
-to guide the assistant, and maintain a running conversation summary.
+transcript provides context for what the assistant said.
+
+Product goal: the assistant should feel like a friendly chat partner who quietly
+helps the user improve (no classroom vibe). Keep the conversation flowing, help the
+user speak more, and make the next step easy.
 
 The conversation history is provided in the request contents:
 - Each turn is: role "model" (assistant transcript) then role "user" (audio).
@@ -121,28 +118,49 @@ Output MUST be strict JSON with this schema:
   "suggestions": [
     {
       "type": "grammar|vocabulary|pronunciation|fluency|comprehension|other",
-      "text": "short guidance in ${data.uiLocale}",
-      "example": "short example in ${data.uiLocale} or null",
+      "text": "USER quick card in ${data.uiLocale}",
+      "example": "optional short alt phrase in ${data.uiLocale} or null",
       "confidence": 0-1
     }
   ],
   "injection": null | {
-    "text": "short assistant-guidance prompt in ${data.uiLocale}",
+    "text": "DIRECTOR_CUE for the assistant (structured, actionable)",
     "priority": "low|medium|high",
-    "reason": "short rationale in ${data.uiLocale} or null"
+    "reason": "brief rationale in ${data.uiLocale} or null"
   },
   "confidence": 0-1,
   "summary": "string (updated summary after processing the provided turns)"
 }
 
 Rules:
-- Do NOT add any extra keys.
-- Suggestions: 1-4 items max, only if meaningful. Use "other" sparingly.
-- Keep all user-facing strings in ${data.uiLocale}.
-- The injection should be short, actionable, and align with the assistant guidance.
-- If no injection is needed, return "injection": null.
-- Update "summary" by merging the previous summary with the new turns.
-- Keep "summary" concise (<= 900 chars). Prefer bullet-like sentences.
+- Do NOT add any extra keys. Strict JSON only.
+- Keep user-facing strings in ${data.uiLocale} (suggestions + injection.reason).
+- "suggestions" are USER-facing, immediate, speakable next steps (2-4 items max):
+  1) "Quick reply" the user can say next (1 sentence, natural)
+  2) "Upgrade" a more natural version of what they just tried to say
+  3) A short follow-up question the user can ask
+  4) A tiny micro-drill (one pattern), only if it won't disrupt flow
+  Avoid generic advice. Prefer concrete phrases the user can actually say now.
+- "injection" is the assistant DIRECTOR_CUE. Include it whenever it can meaningfully
+  improve the next assistant reply. Keep it short, structured, and easy to follow.
+  If no steering is needed, return "injection": null.
+- Set injection.priority:
+  - high: the next reply should significantly change (critical misunderstanding, wrong
+    topic, user stuck, or a key correction that unlocks fluency)
+  - medium: normal steering for personalization + flow
+  - low: minor style/wording polish only
+- DIRECTOR_CUE format (text) must be <= 6 short lines, keys in English:
+  DIRECTOR_CUE
+  GOAL=...
+  LEVEL=...
+  STYLE=...
+  DO=...
+  NEXT_Q=...
+  (optional) AVOID=...
+  Content after '=' can be in ${data.uiLocale} if helpful, but keep it concise.
+- Update "summary" by merging the previous summary with the new turns. Keep it concise
+  (<= 900 chars). Include 1-2 stable notes about the user's level/preferences and
+  recurring focus areas so future turns can stay personalized.
 
 Assistant name: ${assistantName}
 Assistant guidance: ${assistantPrompt}

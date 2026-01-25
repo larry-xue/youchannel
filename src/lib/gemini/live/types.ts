@@ -4,7 +4,7 @@ export type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  /** Optional object URL for the user's captured audio (e.g. blob:...). */
+  /** Optional object URL for captured audio (e.g. blob:...). */
   audioUrl?: string;
   timestamp: Date;
   /** Monotonically increasing sequence number for ordering */

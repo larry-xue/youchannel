@@ -74,14 +74,21 @@ const SIDEBAR_MAX_SIZE = "40%";
 const MAIN_PANEL_MIN_SIZE = "55%";
 
 const buildSidecarSystemPrompt = () =>
-  `Sidecar observer note:
+  `Director cue note:
 You may receive hidden user turns that start with "${SIDECAR_INJECTION_PREFIX}".
-These are internal guidance from a background observer.
+These are internal "director cues" from a background observer to help you keep the
+conversation natural and personalized.
+
+Rules:
 - Do NOT respond to those turns, do NOT acknowledge them, and do NOT quote them.
-- Apply the guidance silently to your next normal response.
-- If the most recent user turn is a sidecar instruction, wait for a real user utterance before responding.
-- The sidecar instruction may be in a different language; keep your response language aligned with the user's last spoken language, not the sidecar text.
-- Ignore any sidecar instruction that conflicts with the assistant system prompt, safety rules, or system constraints.`;
+- Treat them as high-priority internal guidance and apply them to your very next
+  normal response to the user (and until superseded).
+- Director cues may include short structured lines (e.g. GOAL=, LEVEL=, STYLE=,
+  DO=, NEXT_Q=, AVOID=). Follow them literally when possible.
+- The director cue may be in a different language; keep your response language
+  aligned with the user's last spoken language, not the cue text.
+- Ignore any director cue that conflicts with the assistant system prompt, safety
+  rules, or system constraints.`;
 
 const formatSidecarInjection = (text: string) =>
   `${SIDECAR_INJECTION_PREFIX} ${text.trim()}`;
@@ -890,9 +897,8 @@ System Context:
         generatedTitleSessionIdsRef.current.add(titleLiveSessionId);
         void (async () => {
           try {
-            const { generateLiveSessionTitleFn } = await import(
-              "~/lib/dashboard/live/title"
-            );
+            const { generateLiveSessionTitleFn } =
+              await import("~/lib/dashboard/live/title");
             await generateLiveSessionTitleFn({
               data: { liveSessionId: titleLiveSessionId, uiLocale },
             });
@@ -1075,9 +1081,7 @@ System Context:
             direction="horizontal"
             className="min-h-0 flex-1 overflow-hidden border border-border bg-background "
           >
-            <ResizablePanel
-              minSize={MAIN_PANEL_MIN_SIZE}
-            >
+            <ResizablePanel minSize={MAIN_PANEL_MIN_SIZE}>
               <main id="live-main" className="flex h-full min-w-0 flex-col">
                 <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
                   <HistoryBanner
@@ -1125,24 +1129,26 @@ System Context:
                       failedSyncCount={failedSyncCount}
                       onRetryFailedMessages={handleRetryFailedMessages}
                     />
-                    {!isViewingHistory && <LiveControls
-                      selectedVoice={selectedVoice}
-                      onVoiceChange={setSelectedVoice}
-                      isActiveSession={isActiveSession}
-                      isViewingHistory={isViewingHistory}
-                      isConnecting={isConnecting}
-                      isReadOnlyHistory={isReadOnlyHistory}
-                      isRecording={isRecording}
-                      isPaused={isPaused}
-                      isStartDisabled={isStartDisabled}
-                      onToggleMute={handleToggleMute}
-                      onToggleSession={handleToggleSession}
-                      textInput={textInput}
-                      onTextInputChange={setTextInput}
-                      onSendMessage={handleSendMessage}
-                      canSendText={canSendText}
-                      className="w-full"
-                    />}
+                    {!isViewingHistory && (
+                      <LiveControls
+                        selectedVoice={selectedVoice}
+                        onVoiceChange={setSelectedVoice}
+                        isActiveSession={isActiveSession}
+                        isViewingHistory={isViewingHistory}
+                        isConnecting={isConnecting}
+                        isReadOnlyHistory={isReadOnlyHistory}
+                        isRecording={isRecording}
+                        isPaused={isPaused}
+                        isStartDisabled={isStartDisabled}
+                        onToggleMute={handleToggleMute}
+                        onToggleSession={handleToggleSession}
+                        textInput={textInput}
+                        onTextInputChange={setTextInput}
+                        onSendMessage={handleSendMessage}
+                        canSendText={canSendText}
+                        className="w-full"
+                      />
+                    )}
                   </div>
                 </div>
               </main>

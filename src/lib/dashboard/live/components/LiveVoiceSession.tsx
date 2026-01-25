@@ -75,11 +75,13 @@ export function LiveTranscript({
             const bubbleText =
               trimmedContent.length > 0
                 ? message.content
-                : isUser && message.isStreaming
-                  ? m.live_status_listening()
-                  : isUser && hasAudio
+                : message.isStreaming
+                  ? isUser
+                    ? m.live_status_listening()
+                    : m.live_voice_message()
+                  : hasAudio
                     ? m.live_voice_message()
-                  : message.content;
+                    : message.content;
             return (
               <div
                 key={message.id}
@@ -99,7 +101,7 @@ export function LiveTranscript({
                   {showBubble && (
                     <div
                       className={cn(
-                        "w-fit max-w-[42rem] whitespace-pre-wrap break-words border-l-2 px-4 py-3",
+                        "w-fit max-w-2xl whitespace-pre-wrap break-words border-l-2 px-4 py-3",
                         "text-sm leading-relaxed text-foreground",
                         isUser
                           ? "border-l-primary bg-primary/5"
@@ -109,9 +111,9 @@ export function LiveTranscript({
                       {bubbleText}
                     </div>
                   )}
-                  {isUser && message.audioUrl && (
+                  {message.audioUrl && (
                     <audio
-                      className="mt-2 w-full max-w-[42rem]"
+                      className="mt-2 w-full max-w-2xl"
                       controls
                       preload="metadata"
                       src={message.audioUrl}

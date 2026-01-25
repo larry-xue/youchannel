@@ -39,8 +39,11 @@ type UseLiveObserverSidecarOptions = {
 };
 
 const SAMPLE_RATE = 16000;
-const INJECTION_COOLDOWN_MS = 15000;
-const INJECTION_MIN_CONFIDENCE = 0.7;
+const INJECTION_RULES = {
+  high: { minConfidence: 0.55, cooldownMs: 4000 },
+  medium: { minConfidence: 0.65, cooldownMs: 8000 },
+  low: { minConfidence: 0.75, cooldownMs: 15000 },
+} as const;
 
 const logSidecar = (...args: unknown[]) => {
   console.debug("[ObserverSidecar]", ...args);
@@ -163,8 +166,9 @@ export function useLiveObserverSidecar({
         const now = Date.now();
         if (
           injection &&
-          result.confidence >= INJECTION_MIN_CONFIDENCE &&
-          now - lastInjectionAtRef.current >= INJECTION_COOLDOWN_MS &&
+          result.confidence >= INJECTION_RULES[injection.priority].minConfidence &&
+          now - lastInjectionAtRef.current >=
+            INJECTION_RULES[injection.priority].cooldownMs &&
           injection.text !== lastInjectionTextRef.current
         ) {
           lastInjectionAtRef.current = now;

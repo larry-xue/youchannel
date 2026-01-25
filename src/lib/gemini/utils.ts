@@ -54,6 +54,36 @@ export function float32ToWavBuffer(
   return buffer;
 }
 
+export function pcm16BytesToWavBuffer(
+  pcm16Bytes: Uint8Array,
+  sampleRate: number = 24000,
+  channels: number = 1,
+): ArrayBuffer {
+  const byteLength = pcm16Bytes.length - (pcm16Bytes.length % 2);
+  const buffer = new ArrayBuffer(44 + byteLength);
+  const view = new DataView(buffer);
+
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + byteLength, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * 2, true); // byte rate
+  view.setUint16(32, channels * 2, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  writeString(view, 36, "data");
+  view.setUint32(40, byteLength, true);
+
+  if (byteLength > 0) {
+    new Uint8Array(buffer, 44).set(pcm16Bytes.subarray(0, byteLength));
+  }
+
+  return buffer;
+}
+
 export function arrayBufferToBase64(buffer: ArrayBufferLike): string {
   let binary = "";
   const bytes = new Uint8Array(buffer);

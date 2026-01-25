@@ -262,6 +262,28 @@ export function useGeminiLiveMessages({
     return newId;
   }, [applyMessageWindow, getNextSequenceNumber]);
 
+  const ensureAssistantMessage = useCallback((): string => {
+    const currentModelId = currentModelMessageIdRef.current;
+    if (currentModelId) return currentModelId;
+
+    const newId = crypto.randomUUID();
+    currentModelMessageIdRef.current = newId;
+
+    setMessages((prev) => {
+      const newMessage: Message = {
+        id: newId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        sequenceNumber: getNextSequenceNumber(),
+        isStreaming: true,
+      };
+      return applyMessageWindow([...prev, newMessage]);
+    });
+
+    return newId;
+  }, [applyMessageWindow, getNextSequenceNumber]);
+
   const attachAudioToMessage = useCallback(
     (messageId: string, audioUrl: string) => {
       setMessages((prev) => {
@@ -328,6 +350,7 @@ export function useGeminiLiveMessages({
     appendTurns,
     appendUserMessage,
     beginUserAudioMessage,
+    ensureAssistantMessage,
     attachAudioToMessage,
     removeMessage,
     handleInputText,

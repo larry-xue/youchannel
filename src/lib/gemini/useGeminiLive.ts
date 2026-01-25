@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGeminiLiveAudio } from "~/lib/gemini/live/useGeminiLiveAudio";
 import { useGeminiLiveMessages } from "~/lib/gemini/live/useGeminiLiveMessages";
 import type { GeminiLiveStatus } from "~/lib/gemini/live/types";
-import { float32ToWavBuffer } from "~/lib/gemini/utils";
+import { float32ToWavBuffer, pcm16BytesToWavBuffer } from "~/lib/gemini/utils";
 
 export type { GeminiLiveStatus, Message } from "~/lib/gemini/live/types";
 
@@ -61,6 +61,7 @@ export function useGeminiLive({
     appendTurns,
     appendUserMessage,
     beginUserAudioMessage,
+    ensureAssistantMessage,
     attachAudioToMessage,
     removeMessage,
     handleInputText,
@@ -73,6 +74,38 @@ export function useGeminiLive({
   });
 
   const currentUserAudioMessageIdRef = useRef<string | null>(null);
+  const currentAssistantAudioMessageIdRef = useRef<string | null>(null);
+  const assistantAudioChunksRef = useRef<Uint8Array[]>([]);
+
+  const resetAssistantAudioCapture = useCallback(() => {
+    currentAssistantAudioMessageIdRef.current = null;
+    assistantAudioChunksRef.current = [];
+  }, []);
+
+  const finalizeAssistantAudioCapture = useCallback(() => {
+    const messageId = currentAssistantAudioMessageIdRef.current;
+    const chunks = assistantAudioChunksRef.current;
+    resetAssistantAudioCapture();
+
+    if (!messageId || chunks.length === 0) return;
+    if (typeof URL === "undefined") return;
+
+    let totalLength = 0;
+    chunks.forEach((chunk) => {
+      totalLength += chunk.length;
+    });
+
+    const pcm16Bytes = new Uint8Array(totalLength);
+    let offset = 0;
+    chunks.forEach((chunk) => {
+      pcm16Bytes.set(chunk, offset);
+      offset += chunk.length;
+    });
+
+    const wavBuffer = pcm16BytesToWavBuffer(pcm16Bytes, 24000, 1);
+    const audioUrl = URL.createObjectURL(new Blob([wavBuffer], { type: "audio/wav" }));
+    attachAudioToMessage(messageId, audioUrl);
+  }, [attachAudioToMessage, resetAssistantAudioCapture]);
 
   const handleSpeechStart = useCallback(() => {
     if (!sessionRef.current) return;
@@ -173,10 +206,17 @@ export function useGeminiLive({
             onopen: () => {
               console.debug("[GeminiLive] Connection opened");
               setStatus("connected");
+              resetAssistantAudioCapture();
               resetMessages(initialSequenceNumber);
             },
             onmessage: async (message: LiveServerMessage) => {
-              await handleAudioChunk(message);
+              const outputPcm16Bytes = await handleAudioChunk(message);
+              if (outputPcm16Bytes) {
+                const messageId =
+                  currentAssistantAudioMessageIdRef.current || ensureAssistantMessage();
+                currentAssistantAudioMessageIdRef.current = messageId;
+                assistantAudioChunksRef.current.push(outputPcm16Bytes);
+              }
               handleOutputText(message);
               handleInputText(message);
 
@@ -210,6 +250,10 @@ export function useGeminiLive({
               }
 
               handleTurnComplete(message);
+
+              if (message.serverContent?.turnComplete || message.serverContent?.interrupted) {
+                finalizeAssistantAudioCapture();
+              }
             },
 
             onclose: (e) => {
@@ -241,12 +285,15 @@ export function useGeminiLive({
     [
       apiKey,
       ensureAudioContexts,
+      ensureAssistantMessage,
+      finalizeAssistantAudioCapture,
       handleAudioChunk,
       handleInputText,
       handleOutputText,
       handleTurnComplete,
       initialSequenceNumber,
       model,
+      resetAssistantAudioCapture,
       resetMessages,
       stopOutputAudio,
       voiceName,
@@ -267,6 +314,7 @@ export function useGeminiLive({
     stopAudioRecording();
     stopOutputAudio();
     releaseAudioContexts();
+    resetAssistantAudioCapture();
 
     if (sessionRef.current) {
       sessionRef.current.close();
@@ -274,7 +322,13 @@ export function useGeminiLive({
     }
     setStatus("disconnected");
     resetLevels();
-  }, [releaseAudioContexts, resetLevels, stopAudioRecording, stopOutputAudio]);
+  }, [
+    releaseAudioContexts,
+    resetAssistantAudioCapture,
+    resetLevels,
+    stopAudioRecording,
+    stopOutputAudio,
+  ]);
 
   useEffect(() => {
     return () => {

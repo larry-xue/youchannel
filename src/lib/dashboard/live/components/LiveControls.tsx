@@ -1,5 +1,12 @@
 import { History, Loader2, Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
-import { memo, useCallback, type KeyboardEvent } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Textarea } from "~/lib/components/ui/textarea";
 import { VoiceSelector } from "~/lib/dashboard/live/components/LiveVoiceSession";
@@ -17,7 +24,7 @@ type LiveControlsProps = {
   isPaused: boolean;
   isStartDisabled: boolean;
   onToggleMute: () => void;
-  onToggleSession: () => void;
+  onToggleSession: () => void | Promise<void>;
   textInput: string;
   onTextInputChange: (value: string) => void;
   onSendMessage: () => void;
@@ -43,6 +50,35 @@ export const LiveControls = memo(function LiveControls({
   canSendText,
   className,
 }: LiveControlsProps) {
+  const [isEndingCall, setIsEndingCall] = useState(false);
+  const isEndingCallRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const handleToggleSession = useCallback(() => {
+    if (isActiveSession) {
+      if (isEndingCallRef.current) return;
+      isEndingCallRef.current = true;
+      setIsEndingCall(true);
+    }
+
+    void (async () => {
+      try {
+        await onToggleSession();
+      } finally {
+        isEndingCallRef.current = false;
+        if (isMountedRef.current) {
+          setIsEndingCall(false);
+        }
+      }
+    })();
+  }, [isActiveSession, onToggleSession]);
+
   const statusLabel = isConnecting
     ? m.live_status_connecting()
     : isActiveSession
@@ -130,12 +166,17 @@ export const LiveControls = memo(function LiveControls({
               isActiveSession &&
                 "border-destructive/30 text-destructive hover:bg-destructive/10",
             )}
-            onClick={onToggleSession}
-            disabled={isStartDisabled}
+            aria-busy={isActiveSession && isEndingCall}
+            onClick={handleToggleSession}
+            disabled={isStartDisabled || (isActiveSession && isEndingCall)}
           >
             {isActiveSession ? (
               <>
-                <PhoneOff aria-hidden="true" className="mr-2 h-4 w-4" />
+                {isEndingCall ? (
+                  <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <PhoneOff aria-hidden="true" className="mr-2 h-4 w-4" />
+                )}
                 {m.live_end_call()}
               </>
             ) : (

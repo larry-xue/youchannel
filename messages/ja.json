@@ -24,6 +24,7 @@
   "live_status_connecting": "接続中...",
   "live_status_error": "接続エラー",
   "live_status_listening": "聞いています...",
+  "live_voice_message": "音声メッセージ",
   "live_status_ready": "チャット準備完了",
   "live_skip_to_content": "コンテンツへ移動",
   "live_greeting": "こんにちは、{name}",

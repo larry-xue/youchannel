@@ -24,6 +24,7 @@
   "live_status_connecting": "连接中...",
   "live_status_error": "连接错误",
   "live_status_listening": "正在聆听...",
+  "live_voice_message": "语音消息",
   "live_status_ready": "准备聊天",
   "live_skip_to_content": "跳到内容",
   "live_greeting": "你好，{name}",

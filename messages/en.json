@@ -72,6 +72,7 @@
   "live_status_connecting": "Connecting...",
   "live_status_error": "Connection error",
   "live_status_listening": "Listening...",
+  "live_voice_message": "Voice message",
   "live_status_ready": "Ready to chat",
   "live_skip_to_content": "Skip to content",
   "live_greeting": "Hello, {name}",

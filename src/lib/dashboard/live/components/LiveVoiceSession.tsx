@@ -27,11 +27,14 @@ export function LiveTranscript({
   className,
 }: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageContent = lastMessage?.content;
+  const lastMessageAudioUrl = lastMessage?.audioUrl;
 
   // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length, messages[messages.length - 1]?.content]);
+  }, [messages.length, lastMessageContent, lastMessageAudioUrl]);
   const isActiveSession = status === "connected";
 
   const assistantInitial = useMemo(() => {
@@ -63,13 +66,19 @@ export function LiveTranscript({
           messages.map((message) => {
             const isUser = message.role === "user";
             const trimmedContent = message.content.trim();
+            const hasAudio = Boolean(message.audioUrl);
             const showBubble =
-              !isUser || trimmedContent.length > 0 || message.isStreaming === true;
+              !isUser ||
+              trimmedContent.length > 0 ||
+              message.isStreaming === true ||
+              hasAudio;
             const bubbleText =
               trimmedContent.length > 0
                 ? message.content
                 : isUser && message.isStreaming
                   ? m.live_status_listening()
+                  : isUser && hasAudio
+                    ? m.live_voice_message()
                   : message.content;
             return (
               <div

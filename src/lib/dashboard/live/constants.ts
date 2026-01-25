@@ -1,76 +1,13 @@
 import * as m from "~/paraglide/messages";
 
-export interface Persona {
-  id: string;
-  name: string;
-  description: string;
-  systemPrompt: string;
-  defaultVoice: string;
-  defaultLanguage: string;
-  emoji: string;
-}
+export const LIVE_ASSISTANT_NAME = "Assistant";
 
-type PersonaDefinition = Omit<Persona, "name" | "description">;
-
-const PERSONA_DEFINITIONS: PersonaDefinition[] = [
-  {
-    id: "friend",
-    systemPrompt: `You are a multilingual conversation trainer. Your role is to:
+export const LIVE_SYSTEM_PROMPT = `You are a multilingual conversation trainer. Your role is to:
 1. Proactively find and introduce engaging topics
 2. Be patient, encouraging, and supportive
 3. Ask clear follow-up questions that help the user practice
 
-Keep responses brief, friendly, and natural. Adapt to the user's language level.`,
-    defaultVoice: "Kore",
-    defaultLanguage: "en",
-    emoji: "😊",
-  },
-  {
-    id: "coach",
-    systemPrompt: `You are a professional interview coach. Your role is to:
-1. Ask realistic interview questions
-2. Provide constructive feedback on answers
-3. Suggest improvements
-4. Help build confidence
-
-Keep questions focused and feedback actionable. Be professional but supportive.`,
-    defaultVoice: "Charon",
-    defaultLanguage: "en",
-    emoji: "💼",
-  },
-];
-
-const getPersonaStrings = (id: PersonaDefinition["id"]) => {
-  switch (id) {
-    case "friend":
-      return {
-        name: m.live_persona_friend(),
-        description: m.live_persona_friend_desc(),
-      };
-    case "coach":
-      return {
-        name: m.live_persona_coach(),
-        description: m.live_persona_coach_desc(),
-      };
-    default:
-      return {
-        name: m.live_persona_friend(),
-        description: m.live_persona_friend_desc(),
-      };
-  }
-};
-
-const buildPersona = (persona: PersonaDefinition): Persona => {
-  const strings = getPersonaStrings(persona.id);
-  return {
-    ...persona,
-    name: strings.name,
-    description: strings.description,
-  };
-};
-
-export const getPersonas = (): Persona[] =>
-  PERSONA_DEFINITIONS.map((persona) => buildPersona(persona));
+Keep responses brief, friendly, and natural. Adapt to the user's language level.`;
 
 const VOICE_DEFINITIONS = [
   { name: "Puck" },
@@ -83,7 +20,7 @@ const VOICE_DEFINITIONS = [
   { name: "Zephyr" },
 ] as const;
 
-type VoiceName = (typeof VOICE_DEFINITIONS)[number]["name"];
+export type VoiceName = (typeof VOICE_DEFINITIONS)[number]["name"];
 
 const VOICE_STYLE_MAP: Record<VoiceName, () => string> = {
   Puck: m.live_voice_style_puck,
@@ -107,9 +44,7 @@ export const getVoiceOptions = (): VoiceOption[] =>
     style: VOICE_STYLE_MAP[voice.name](),
   }));
 
-export const DEFAULT_PERSONA_ID = "tutor";
+export const DEFAULT_VOICE_NAME: VoiceName = "Kore";
 
-export function getPersonaById(id: string): Persona {
-  const persona = PERSONA_DEFINITIONS.find((p) => p.id === id);
-  return buildPersona(persona ?? PERSONA_DEFINITIONS[0]);
-}
+export const isVoiceName = (value: string): value is VoiceName =>
+  VOICE_DEFINITIONS.some((voice) => voice.name === value);

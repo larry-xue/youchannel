@@ -11,19 +11,19 @@ import {
 import type { GeminiLiveStatus, Message } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
-import { getVoiceOptions, type Persona } from "../constants";
+import { getVoiceOptions, LIVE_ASSISTANT_NAME } from "../constants";
 
 interface LiveTranscriptProps {
   messages: Message[];
   status: GeminiLiveStatus;
-  persona: Persona;
+  assistantName?: string;
   className?: string;
 }
 
 export function LiveTranscript({
   messages,
   status,
-  persona,
+  assistantName = LIVE_ASSISTANT_NAME,
   className,
 }: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -35,10 +35,10 @@ export function LiveTranscript({
   const isActiveSession = status === "connected";
 
   const assistantInitial = useMemo(() => {
-    const trimmed = persona.name?.trim() ?? "";
+    const trimmed = assistantName.trim();
     const initial = trimmed.length > 0 ? trimmed.slice(0, 1).toUpperCase() : "A";
     return initial;
-  }, [persona.name]);
+  }, [assistantName]);
 
   return (
     <ScrollArea className={cn("h-full min-h-0", className)}>
@@ -73,7 +73,7 @@ export function LiveTranscript({
                 {!isUser && (
                   <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-muted/20 text-xs font-semibold text-foreground">
                     <span aria-hidden="true">{assistantInitial}</span>
-                    <span className="sr-only">{persona.name}</span>
+                    <span className="sr-only">{assistantName}</span>
                   </div>
                 )}
 

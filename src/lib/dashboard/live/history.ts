@@ -3,9 +3,6 @@ import { z } from "zod";
 import { getSupabaseAndUser } from "~/lib/dashboard/utils.server";
 
 type LiveSessionMetadata = {
-  personaId?: string;
-  personaName?: string;
-  voice?: string;
   uiLocale?: string;
   startedAt?: string;
   endedAt?: string;
@@ -97,6 +94,48 @@ export const getLiveSessionHistoryFn = createServerFn({ method: "GET" }).handler
     return { sessions: history };
   },
 );
+
+const liveSessionHistoryPageSchema = z.object({
+  offset: z.number().int().min(0),
+  limit: z.number().int().min(1).max(50),
+});
+
+export type LiveSessionHistoryPageEntry = {
+  id: string;
+  title: string;
+};
+
+export type LiveSessionHistoryPageResponse = {
+  sessions: LiveSessionHistoryPageEntry[];
+  nextOffset: number | null;
+};
+
+export const getLiveSessionHistoryPageFn = createServerFn({ method: "POST" })
+  .inputValidator((data) => liveSessionHistoryPageSchema.parse(data))
+  .handler(async ({ data }): Promise<LiveSessionHistoryPageResponse> => {
+    const { supabase } = await getSupabaseAndUser();
+
+    const { data: sessions, error } = await supabase
+      .from("live_sessions")
+      .select("id,title")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(data.offset, data.offset + data.limit - 1);
+
+    if (error) {
+      throw new Error(error.message || "Failed to load live sessions");
+    }
+
+    const pageSessions = (sessions ?? []).map((session) => ({
+      id: session.id as string,
+      title: session.title as string,
+    }));
+
+    const nextOffset =
+      pageSessions.length >= data.limit ? data.offset + data.limit : null;
+
+    return { sessions: pageSessions, nextOffset };
+  });
 
 const liveSessionDetailSchema = z.object({
   sessionId: z.string().uuid(),

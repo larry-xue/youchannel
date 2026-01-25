@@ -18,8 +18,8 @@ export type LiveObserverOutput = LiveObserverSidecarResponse & {
 
 type UseLiveObserverSidecarOptions = {
   uiLocale: string;
-  personaName: string;
-  personaPrompt: string;
+  assistantName: string;
+  assistantPrompt: string;
   status: GeminiLiveStatus;
   isReadOnlyHistory: boolean;
   messages: Message[];
@@ -99,8 +99,8 @@ const buildTranscriptWindow = (messages: Message[]) => {
 
 export function useLiveObserverSidecar({
   uiLocale,
-  personaName,
-  personaPrompt,
+  assistantName,
+  assistantPrompt,
   status,
   isReadOnlyHistory,
   messages,
@@ -262,8 +262,8 @@ export function useLiveObserverSidecar({
             uiLocale,
             transcript: snapshot.transcript,
             latestUserUtterance: snapshot.latestUserUtterance,
-            personaName,
-            personaPrompt,
+            assistantName,
+            assistantPrompt,
             audioChunks: encodedAudio,
           },
         });
@@ -318,8 +318,8 @@ export function useLiveObserverSidecar({
       isReadOnlyHistory,
       minAudioSamples,
       onInjectPrompt,
-      personaName,
-      personaPrompt,
+      assistantName,
+      assistantPrompt,
       resetAudioBuffer,
       uiLocale,
       onOutput,

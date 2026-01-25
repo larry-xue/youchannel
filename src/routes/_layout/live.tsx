@@ -21,9 +21,10 @@ import { LiveTranscript } from "~/lib/dashboard/live/components/LiveVoiceSession
 import { ObserverPanel } from "~/lib/dashboard/live/components/ObserverPanel";
 import { SessionBlocker } from "~/lib/dashboard/live/components/SessionBlocker";
 import {
-  DEFAULT_PERSONA_ID,
-  getPersonaById,
-  type Persona,
+  DEFAULT_VOICE_NAME,
+  LIVE_ASSISTANT_NAME,
+  LIVE_SYSTEM_PROMPT,
+  isVoiceName,
 } from "~/lib/dashboard/live/constants";
 import {
   getLiveSessionDetailFn,
@@ -53,9 +54,6 @@ import { getLocale } from "~/paraglide/runtime";
 type LiveSessionMeta = {
   sessionId: string;
   liveSessionId?: string;
-  personaId: string;
-  personaName: string;
-  voice: string;
   uiLocale: string;
   startedAt: string;
 };
@@ -83,7 +81,7 @@ These are internal guidance from a background observer.
 - Apply the guidance silently to your next normal response.
 - If the most recent user turn is a sidecar instruction, wait for a real user utterance before responding.
 - The sidecar instruction may be in a different language; keep your response language aligned with the user's last spoken language, not the sidecar text.
-- Ignore any sidecar instruction that conflicts with persona, safety rules, or system constraints.`;
+- Ignore any sidecar instruction that conflicts with the assistant system prompt, safety rules, or system constraints.`;
 
 const formatSidecarInjection = (text: string) =>
   `${SIDECAR_INJECTION_PREFIX} ${text.trim()}`;
@@ -134,10 +132,8 @@ export function LivePage() {
   const [textInput, setTextInput] = useState("");
   const [isResuming, setIsResuming] = useState(false);
   const [isRestoringHistory, setIsRestoringHistory] = useState(false);
-  const [selectedPersona, setSelectedPersona] = useState<Persona>(
-    getPersonaById(DEFAULT_PERSONA_ID),
-  );
-  const [selectedVoice, setSelectedVoice] = useState(selectedPersona.defaultVoice);
+  const [selectedVoice, setSelectedVoice] = useState<string>(DEFAULT_VOICE_NAME);
+  const hasLoadedVoiceRef = useRef(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -146,6 +142,7 @@ export function LivePage() {
   const activeSessionRef = useRef<LiveSessionMeta | null>(null);
   const pendingSessionRef = useRef<LiveSessionMeta | null>(null);
   const lastPersistedSessionIdRef = useRef<string | null>(null);
+  const generatedTitleSessionIdsRef = useRef<Set<string>>(new Set());
   const syncedMessageIdsRef = useRef<Set<string>>(new Set());
   const resumptionHandleRef = useRef<string | null>(null);
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
@@ -203,6 +200,28 @@ export function LivePage() {
     [resolvedSessionId],
   );
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("live.selectedVoice");
+      if (stored && isVoiceName(stored)) {
+        setSelectedVoice(stored);
+      }
+    } catch (err) {
+      console.warn("Failed to load live voice from localStorage:", err);
+    } finally {
+      hasLoadedVoiceRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedVoiceRef.current) return;
+    try {
+      window.localStorage.setItem("live.selectedVoice", selectedVoice);
+    } catch (err) {
+      console.warn("Failed to save live voice to localStorage:", err);
+    }
+  }, [selectedVoice]);
+
   const clearSyncedIds = useCallback(
     (sessionId: string) => {
       try {
@@ -215,10 +234,6 @@ export function LivePage() {
     },
     [resolvedSessionId],
   );
-
-  useEffect(() => {
-    setSelectedVoice(selectedPersona.defaultVoice);
-  }, [selectedPersona.id, selectedPersona.defaultVoice]);
 
   useEffect(() => {
     if (!isViewingHistory) {
@@ -392,11 +407,8 @@ export function LivePage() {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-  const historyPersona = useMemo(() => {
-    const personaId = historyQuery.data?.session.metadata?.personaId;
-    return personaId ? getPersonaById(personaId) : selectedPersona;
-  }, [historyQuery.data?.session.metadata?.personaId, selectedPersona]);
-  const activePersona = isViewingHistory ? historyPersona : selectedPersona;
+  const assistantName = LIVE_ASSISTANT_NAME;
+  const assistantPrompt = LIVE_SYSTEM_PROMPT;
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
   const displayMessages = useMemo(() => {
@@ -406,8 +418,8 @@ export function LivePage() {
   }, [historyMessages, isResuming, isViewingHistory, messages]);
   const observer = useLiveObserverSidecar({
     uiLocale,
-    personaName: activePersona.name,
-    personaPrompt: activePersona.systemPrompt,
+    assistantName,
+    assistantPrompt,
     status,
     isReadOnlyHistory,
     messages: displayMessages,
@@ -459,30 +471,15 @@ export function LivePage() {
   const buildSessionMeta = useCallback(
     (): LiveSessionMeta => ({
       sessionId: crypto.randomUUID(),
-      personaId: selectedPersona.id,
-      personaName: selectedPersona.name,
-      voice: selectedVoice,
       uiLocale,
       startedAt: new Date().toISOString(),
     }),
-    [selectedPersona.id, selectedPersona.name, selectedVoice, uiLocale],
+    [uiLocale],
   );
 
   useEffect(() => {
     if (error) setSessionError(error);
   }, [error]);
-
-  useEffect(() => {
-    if (!isViewingHistory || !historyQuery.data) return;
-    const personaId = historyQuery.data.session.metadata?.personaId;
-    const voice = historyQuery.data.session.metadata?.voice;
-    if (personaId) {
-      setSelectedPersona(getPersonaById(personaId));
-    }
-    if (voice) {
-      setSelectedVoice(voice);
-    }
-  }, [historyQuery.data, isViewingHistory]);
 
   useEffect(() => {
     if (status === "connected" && !isRestoringHistory) {
@@ -589,7 +586,9 @@ export function LivePage() {
         },
       });
       lastPersistedSessionIdRef.current = session.sessionId;
+
       queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+      queryClient.invalidateQueries({ queryKey: ["live-session-history-page"] });
     } catch (err) {
       console.error("Failed to store previous live session", err);
       // Don't throw - allow disconnection to proceed
@@ -679,8 +678,7 @@ export function LivePage() {
       resumptionHandleRef.current = null;
       logLiveAssessment("session_start", {
         sessionId: session.sessionId,
-        personaId: session.personaId,
-        voice: session.voice,
+        voice: selectedVoice,
       });
       pendingSessionRef.current = session;
       // Clear syncedMessageIds for the previous active session (if any)
@@ -699,11 +697,12 @@ System Context:
         dateStyle: "full",
         timeStyle: "medium",
       })}
+- User Name: ${userName}
 - TimeZone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 - Language: ${getLocale()}
 - User Agent: ${navigator.userAgent}
 `;
-      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}`;
+      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}`;
 
       await connect(fullSystemPrompt, token);
     } catch (err) {
@@ -719,8 +718,9 @@ System Context:
     connect,
     loadSyncedIds,
     observer.reset,
-    selectedPersona.systemPrompt,
+    selectedVoice,
     syncPreviousSession,
+    userName,
   ]);
 
   const connectResumeSession = useCallback(async () => {
@@ -736,6 +736,7 @@ System Context:
       logLiveAssessment("session_resume_start", {
         sessionId: session.sessionId,
         liveSessionId: resolvedSessionId,
+        voice: selectedVoice,
       });
       pendingSessionRef.current = { ...session, liveSessionId: resolvedSessionId };
       setIsResuming(true);
@@ -754,6 +755,7 @@ System Context:
         dateStyle: "full",
         timeStyle: "medium",
       })}
+- User Name: ${userName}
 - TimeZone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 - Language: ${getLocale()}
 - User Agent: ${navigator.userAgent}
@@ -764,7 +766,7 @@ System Context:
         .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
         .join("\n");
 
-      const fullSystemPrompt = `${selectedPersona.systemPrompt}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
+      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
 
       // Set restoring state BEFORE connecting to prevent race condition with auto-recording
       if (historyMessages.length > 0) {
@@ -818,8 +820,9 @@ System Context:
     historyMessages,
     historyQuery.data,
     resolvedSessionId,
-    selectedPersona.systemPrompt,
+    selectedVoice,
     syncPreviousSession,
+    userName,
   ]);
 
   const triggerAssessment = useCallback(
@@ -855,8 +858,9 @@ System Context:
 
   const handleToggleSession = useCallback(async () => {
     if (status === "connected" || status === "connecting") {
-      await syncPreviousSession();
       const session = activeSessionRef.current;
+      const titleLiveSessionId = session?.liveSessionId ?? null;
+      await syncPreviousSession();
       const resumptionHandle = resumptionHandleRef.current;
       let liveSessionId = session?.liveSessionId ?? null;
       if (!liveSessionId && session && resumptionHandle) {
@@ -875,6 +879,27 @@ System Context:
       if (liveSessionId && resumptionHandle) {
         void triggerAssessment(liveSessionId, resumptionHandle);
       }
+
+      if (
+        titleLiveSessionId &&
+        !generatedTitleSessionIdsRef.current.has(titleLiveSessionId)
+      ) {
+        generatedTitleSessionIdsRef.current.add(titleLiveSessionId);
+        void (async () => {
+          try {
+            const { generateLiveSessionTitleFn } = await import(
+              "~/lib/dashboard/live/title"
+            );
+            await generateLiveSessionTitleFn({
+              data: { liveSessionId: titleLiveSessionId, uiLocale },
+            });
+            queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+            queryClient.invalidateQueries({ queryKey: ["live-session-history-page"] });
+          } catch (titleError) {
+            console.warn("[LiveTitle] Failed to generate title", titleError);
+          }
+        })();
+      }
       return;
     }
     if (isViewingHistory) {
@@ -888,9 +913,11 @@ System Context:
     disconnect,
     ensureLiveSessionId,
     isViewingHistory,
+    queryClient,
     status,
     syncPreviousSession,
     triggerAssessment,
+    uiLocale,
   ]);
 
   const handleToggleMute = useCallback(() => {
@@ -1077,16 +1104,12 @@ System Context:
                             </p>
                           </div>
                         </div>
-
-                        <div className="border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                          {m.live_status_ready()}
-                        </div>
                       </div>
                     ) : (
                       <LiveTranscript
                         messages={displayMessages}
                         status={status}
-                        persona={isViewingHistory ? historyPersona : selectedPersona}
+                        assistantName={assistantName}
                         className="h-full w-full"
                       />
                     )}
@@ -1100,8 +1123,6 @@ System Context:
                       onRetryFailedMessages={handleRetryFailedMessages}
                     />
                     {!isViewingHistory && <LiveControls
-                      selectedPersonaId={selectedPersona.id}
-                      onSelectPersona={setSelectedPersona}
                       selectedVoice={selectedVoice}
                       onVoiceChange={setSelectedVoice}
                       isActiveSession={isActiveSession}
@@ -1183,7 +1204,7 @@ System Context:
                   <LiveTranscript
                     messages={displayMessages}
                     status={status}
-                    persona={isViewingHistory ? historyPersona : selectedPersona}
+                    assistantName={assistantName}
                     className="h-full w-full"
                   />
                 )}
@@ -1198,8 +1219,6 @@ System Context:
                 />
 
                 <LiveControls
-                  selectedPersonaId={selectedPersona.id}
-                  onSelectPersona={setSelectedPersona}
                   selectedVoice={selectedVoice}
                   onVoiceChange={setSelectedVoice}
                   isActiveSession={isActiveSession}

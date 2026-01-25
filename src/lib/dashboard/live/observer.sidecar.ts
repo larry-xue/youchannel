@@ -29,8 +29,8 @@ const sidecarRequestSchema = z.object({
   uiLocale: z.string().min(2),
   transcript: z.string().min(1).max(4000),
   latestUserUtterance: z.string().max(800).optional().nullable(),
-  personaName: z.string().max(120).optional().nullable(),
-  personaPrompt: z.string().max(2200).optional().nullable(),
+  assistantName: z.string().max(120).optional().nullable(),
+  assistantPrompt: z.string().max(2200).optional().nullable(),
   audioChunks: z
     .array(
       z.object({
@@ -56,8 +56,9 @@ const logSidecar = (...args: unknown[]) => {
 };
 
 const buildSidecarPrompt = (data: z.infer<typeof sidecarRequestSchema>) => {
-  const personaName = data.personaName?.trim() || "the assistant";
-  const personaPrompt = data.personaPrompt?.trim() || "Use the existing persona.";
+  const assistantName = data.assistantName?.trim() || "the assistant";
+  const assistantPrompt =
+    data.assistantPrompt?.trim() || "Use the existing assistant guidance.";
   const latestUserUtterance =
     data.latestUserUtterance?.trim() || "No explicit latest utterance provided.";
 
@@ -91,11 +92,11 @@ Rules:
 - Suggestions: 1-4 items max, only if meaningful. Use "other" sparingly.
 - Use audio to correct the transcript if needed.
 - Keep all user-facing strings in ${data.uiLocale}.
-- The injection should be short, actionable, and align with the persona.
+- The injection should be short, actionable, and align with the assistant guidance.
 - If no injection is needed, return "injection": null.
 
-Persona name: ${personaName}
-Persona guidance: ${personaPrompt}
+Assistant name: ${assistantName}
+Assistant guidance: ${assistantPrompt}
 
 Conversation transcript (most recent first is not guaranteed):
 ${data.transcript}
@@ -117,7 +118,7 @@ export const runLiveObserverSidecarFn = createServerFn({ method: "POST" })
       uiLocale: data.uiLocale,
       transcriptLength: data.transcript.length,
       audioChunks: data.audioChunks?.length ?? 0,
-      hasPersona: Boolean(data.personaPrompt || data.personaName),
+      hasAssistantContext: Boolean(data.assistantPrompt || data.assistantName),
     });
 
     const prompt = buildSidecarPrompt(data);

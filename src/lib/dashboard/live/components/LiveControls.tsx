@@ -3,14 +3,10 @@ import { memo, useCallback, type KeyboardEvent } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Textarea } from "~/lib/components/ui/textarea";
 import { VoiceSelector } from "~/lib/dashboard/live/components/LiveVoiceSession";
-import { PersonaSelector } from "~/lib/dashboard/live/components/PersonaSelector";
-import { type Persona } from "~/lib/dashboard/live/constants";
 import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
 
 type LiveControlsProps = {
-  selectedPersonaId: string;
-  onSelectPersona: (persona: Persona) => void;
   selectedVoice: string;
   onVoiceChange: (voice: string) => void;
   isActiveSession: boolean;
@@ -30,8 +26,6 @@ type LiveControlsProps = {
 };
 
 export const LiveControls = memo(function LiveControls({
-  selectedPersonaId,
-  onSelectPersona,
   selectedVoice,
   onVoiceChange,
   isActiveSession,
@@ -81,11 +75,6 @@ export const LiveControls = memo(function LiveControls({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <PersonaSelector
-            selectedId={selectedPersonaId}
-            onSelect={onSelectPersona}
-            className="h-10 w-full sm:w-[220px]"
-          />
           <VoiceSelector
             value={selectedVoice}
             onValueChange={onVoiceChange}

@@ -71,9 +71,6 @@ const messageSchema = z.object({
 
 const sessionSchema = z.object({
   sessionId: z.string().uuid(),
-  personaId: z.string().min(1),
-  personaName: z.string().min(1),
-  voice: z.string().min(1),
   uiLocale: z.string().min(1),
   startedAt: z.string().datetime(),
   endedAt: z.string().datetime(),
@@ -115,13 +112,11 @@ export const createLiveSessionFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     console.log("[LiveSync] Server: createLiveSession", {
       sessionId: data.session.sessionId,
-      persona: data.session.personaName,
+      uiLocale: data.session.uiLocale,
     });
     const { supabase, user } = await getSupabaseAndUser();
 
-    const title = `Live: ${data.session.personaName} (${formatTitleTimestamp(
-      data.session.startedAt,
-    )})`;
+    const title = `${formatTitleTimestamp(data.session.startedAt)}`;
 
     const { data: liveSession, error: liveSessionError } = await supabase
       .from("live_sessions")
@@ -131,9 +126,6 @@ export const createLiveSessionFn = createServerFn({ method: "POST" })
         metadata: {
           type: "live_session",
           sessionId: data.session.sessionId,
-          personaId: data.session.personaId,
-          personaName: data.session.personaName,
-          voice: data.session.voice,
           uiLocale: data.session.uiLocale,
           startedAt: data.session.startedAt,
         },
@@ -153,9 +145,7 @@ export const finalizeLiveSessionFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabase } = await getSupabaseAndUser();
 
-    const title = `Live: ${data.session.personaName} (${formatTitleTimestamp(
-      data.session.startedAt,
-    )})`;
+    const title = `${formatTitleTimestamp(data.session.startedAt)}`;
 
     const { error: updateError } = await supabase
       .from("live_sessions")
@@ -164,9 +154,6 @@ export const finalizeLiveSessionFn = createServerFn({ method: "POST" })
         metadata: {
           type: "live_session",
           sessionId: data.session.sessionId,
-          personaId: data.session.personaId,
-          personaName: data.session.personaName,
-          voice: data.session.voice,
           uiLocale: data.session.uiLocale,
           startedAt: data.session.startedAt,
           endedAt: data.session.endedAt,
@@ -254,9 +241,7 @@ export const closeLiveSessionFn = createServerFn({ method: "POST" })
     });
     const { supabase } = await getSupabaseAndUser();
 
-    const title = `Live: ${data.session.personaName} (${formatTitleTimestamp(
-      data.session.startedAt,
-    )})`;
+    const title = `${formatTitleTimestamp(data.session.startedAt)}`;
 
     const { error: updateError } = await supabase
       .from("live_sessions")
@@ -265,9 +250,6 @@ export const closeLiveSessionFn = createServerFn({ method: "POST" })
         metadata: {
           type: "live_session",
           sessionId: data.session.sessionId,
-          personaId: data.session.personaId,
-          personaName: data.session.personaName,
-          voice: data.session.voice,
           uiLocale: data.session.uiLocale,
           startedAt: data.session.startedAt,
           endedAt: data.session.endedAt,
@@ -287,9 +269,7 @@ export const storeLiveSessionFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabase, user } = await getSupabaseAndUser();
 
-    const title = `Live: ${data.session.personaName} (${formatTitleTimestamp(
-      data.session.startedAt,
-    )})`;
+    const title = `${formatTitleTimestamp(data.session.startedAt)}`;
 
     const { data: liveSession, error: liveSessionError } = await supabase
       .from("live_sessions")
@@ -299,9 +279,6 @@ export const storeLiveSessionFn = createServerFn({ method: "POST" })
         metadata: {
           type: "live_session",
           sessionId: data.session.sessionId,
-          personaId: data.session.personaId,
-          personaName: data.session.personaName,
-          voice: data.session.voice,
           uiLocale: data.session.uiLocale,
           startedAt: data.session.startedAt,
           endedAt: data.session.endedAt,

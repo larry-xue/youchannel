@@ -38,15 +38,17 @@ export const HistoryBanner = memo(function HistoryBanner({
         <Button
           asChild
           variant="outline"
-          size="icon"
-          className="h-9 w-9 rounded-md border-border bg-background"
+          size="sm"
+          className="h-9 rounded-md border-border bg-background"
         >
           <Link
             to="/live"
             aria-label={m.live_history_new_session_aria()}
             title={m.live_history_new_session_aria()}
+            className="flex items-center gap-2"
           >
             <Plus aria-hidden="true" className="h-4 w-4" />
+            <span className="text-sm font-semibold">{m.live_history_new_session_aria()}</span>
           </Link>
         </Button>
       </div>

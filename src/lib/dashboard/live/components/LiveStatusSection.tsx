@@ -6,24 +6,25 @@ import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
 
 type LiveStatusSectionProps = {
-  isRestoringHistory: boolean;
+  reconnectAttempt: number | null;
   sessionError: string | null;
   failedSyncCount: number;
   onRetryFailedMessages: () => void;
 };
 
 export const LiveStatusSection = memo(function LiveStatusSection({
-  isRestoringHistory,
+  reconnectAttempt,
   sessionError,
   failedSyncCount,
   onRetryFailedMessages,
 }: LiveStatusSectionProps) {
-  const shouldRender = isRestoringHistory || sessionError || failedSyncCount > 0;
+  const shouldRender =
+    reconnectAttempt !== null || sessionError || failedSyncCount > 0;
   if (!shouldRender) return null;
 
   return (
     <div className="flex flex-col items-center gap-2">
-      {isRestoringHistory && (
+      {reconnectAttempt !== null && (
         <StatusPill
           className={cn(
             "mx-auto flex items-center gap-2 text-xs",
@@ -31,7 +32,10 @@ export const LiveStatusSection = memo(function LiveStatusSection({
           )}
         >
           <Loader2 aria-hidden="true" className="h-3.5 w-3.5" />
-          {m.live_status_restoring_memory()}
+          <span>{m.live_status_connecting()}</span>
+          <span aria-hidden="true" className="tabular-nums text-muted-foreground">
+            ({reconnectAttempt})
+          </span>
         </StatusPill>
       )}
 

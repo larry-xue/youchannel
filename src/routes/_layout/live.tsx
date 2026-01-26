@@ -138,11 +138,10 @@ export function LivePage() {
     authUser?.email?.split("@")[0] ||
     "User";
   const [textInput, setTextInput] = useState("");
-  const [isResuming, setIsResuming] = useState(false);
-  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(DEFAULT_VOICE_NAME);
   const hasLoadedVoiceRef = useRef(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState<number | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [syncStates, setSyncStates] = useState<Map<string, MessageSyncState>>(new Map());
@@ -159,6 +158,7 @@ export function LivePage() {
   const generatedTitleSessionIdsRef = useRef<Set<string>>(new Set());
   const syncedMessageIdsRef = useRef<Set<string>>(new Set());
   const resumptionHandleRef = useRef<string | null>(null);
+  const isResumableRef = useRef(false);
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
@@ -180,25 +180,40 @@ export function LivePage() {
   const lastSyncedCountRef = useRef<number>(0);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
+  const getSyncedIdsStorageKey = useCallback(
+    (sessionId: string) => {
+      const activeLiveSessionId =
+        activeSessionRef.current?.liveSessionId ??
+        pendingSessionRef.current?.liveSessionId ??
+        null;
+
+      if (resolvedSessionId && activeLiveSessionId === resolvedSessionId) {
+        return resolvedSessionId;
+      }
+
+      return sessionId;
+    },
+    [resolvedSessionId],
+  );
 
   // Storage utilities using sessionStorage (simple and reliable)
   const saveSyncedIds = useCallback(
     (sessionId: string, ids: Set<string>) => {
       try {
-        const storageKey = resolvedSessionId || sessionId;
+        const storageKey = getSyncedIdsStorageKey(sessionId);
         const key = `syncedMessageIds-${storageKey}`;
         sessionStorage.setItem(key, JSON.stringify([...ids]));
       } catch (err) {
         console.warn("Failed to save syncedMessageIds to sessionStorage:", err);
       }
     },
-    [resolvedSessionId],
+    [getSyncedIdsStorageKey],
   );
 
   const loadSyncedIds = useCallback(
     (sessionId: string): Set<string> => {
       try {
-        const storageKey = resolvedSessionId || sessionId;
+        const storageKey = getSyncedIdsStorageKey(sessionId);
         const key = `syncedMessageIds-${storageKey}`;
         const stored = sessionStorage.getItem(key);
         if (stored) {
@@ -209,7 +224,7 @@ export function LivePage() {
       }
       return new Set();
     },
-    [resolvedSessionId],
+    [getSyncedIdsStorageKey],
   );
 
   useEffect(() => {
@@ -237,21 +252,15 @@ export function LivePage() {
   const clearSyncedIds = useCallback(
     (sessionId: string) => {
       try {
-        const storageKey = resolvedSessionId || sessionId;
+        const storageKey = getSyncedIdsStorageKey(sessionId);
         const key = `syncedMessageIds-${storageKey}`;
         sessionStorage.removeItem(key);
       } catch (err) {
         console.warn("Failed to clear syncedMessageIds from sessionStorage:", err);
       }
     },
-    [resolvedSessionId],
+    [getSyncedIdsStorageKey],
   );
-
-  useEffect(() => {
-    if (!resolvedSessionId) {
-      setIsResuming(false);
-    }
-  }, [resolvedSessionId]);
 
   useEffect(() => {
     const panel = sidebarPanelRef.current;
@@ -356,8 +365,8 @@ export function LivePage() {
   }, [navigate, queryClient, resolvedSessionId]);
 
   const handleResumptionHandle = useCallback((handle: string, resumable: boolean) => {
-    if (!resumable) return;
-    resumptionHandleRef.current = handle;
+    isResumableRef.current = resumable;
+    resumptionHandleRef.current = resumable ? handle : null;
     logLiveAssessment("resumption_handle_update", {
       resumable,
       handle: formatHandleForLog(handle),
@@ -370,7 +379,6 @@ export function LivePage() {
     startRecording,
     sendText,
     sendContext,
-    sendTurns,
     status,
     error,
     isRecording,
@@ -394,13 +402,14 @@ export function LivePage() {
   const assistantPrompt = LIVE_SYSTEM_PROMPT;
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
-  const inProgressLiveSessionId =
-    pendingSessionRef.current?.liveSessionId ??
-    activeSessionRef.current?.liveSessionId ??
-    null;
+  const currentLiveSessionId =
+    activeSessionRef.current?.liveSessionId ?? pendingSessionRef.current?.liveSessionId;
   const isViewingHistory =
-    Boolean(resolvedSessionId) && resolvedSessionId !== inProgressLiveSessionId;
-  const isReadOnlyHistory = isViewingHistory && !isResuming;
+    Boolean(resolvedSessionId) &&
+    !isActiveSession &&
+    !isConnecting &&
+    resolvedSessionId !== (currentLiveSessionId ?? null);
+  const isReadOnlyHistory = isViewingHistory;
   const handleObserverOutput = useCallback(
     async (output: LiveObserverOutput) => {
       if (isReadOnlyHistory) return;
@@ -439,9 +448,8 @@ export function LivePage() {
   );
   const displayMessages = useMemo(() => {
     if (!resolvedSessionId) return messages;
-    if (isResuming) return [...historyMessages, ...messages];
     return isViewingHistory ? historyMessages : messages;
-  }, [historyMessages, isResuming, isViewingHistory, messages, resolvedSessionId]);
+  }, [historyMessages, isViewingHistory, messages, resolvedSessionId]);
   const observer = useLiveObserverSidecar({
     uiLocale,
     assistantName,
@@ -458,22 +466,11 @@ export function LivePage() {
   useEffect(() => {
     observerSpeechHandlerRef.current = observer.ingestSpeechSegment;
   }, [observer.ingestSpeechSegment]);
-  const canTriggerObserver = observer.canTrigger;
+  const canTriggerObserver = isReadOnlyHistory ? false : observer.canTrigger;
   const observerPanelOutputs = useMemo(() => {
     if (!resolvedSessionId) return observer.outputs;
-    if (!isResuming) {
-      return isViewingHistory ? observerHistoryOutputs : observer.outputs;
-    }
-
-    const byId = new Map<string, LiveObserverOutput>();
-    observerHistoryOutputs.forEach((entry) => {
-      byId.set(entry.id, entry);
-    });
-    observer.outputs.forEach((entry) => {
-      byId.set(entry.id, entry);
-    });
-    return [...byId.values()].sort((a, b) => a.createdAt - b.createdAt);
-  }, [isResuming, isViewingHistory, observer.outputs, observerHistoryOutputs, resolvedSessionId]);
+    return isViewingHistory ? observerHistoryOutputs : observer.outputs;
+  }, [isViewingHistory, observer.outputs, observerHistoryOutputs, resolvedSessionId]);
   const observerPanelError = isReadOnlyHistory
     ? observerOutputsQuery.error
     : observer.error;
@@ -525,13 +522,20 @@ export function LivePage() {
     if (!systemPrompt) return;
 
     const resumptionHandle = resumptionHandleRef.current;
-    if (!resumptionHandle) return;
+    if (!resumptionHandle) {
+      shouldAutoReconnectRef.current = false;
+      setReconnectAttempt(null);
+      return;
+    }
 
     isAutoReconnectingRef.current = true;
     clearReconnectTimer();
 
     try {
       setSessionError(null);
+
+      const attempt = reconnectAttemptRef.current + 1;
+      setReconnectAttempt(attempt);
 
       const token =
         liveAuthTokenRef.current ?? (await getGeminiToken()).token ?? null;
@@ -546,11 +550,19 @@ export function LivePage() {
       });
 
       reconnectAttemptRef.current = 0;
+      setReconnectAttempt(null);
     } catch (err) {
       reconnectAttemptRef.current += 1;
       const attempt = reconnectAttemptRef.current;
 
       const message = err instanceof Error ? err.message : "Failed to reconnect";
+      const normalizedMessage = message.toLowerCase();
+      const isResumptionHandleError =
+        normalizedMessage.includes("resumption") &&
+        (normalizedMessage.includes("invalid") ||
+          normalizedMessage.includes("expired") ||
+          normalizedMessage.includes("not resumable") ||
+          normalizedMessage.includes("not found"));
       console.warn("[GeminiLive] Auto-reconnect attempt failed", {
         attempt,
         message,
@@ -558,14 +570,23 @@ export function LivePage() {
 
       liveAuthTokenRef.current = null;
 
+      if (isResumptionHandleError) {
+        shouldAutoReconnectRef.current = false;
+        resumptionHandleRef.current = null;
+        isResumableRef.current = false;
+        setReconnectAttempt(null);
+        setSessionError(message);
+        return;
+      }
+
       if (attempt >= 5) {
         shouldAutoReconnectRef.current = false;
+        setReconnectAttempt(null);
         setSessionError(message);
         return;
       }
 
       const delayMs = Math.min(1000 * 2 ** (attempt - 1), 15000);
-      setSessionError(`Reconnecting… (${attempt})`);
       reconnectTimerRef.current = setTimeout(() => {
         isAutoReconnectingRef.current = false;
         void attemptAutoReconnect();
@@ -576,30 +597,24 @@ export function LivePage() {
   }, [clearReconnectTimer, connect, isReadOnlyHistory]);
 
   useEffect(() => {
-    if (error) setSessionError(error);
-  }, [error]);
+    if (!error) return;
+    if (reconnectAttempt !== null) return;
+    setSessionError(error);
+  }, [error, reconnectAttempt]);
 
   useEffect(() => {
-    if (status === "connected" && !isRestoringHistory) {
+    if (status === "connected") {
       if (!isRecording && !isPaused) {
         startRecording();
       }
-      if (!hasSentGreetingRef.current && !isResuming) {
-         sendText("Hello!", true);
-         hasSentGreetingRef.current = true;
-       }
+      if (!hasSentGreetingRef.current) {
+        sendText("Hello!", true);
+        hasSentGreetingRef.current = true;
+      }
     } else if (status === "disconnected" || status === "error") {
       setIsPaused(false);
     }
-  }, [
-    status,
-    isRecording,
-    isPaused,
-    isResuming,
-    isRestoringHistory,
-    startRecording,
-    sendText,
-  ]);
+  }, [status, isRecording, isPaused, startRecording, sendText]);
 
   useEffect(() => {
     if (!shouldAutoReconnectRef.current) return;
@@ -614,7 +629,7 @@ export function LivePage() {
     if (status !== "connected" || !pendingSessionRef.current) return;
     activeSessionRef.current = pendingSessionRef.current;
     pendingSessionRef.current = null;
-    // Note: syncedMessageIdsRef is already set in connectSession/connectResumeSession
+    // Note: syncedMessageIdsRef is already set in connectSession
   }, [status]);
 
   const syncPreviousSession = useCallback(async () => {
@@ -778,6 +793,7 @@ export function LivePage() {
 
   const connectSession = useCallback(async () => {
     setSessionError(null);
+    setReconnectAttempt(null);
     setIsFetchingToken(true);
     observer.reset();
     try {
@@ -785,6 +801,7 @@ export function LivePage() {
 
       const session = buildSessionMeta();
       resumptionHandleRef.current = null;
+      isResumableRef.current = false;
       hasSentGreetingRef.current = false;
       shouldAutoReconnectRef.current = true;
       reconnectAttemptRef.current = 0;
@@ -839,114 +856,6 @@ System Context:
     userName,
   ]);
 
-  const connectResumeSession = useCallback(async () => {
-    if (!resolvedSessionId || !historyQuery.data) return;
-    setSessionError(null);
-    setIsFetchingToken(true);
-    observer.reset();
-    try {
-      const [, { token }] = await Promise.all([syncPreviousSession(), getGeminiToken()]);
-
-      const session = buildSessionMeta();
-      resumptionHandleRef.current = null;
-      shouldAutoReconnectRef.current = true;
-      reconnectAttemptRef.current = 0;
-      clearReconnectTimer();
-      logLiveAssessment("session_resume_start", {
-        sessionId: session.sessionId,
-        liveSessionId: resolvedSessionId,
-        voice: selectedVoice,
-      });
-      pendingSessionRef.current = { ...session, liveSessionId: resolvedSessionId };
-      setIsResuming(true);
-      // Clear syncedMessageIds for the previous active session (if any)
-      const previousSession = activeSessionRef.current;
-      if (previousSession) {
-        clearSyncedIds(previousSession.sessionId);
-      }
-      // Load syncedMessageIds for the resuming session
-      syncedMessageIdsRef.current = loadSyncedIds(session.sessionId);
-
-      const now = new Date();
-      const deviceContext = `
-System Context:
-- User Time: ${now.toLocaleString(undefined, {
-        dateStyle: "full",
-        timeStyle: "medium",
-      })}
-- User Name: ${userName}
-- TimeZone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
-- Language: ${getLocale()}
-- User Agent: ${navigator.userAgent}
-`;
-
-      const historyContext = historyMessages
-        .slice(-10) // Limit to last 10 turns
-        .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-        .join("\n");
-
-      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
-      liveSystemPromptRef.current = fullSystemPrompt;
-      liveAuthTokenRef.current = token;
-
-      // Set restoring state BEFORE connecting to prevent race condition with auto-recording
-      if (historyMessages.length > 0) {
-        setIsRestoringHistory(true);
-      }
-
-      await connect(fullSystemPrompt, token);
-
-      // Send history with error handling
-      if (historyMessages.length > 0) {
-        try {
-          console.log(
-            `[LiveSync] Sending ${historyMessages.length} history messages to Gemini`,
-          );
-          await sendTurns(
-            historyMessages.map((message) => ({
-              role: message.role,
-              content: message.content,
-            })),
-            true,
-          );
-          console.log("[LiveSync] History successfully sent to Gemini");
-        } catch (historyError) {
-          console.error("[LiveSync] Failed to send history to Gemini:", historyError);
-          // Show warning but don't fail the connection
-          setSessionError(
-            "Connected, but failed to restore conversation history. Starting fresh context.",
-          );
-          // Clear the error after 5 seconds
-          setTimeout(() => setSessionError(null), 5000);
-        } finally {
-          setIsRestoringHistory(false);
-        }
-      }
-    } catch (err) {
-      console.error("Resume connection error:", err);
-      setSessionError(err instanceof Error ? err.message : "Failed to resume");
-      pendingSessionRef.current = null;
-      setIsResuming(false);
-      setIsRestoringHistory(false);
-    } finally {
-      setIsFetchingToken(false);
-    }
-  }, [
-    buildSessionMeta,
-    clearReconnectTimer,
-    clearSyncedIds,
-    connect,
-    loadSyncedIds,
-    observer.reset,
-    sendTurns,
-    historyMessages,
-    historyQuery.data,
-    resolvedSessionId,
-    selectedVoice,
-    syncPreviousSession,
-    userName,
-  ]);
-
   const triggerAssessment = useCallback(
     async (liveSessionId: string, resumptionHandle: string) => {
       try {
@@ -983,6 +892,7 @@ System Context:
       shouldAutoReconnectRef.current = false;
       isAutoReconnectingRef.current = false;
       reconnectAttemptRef.current = 0;
+      setReconnectAttempt(null);
       clearReconnectTimer();
       liveSystemPromptRef.current = null;
       liveAuthTokenRef.current = null;
@@ -1005,6 +915,7 @@ System Context:
       });
       disconnect();
       resumptionHandleRef.current = null;
+      isResumableRef.current = false;
       if (liveSessionId && resumptionHandle) {
         void triggerAssessment(liveSessionId, resumptionHandle);
       }
@@ -1031,18 +942,17 @@ System Context:
       return;
     }
     if (resolvedSessionId) {
-      await connectResumeSession();
-      return;
+      navigate({ to: "/live", replace: true });
     }
     await connectSession();
   }, [
-    connectResumeSession,
     connectSession,
     disconnect,
     clearReconnectTimer,
     ensureLiveSessionId,
-    resolvedSessionId,
+    navigate,
     queryClient,
+    resolvedSessionId,
     status,
     syncPreviousSession,
     triggerAssessment,
@@ -1053,10 +963,13 @@ System Context:
     shouldAutoReconnectRef.current = false;
     isAutoReconnectingRef.current = false;
     reconnectAttemptRef.current = 0;
+    setReconnectAttempt(null);
     clearReconnectTimer();
     liveSystemPromptRef.current = null;
     liveAuthTokenRef.current = null;
     setSessionError(null);
+    resumptionHandleRef.current = null;
+    isResumableRef.current = false;
     disconnect();
   }, [clearReconnectTimer, disconnect]);
 
@@ -1271,13 +1184,13 @@ System Context:
                     )}
                   </section>
 
-                  <div className="mt-auto flex flex-col gap-3">
-                    <LiveStatusSection
-                      isRestoringHistory={isRestoringHistory}
-                      sessionError={sessionError}
-                      failedSyncCount={failedSyncCount}
-                      onRetryFailedMessages={handleRetryFailedMessages}
-                    />
+                    <div className="mt-auto flex flex-col gap-3">
+                      <LiveStatusSection
+                        reconnectAttempt={reconnectAttempt}
+                        sessionError={sessionError}
+                        failedSyncCount={failedSyncCount}
+                        onRetryFailedMessages={handleRetryFailedMessages}
+                      />
                     {!isReadOnlyHistory && (
                       <LiveControls
                         selectedVoice={selectedVoice}
@@ -1364,32 +1277,34 @@ System Context:
                 )}
               </section>
 
-              <div className="mt-auto flex flex-col gap-3">
-                <LiveStatusSection
-                  isRestoringHistory={isRestoringHistory}
-                  sessionError={sessionError}
-                  failedSyncCount={failedSyncCount}
-                  onRetryFailedMessages={handleRetryFailedMessages}
-                />
+                <div className="mt-auto flex flex-col gap-3">
+                  <LiveStatusSection
+                    reconnectAttempt={reconnectAttempt}
+                    sessionError={sessionError}
+                    failedSyncCount={failedSyncCount}
+                    onRetryFailedMessages={handleRetryFailedMessages}
+                  />
 
-                <LiveControls
-                  selectedVoice={selectedVoice}
-                  onVoiceChange={setSelectedVoice}
-                  isActiveSession={isActiveSession}
-                  isViewingHistory={isViewingHistory}
-                  isConnecting={isConnecting}
-                  isReadOnlyHistory={isReadOnlyHistory}
-                  isRecording={isRecording}
-                  isPaused={isPaused}
-                  isStartDisabled={isStartDisabled}
-                  onToggleMute={handleToggleMute}
-                  onToggleSession={handleToggleSession}
-                  textInput={textInput}
-                  onTextInputChange={setTextInput}
-                  onSendMessage={handleSendMessage}
-                  canSendText={canSendText}
-                  className="w-full"
-                />
+                  {!isReadOnlyHistory && (
+                    <LiveControls
+                      selectedVoice={selectedVoice}
+                      onVoiceChange={setSelectedVoice}
+                      isActiveSession={isActiveSession}
+                      isViewingHistory={isViewingHistory}
+                      isConnecting={isConnecting}
+                      isReadOnlyHistory={isReadOnlyHistory}
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      isStartDisabled={isStartDisabled}
+                      onToggleMute={handleToggleMute}
+                      onToggleSession={handleToggleSession}
+                      textInput={textInput}
+                      onTextInputChange={setTextInput}
+                      onSendMessage={handleSendMessage}
+                      canSendText={canSendText}
+                      className="w-full"
+                    />
+                  )}
               </div>
             </div>
           </main>

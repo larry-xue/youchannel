@@ -146,6 +146,12 @@ export function LivePage() {
   const [isPaused, setIsPaused] = useState(false);
   const [syncStates, setSyncStates] = useState<Map<string, MessageSyncState>>(new Map());
   const hasSentGreetingRef = useRef(false);
+  const shouldAutoReconnectRef = useRef(false);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAutoReconnectingRef = useRef(false);
+  const liveSystemPromptRef = useRef<string | null>(null);
+  const liveAuthTokenRef = useRef<string | null>(null);
   const activeSessionRef = useRef<LiveSessionMeta | null>(null);
   const pendingSessionRef = useRef<LiveSessionMeta | null>(null);
   const lastPersistedSessionIdRef = useRef<string | null>(null);
@@ -484,6 +490,72 @@ export function LivePage() {
     [uiLocale],
   );
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const attemptAutoReconnect = useCallback(async () => {
+    if (isAutoReconnectingRef.current) return;
+    if (!shouldAutoReconnectRef.current) return;
+    if (isReadOnlyHistory) return;
+
+    const systemPrompt = liveSystemPromptRef.current;
+    if (!systemPrompt) return;
+
+    const resumptionHandle = resumptionHandleRef.current;
+    if (!resumptionHandle) return;
+
+    isAutoReconnectingRef.current = true;
+    clearReconnectTimer();
+
+    try {
+      setSessionError(null);
+
+      const token =
+        liveAuthTokenRef.current ?? (await getGeminiToken()).token ?? null;
+      if (!token) {
+        throw new Error("Failed to fetch Gemini token");
+      }
+      liveAuthTokenRef.current = token;
+
+      await connect(systemPrompt, token, {
+        sessionResumptionHandle: resumptionHandle,
+        preserveMessages: true,
+      });
+
+      reconnectAttemptRef.current = 0;
+    } catch (err) {
+      reconnectAttemptRef.current += 1;
+      const attempt = reconnectAttemptRef.current;
+
+      const message = err instanceof Error ? err.message : "Failed to reconnect";
+      console.warn("[GeminiLive] Auto-reconnect attempt failed", {
+        attempt,
+        message,
+      });
+
+      liveAuthTokenRef.current = null;
+
+      if (attempt >= 5) {
+        shouldAutoReconnectRef.current = false;
+        setSessionError(message);
+        return;
+      }
+
+      const delayMs = Math.min(1000 * 2 ** (attempt - 1), 15000);
+      setSessionError(`Reconnecting… (${attempt})`);
+      reconnectTimerRef.current = setTimeout(() => {
+        isAutoReconnectingRef.current = false;
+        void attemptAutoReconnect();
+      }, delayMs);
+    } finally {
+      isAutoReconnectingRef.current = false;
+    }
+  }, [clearReconnectTimer, connect, isReadOnlyHistory]);
+
   useEffect(() => {
     if (error) setSessionError(error);
   }, [error]);
@@ -494,11 +566,10 @@ export function LivePage() {
         startRecording();
       }
       if (!hasSentGreetingRef.current && !isResuming) {
-        sendText("Hello!", true);
-        hasSentGreetingRef.current = true;
-      }
-    } else if (status !== "connected") {
-      hasSentGreetingRef.current = false;
+         sendText("Hello!", true);
+         hasSentGreetingRef.current = true;
+       }
+    } else if (status === "disconnected" || status === "error") {
       setIsPaused(false);
     }
   }, [
@@ -510,6 +581,15 @@ export function LivePage() {
     startRecording,
     sendText,
   ]);
+
+  useEffect(() => {
+    if (!shouldAutoReconnectRef.current) return;
+    if (isReadOnlyHistory) return;
+    if (status !== "disconnected" && status !== "error") return;
+    if (isAutoReconnectingRef.current) return;
+    if (reconnectTimerRef.current) return;
+    void attemptAutoReconnect();
+  }, [attemptAutoReconnect, isReadOnlyHistory, status]);
 
   useEffect(() => {
     if (status !== "connected" || !pendingSessionRef.current) return;
@@ -686,6 +766,10 @@ export function LivePage() {
 
       const session = buildSessionMeta();
       resumptionHandleRef.current = null;
+      hasSentGreetingRef.current = false;
+      shouldAutoReconnectRef.current = true;
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
       logLiveAssessment("session_start", {
         sessionId: session.sessionId,
         voice: selectedVoice,
@@ -713,6 +797,8 @@ System Context:
 - User Agent: ${navigator.userAgent}
 `;
       const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}`;
+      liveSystemPromptRef.current = fullSystemPrompt;
+      liveAuthTokenRef.current = token;
 
       await connect(fullSystemPrompt, token);
     } catch (err) {
@@ -724,6 +810,7 @@ System Context:
     }
   }, [
     buildSessionMeta,
+    clearReconnectTimer,
     clearSyncedIds,
     connect,
     loadSyncedIds,
@@ -743,6 +830,9 @@ System Context:
 
       const session = buildSessionMeta();
       resumptionHandleRef.current = null;
+      shouldAutoReconnectRef.current = true;
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
       logLiveAssessment("session_resume_start", {
         sessionId: session.sessionId,
         liveSessionId: resolvedSessionId,
@@ -777,6 +867,8 @@ System Context:
         .join("\n");
 
       const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}\n\n[PREVIOUS CONVERSATION CONTEXT]\n${historyContext}`;
+      liveSystemPromptRef.current = fullSystemPrompt;
+      liveAuthTokenRef.current = token;
 
       // Set restoring state BEFORE connecting to prevent race condition with auto-recording
       if (historyMessages.length > 0) {
@@ -822,6 +914,7 @@ System Context:
     }
   }, [
     buildSessionMeta,
+    clearReconnectTimer,
     clearSyncedIds,
     connect,
     loadSyncedIds,
@@ -868,6 +961,13 @@ System Context:
 
   const handleToggleSession = useCallback(async () => {
     if (status === "connected" || status === "connecting") {
+      shouldAutoReconnectRef.current = false;
+      isAutoReconnectingRef.current = false;
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
+      liveSystemPromptRef.current = null;
+      liveAuthTokenRef.current = null;
+      setSessionError(null);
       const session = activeSessionRef.current;
       const titleLiveSessionId = session?.liveSessionId ?? null;
       await syncPreviousSession();
@@ -920,6 +1020,7 @@ System Context:
     connectResumeSession,
     connectSession,
     disconnect,
+    clearReconnectTimer,
     ensureLiveSessionId,
     isViewingHistory,
     queryClient,
@@ -928,6 +1029,17 @@ System Context:
     triggerAssessment,
     uiLocale,
   ]);
+
+  const handleManualDisconnect = useCallback(() => {
+    shouldAutoReconnectRef.current = false;
+    isAutoReconnectingRef.current = false;
+    reconnectAttemptRef.current = 0;
+    clearReconnectTimer();
+    liveSystemPromptRef.current = null;
+    liveAuthTokenRef.current = null;
+    setSessionError(null);
+    disconnect();
+  }, [clearReconnectTimer, disconnect]);
 
   const handleToggleMute = useCallback(() => {
     if (isRecording) {
@@ -1013,6 +1125,14 @@ System Context:
     messages,
   ]);
 
+  useEffect(() => {
+    return () => {
+      shouldAutoReconnectRef.current = false;
+      isAutoReconnectingRef.current = false;
+      clearReconnectTimer();
+    };
+  }, [clearReconnectTimer]);
+
   // Cleanup: sync remaining messages on disconnect
   useEffect(() => {
     return () => {
@@ -1051,7 +1171,7 @@ System Context:
       >
         {m.live_skip_to_content()}
       </a>
-      {isActiveSession && <SessionBlocker disconnect={disconnect} />}
+      {isActiveSession && <SessionBlocker disconnect={handleManualDisconnect} />}
 
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         {!isDesktop && (

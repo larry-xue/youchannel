@@ -34,6 +34,11 @@ interface UseGeminiLiveOptions {
   onUserSpeechEnd?: (chunk: { pcm: Float32Array; sampleCount: number }) => void;
 }
 
+type GeminiLiveConnectOptions = {
+  sessionResumptionHandle?: string;
+  preserveMessages?: boolean;
+};
+
 export function useGeminiLive({
   apiKey,
   model = "gemini-2.5-flash-native-audio-preview-12-2025",
@@ -49,6 +54,7 @@ export function useGeminiLive({
 
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<Session | null>(null);
+  const isManualDisconnectRef = useRef(false);
 
   const handleInputAudio = useCallback((media: { mimeType: string; data: string }) => {
     if (sessionRef.current) {
@@ -165,7 +171,11 @@ export function useGeminiLive({
   });
 
   const connect = useCallback(
-    async (systemInstruction?: string, authToken?: string) => {
+    async (
+      systemInstruction?: string,
+      authToken?: string,
+      options?: GeminiLiveConnectOptions,
+    ) => {
       const key = authToken || apiKey;
       if (!key) {
         setError("API Key or Token is required");
@@ -173,6 +183,7 @@ export function useGeminiLive({
       }
 
       try {
+        isManualDisconnectRef.current = false;
         setStatus("connecting");
         setError(null);
         ensureAudioContexts();
@@ -181,6 +192,13 @@ export function useGeminiLive({
           apiKey: key,
           httpOptions: { apiVersion: "v1alpha" },
         });
+
+        const sessionResumption: LiveConnectConfig["sessionResumption"] | undefined =
+          options?.sessionResumptionHandle
+            ? { handle: options.sessionResumptionHandle }
+            : onResumptionHandle
+              ? {}
+              : undefined;
 
         const config: LiveConnectConfig = {
           responseModalities: [Modality.AUDIO],
@@ -194,7 +212,7 @@ export function useGeminiLive({
           enableAffectiveDialog: true,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
-          sessionResumption: onResumptionHandle ? {} : undefined,
+          sessionResumption,
           realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
           temperature: 0.4,
         };
@@ -207,7 +225,9 @@ export function useGeminiLive({
               console.debug("[GeminiLive] Connection opened");
               setStatus("connected");
               resetAssistantAudioCapture();
-              resetMessages(initialSequenceNumber);
+              if (!options?.preserveMessages) {
+                resetMessages(initialSequenceNumber);
+              }
             },
             onmessage: async (message: LiveServerMessage) => {
               const outputPcm16Bytes = await handleAudioChunk(message);
@@ -257,12 +277,22 @@ export function useGeminiLive({
             },
 
             onclose: (e) => {
+              const wasManual = isManualDisconnectRef.current;
+              isManualDisconnectRef.current = false;
               console.error("[GeminiLive] Connection closed:", {
                 code: e.code,
                 reason: e.reason,
                 wasClean: e.wasClean,
                 timestamp: new Date().toISOString(),
               });
+              stopAudioRecording();
+              stopOutputAudio();
+              resetAssistantAudioCapture();
+              sessionRef.current = null;
+              if (!wasManual) {
+                const reason = e.reason || "Connection closed";
+                setError(`Connection closed (${e.code}): ${reason}`);
+              }
               setStatus("disconnected");
             },
             onerror: (e) => {
@@ -278,8 +308,10 @@ export function useGeminiLive({
       } catch (err: unknown) {
         console.error(err);
         const message = err instanceof Error ? err.message : "";
-        setError(message || "Connection failed");
+        const errorMessage = message || "Connection failed";
+        setError(errorMessage);
         setStatus("error");
+        throw err instanceof Error ? err : new Error(errorMessage);
       }
     },
     [
@@ -293,11 +325,12 @@ export function useGeminiLive({
       handleTurnComplete,
       initialSequenceNumber,
       model,
+      onResumptionHandle,
       resetAssistantAudioCapture,
       resetMessages,
+      stopAudioRecording,
       stopOutputAudio,
       voiceName,
-      onResumptionHandle,
     ],
   );
 
@@ -311,6 +344,8 @@ export function useGeminiLive({
   }, [stopAudioRecording]);
 
   const disconnect = useCallback(() => {
+    isManualDisconnectRef.current = true;
+    setError(null);
     stopAudioRecording();
     stopOutputAudio();
     releaseAudioContexts();

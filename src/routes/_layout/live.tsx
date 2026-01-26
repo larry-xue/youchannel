@@ -129,6 +129,7 @@ export function LivePage() {
   const matchRoute = useMatchRoute();
   const matchedSession = matchRoute({ to: "/live/$sessionId" });
   const resolvedSessionId = matchedSession ? matchedSession.sessionId : null;
+  const navigate = Route.useNavigate();
   const authUser = useAuthUser();
   const isDesktop = useIsDesktop();
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
@@ -179,8 +180,6 @@ export function LivePage() {
   const lastSyncedCountRef = useRef<number>(0);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
-  const isViewingHistory = Boolean(resolvedSessionId);
-  const isReadOnlyHistory = isViewingHistory && !isResuming;
 
   // Storage utilities using sessionStorage (simple and reliable)
   const saveSyncedIds = useCallback(
@@ -249,10 +248,10 @@ export function LivePage() {
   );
 
   useEffect(() => {
-    if (!isViewingHistory) {
+    if (!resolvedSessionId) {
       setIsResuming(false);
     }
-  }, [isViewingHistory]);
+  }, [resolvedSessionId]);
 
   useEffect(() => {
     const panel = sidebarPanelRef.current;
@@ -332,21 +331,29 @@ export function LivePage() {
     // Create promise for session creation
     const creationPromise = (async () => {
       try {
-        const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
-        const { liveSessionId } = await createLiveSessionFn({
-          data: { session },
-        });
-        activeSessionRef.current = { ...session, liveSessionId };
-        queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
-        return liveSessionId;
-      } finally {
-        sessionCreationPromiseRef.current = null;
-      }
-    })();
+         const { createLiveSessionFn } = await import("~/lib/dashboard/live/session");
+         const { liveSessionId } = await createLiveSessionFn({
+           data: { session },
+         });
+         activeSessionRef.current = { ...session, liveSessionId };
+         queryClient.invalidateQueries({ queryKey: ["live-session-history"] });
+         queryClient.invalidateQueries({ queryKey: ["live-session-history-page"] });
+         if (!resolvedSessionId || resolvedSessionId !== liveSessionId) {
+           navigate({
+             to: "/live/$sessionId",
+             params: { sessionId: liveSessionId },
+             replace: true,
+           });
+         }
+         return liveSessionId;
+       } finally {
+         sessionCreationPromiseRef.current = null;
+       }
+     })();
 
     sessionCreationPromiseRef.current = creationPromise;
     return creationPromise;
-  }, [queryClient]);
+  }, [navigate, queryClient, resolvedSessionId]);
 
   const handleResumptionHandle = useCallback((handle: string, resumable: boolean) => {
     if (!resumable) return;
@@ -380,6 +387,20 @@ export function LivePage() {
     },
   });
 
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  const assistantName = LIVE_ASSISTANT_NAME;
+  const assistantPrompt = LIVE_SYSTEM_PROMPT;
+  const isActiveSession = status === "connected";
+  const isConnecting = status === "connecting" || isFetchingToken;
+  const inProgressLiveSessionId =
+    pendingSessionRef.current?.liveSessionId ??
+    activeSessionRef.current?.liveSessionId ??
+    null;
+  const isViewingHistory =
+    Boolean(resolvedSessionId) && resolvedSessionId !== inProgressLiveSessionId;
+  const isReadOnlyHistory = isViewingHistory && !isResuming;
   const handleObserverOutput = useCallback(
     async (output: LiveObserverOutput) => {
       if (isReadOnlyHistory) return;
@@ -416,19 +437,11 @@ export function LivePage() {
     },
     [ensureLiveSessionId, isReadOnlyHistory, uiLocale],
   );
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-  const assistantName = LIVE_ASSISTANT_NAME;
-  const assistantPrompt = LIVE_SYSTEM_PROMPT;
-  const isActiveSession = status === "connected";
-  const isConnecting = status === "connecting" || isFetchingToken;
   const displayMessages = useMemo(() => {
-    if (!isViewingHistory) return messages;
-    if (!isResuming) return historyMessages;
-    return [...historyMessages, ...messages];
-  }, [historyMessages, isResuming, isViewingHistory, messages]);
+    if (!resolvedSessionId) return messages;
+    if (isResuming) return [...historyMessages, ...messages];
+    return isViewingHistory ? historyMessages : messages;
+  }, [historyMessages, isResuming, isViewingHistory, messages, resolvedSessionId]);
   const observer = useLiveObserverSidecar({
     uiLocale,
     assistantName,
@@ -447,8 +460,10 @@ export function LivePage() {
   }, [observer.ingestSpeechSegment]);
   const canTriggerObserver = observer.canTrigger;
   const observerPanelOutputs = useMemo(() => {
-    if (!isViewingHistory) return observer.outputs;
-    if (isReadOnlyHistory) return observerHistoryOutputs;
+    if (!resolvedSessionId) return observer.outputs;
+    if (!isResuming) {
+      return isViewingHistory ? observerHistoryOutputs : observer.outputs;
+    }
 
     const byId = new Map<string, LiveObserverOutput>();
     observerHistoryOutputs.forEach((entry) => {
@@ -458,17 +473,21 @@ export function LivePage() {
       byId.set(entry.id, entry);
     });
     return [...byId.values()].sort((a, b) => a.createdAt - b.createdAt);
-  }, [isReadOnlyHistory, isViewingHistory, observer.outputs, observerHistoryOutputs]);
+  }, [isResuming, isViewingHistory, observer.outputs, observerHistoryOutputs, resolvedSessionId]);
   const observerPanelError = isReadOnlyHistory
     ? observerOutputsQuery.error
     : observer.error;
-  const isHistoryLoading = isViewingHistory && historyQuery.isLoading;
-  const historyError = isViewingHistory ? historyQuery.error : null;
+  const isHistoryLoading = Boolean(resolvedSessionId) && historyQuery.isLoading;
+  const historyError = resolvedSessionId ? historyQuery.error : null;
   const isNewSession =
     !isViewingHistory && displayMessages.length === 0 && !isActiveSession;
+  const isHistoryBannerVisible =
+    Boolean(resolvedSessionId) && !isActiveSession && !isConnecting;
   const isStartDisabled =
     isConnecting ||
-    (!isActiveSession && isViewingHistory && (isHistoryLoading || Boolean(historyError)));
+    (!isActiveSession &&
+      Boolean(resolvedSessionId) &&
+      (isHistoryLoading || Boolean(historyError)));
   const trimmedInput = textInput.trim();
   const canSendText = isActiveSession && !isReadOnlyHistory && trimmedInput.length > 0;
   const failedSyncCount = useMemo(() => {
@@ -1011,7 +1030,7 @@ System Context:
       }
       return;
     }
-    if (isViewingHistory) {
+    if (resolvedSessionId) {
       await connectResumeSession();
       return;
     }
@@ -1022,7 +1041,7 @@ System Context:
     disconnect,
     clearReconnectTimer,
     ensureLiveSessionId,
-    isViewingHistory,
+    resolvedSessionId,
     queryClient,
     status,
     syncPreviousSession,
@@ -1159,6 +1178,11 @@ System Context:
     return () => window.removeEventListener("pagehide", handleUnload);
   }, []);
 
+  const getActiveLiveSessionId = useCallback(
+    () => activeSessionRef.current?.liveSessionId ?? null,
+    [],
+  );
+
   return (
     <div className="relative flex h-screen min-h-0 flex-col">
       <a
@@ -1171,7 +1195,12 @@ System Context:
       >
         {m.live_skip_to_content()}
       </a>
-      {isActiveSession && <SessionBlocker disconnect={handleManualDisconnect} />}
+      {isActiveSession && (
+        <SessionBlocker
+          disconnect={handleManualDisconnect}
+          getActiveLiveSessionId={getActiveLiveSessionId}
+        />
+      )}
 
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         {!isDesktop && (
@@ -1188,7 +1217,7 @@ System Context:
                 error={observerPanelError}
                 canTrigger={canTriggerObserver}
                 onTrigger={handleTriggerObserver}
-                assessment={isViewingHistory ? assessmentEntries : null}
+                    assessment={isHistoryBannerVisible ? assessmentEntries : null}
                 assessmentLocale={uiLocale}
                 className="h-full w-full"
               />
@@ -1204,10 +1233,10 @@ System Context:
             <ResizablePanel minSize={MAIN_PANEL_MIN_SIZE}>
               <main id="live-main" className="flex h-full min-w-0 flex-col">
                 <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
-                  <HistoryBanner
-                    isVisible={isViewingHistory}
-                    sessionTitle={historyQuery.data?.session.title ?? null}
-                  />
+                    <HistoryBanner
+                      isVisible={isHistoryBannerVisible}
+                      sessionTitle={historyQuery.data?.session.title ?? null}
+                    />
 
                   <section
                     aria-label={m.live_page_title()}
@@ -1249,7 +1278,7 @@ System Context:
                       failedSyncCount={failedSyncCount}
                       onRetryFailedMessages={handleRetryFailedMessages}
                     />
-                    {!isViewingHistory && (
+                    {!isReadOnlyHistory && (
                       <LiveControls
                         selectedVoice={selectedVoice}
                         onVoiceChange={setSelectedVoice}
@@ -1288,7 +1317,7 @@ System Context:
                 error={observerPanelError}
                 canTrigger={canTriggerObserver}
                 onTrigger={handleTriggerObserver}
-                assessment={isViewingHistory ? assessmentEntries : null}
+                assessment={isHistoryBannerVisible ? assessmentEntries : null}
                 assessmentLocale={uiLocale}
                 className="h-full w-full"
               />
@@ -1301,7 +1330,7 @@ System Context:
           >
             <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
               <HistoryBanner
-                isVisible={isViewingHistory}
+                isVisible={isHistoryBannerVisible}
                 sessionTitle={historyQuery.data?.session.title ?? null}
               />
 

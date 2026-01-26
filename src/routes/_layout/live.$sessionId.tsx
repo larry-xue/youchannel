@@ -6,5 +6,6 @@ export const Route = createFileRoute("/_layout/live/$sessionId")({
 });
 
 function LiveSessionRoute() {
-  return <LivePage />;
+  const { sessionId } = Route.useParams();
+  return <LivePage key={sessionId} />;
 }

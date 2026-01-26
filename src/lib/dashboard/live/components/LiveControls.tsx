@@ -3,7 +3,9 @@ import {
   memo,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
+  useSyncExternalStore,
   useState,
   type KeyboardEvent,
 } from "react";
@@ -30,6 +32,61 @@ type LiveControlsProps = {
   onSendMessage: () => void;
   canSendText: boolean;
   className?: string;
+};
+
+const formatElapsedTime = (elapsedMs: number) => {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+
+  const pad = (value: number) => value.toString().padStart(2, "0");
+
+  if (hours > 0) {
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+
+  return `${pad(minutes)}:${pad(seconds)}`;
+};
+
+const useSessionElapsedMs = (isRunning: boolean) => {
+  const storeRef = useRef<{
+    startMs: number | null;
+    elapsedMs: number;
+  }>({ startMs: null, elapsedMs: 0 });
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (!isRunning) {
+        storeRef.current.startMs = null;
+        storeRef.current.elapsedMs = 0;
+        return () => {};
+      }
+
+      if (storeRef.current.startMs === null) {
+        storeRef.current.startMs = Date.now();
+        storeRef.current.elapsedMs = 0;
+      }
+
+      const timer = setInterval(() => {
+        const startMs = storeRef.current.startMs;
+        if (startMs === null) return;
+        storeRef.current.elapsedMs = Date.now() - startMs;
+        onStoreChange();
+      }, 1000);
+
+      return () => clearInterval(timer);
+    },
+    [isRunning],
+  );
+
+  const getSnapshot = useCallback(() => {
+    if (!isRunning) return 0;
+
+    return storeRef.current.elapsedMs;
+  }, [isRunning]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => 0);
 };
 
 export const LiveControls = memo(function LiveControls({
@@ -59,6 +116,11 @@ export const LiveControls = memo(function LiveControls({
       isMountedRef.current = false;
     };
   }, []);
+
+  const isTimerRunning = isActiveSession || isConnecting;
+  const elapsedMs = useSessionElapsedMs(isTimerRunning);
+
+  const formattedElapsed = useMemo(() => formatElapsedTime(elapsedMs), [elapsedMs]);
 
   const handleToggleSession = useCallback(() => {
     if (isActiveSession) {
@@ -131,6 +193,14 @@ export const LiveControls = memo(function LiveControls({
               className={cn("h-1.5 w-1.5 rounded-full", statusDotClassName)}
             />
             {statusLabel}
+            {isTimerRunning && (
+              <span
+                aria-hidden="true"
+                className="ml-2 tabular-nums tracking-normal text-muted-foreground"
+              >
+                {formattedElapsed}
+              </span>
+            )}
           </span>
         </div>
 

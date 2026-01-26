@@ -42,7 +42,7 @@ function UserQuotas() {
   if (isLoading) {
     return (
       <div className="flex justify-center p-4">
-        <Loading size="sm" className="py-2" />
+        <Loading className="py-2" />
       </div>
     );
   }

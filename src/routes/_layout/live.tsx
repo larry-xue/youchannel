@@ -2,7 +2,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useMatchRoute } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "~/lib/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/lib/components/ui/dialog";
+import { Loading } from "~/lib/components/ui/loading";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -476,6 +478,9 @@ export function LivePage() {
     : observer.error;
   const isHistoryLoading = Boolean(resolvedSessionId) && historyQuery.isLoading;
   const historyError = resolvedSessionId ? historyQuery.error : null;
+  const isObserverPanelLoading =
+    isReadOnlyHistory &&
+    (isHistoryLoading || observerOutputsQuery.isLoading || assessmentQuery.isLoading);
   const isNewSession =
     !isViewingHistory && displayMessages.length === 0 && !isActiveSession;
   const isHistoryBannerVisible =
@@ -1130,7 +1135,8 @@ System Context:
                 error={observerPanelError}
                 canTrigger={canTriggerObserver}
                 onTrigger={handleTriggerObserver}
-                    assessment={isHistoryBannerVisible ? assessmentEntries : null}
+                isLoading={isObserverPanelLoading}
+                assessment={isHistoryBannerVisible ? assessmentEntries : null}
                 assessmentLocale={uiLocale}
                 className="h-full w-full"
               />
@@ -1146,16 +1152,58 @@ System Context:
             <ResizablePanel minSize={MAIN_PANEL_MIN_SIZE}>
               <main id="live-main" className="flex h-full min-w-0 flex-col">
                 <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
-                    <HistoryBanner
-                      isVisible={isHistoryBannerVisible}
-                      sessionTitle={historyQuery.data?.session.title ?? null}
-                    />
+                  <HistoryBanner
+                    isVisible={isHistoryBannerVisible}
+                    isLoading={isHistoryLoading}
+                    sessionTitle={historyQuery.data?.session.title ?? null}
+                  />
 
                   <section
                     aria-label={m.live_page_title()}
                     className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
                   >
-                    {isNewSession ? (
+                    {isReadOnlyHistory ? (
+                      isHistoryLoading ? (
+                        <Loading
+                          text={m.live_history_loading()}
+                          className="flex-1 py-0"
+                        />
+                      ) : historyError ? (
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+                          <p className="text-sm font-semibold text-foreground">
+                            {m.live_history_error()}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => historyQuery.refetch()}
+                            className="h-9 rounded-md border-border bg-background px-4"
+                          >
+                            {m.live_retry()}
+                          </Button>
+                        </div>
+                      ) : historyMessages.length === 0 ? (
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-muted/20">
+                            <Sparkles
+                              aria-hidden="true"
+                              className="h-5 w-5 text-primary"
+                            />
+                          </div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {m.live_history_no_transcript()}
+                          </p>
+                        </div>
+                      ) : (
+                        <LiveTranscript
+                          messages={displayMessages}
+                          status={status}
+                          assistantName={assistantName}
+                          className="h-full w-full"
+                        />
+                      )
+                    ) : isNewSession ? (
                       <div className="flex flex-1 flex-col items-start justify-center gap-4 px-6 py-10">
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">
@@ -1230,6 +1278,7 @@ System Context:
                 error={observerPanelError}
                 canTrigger={canTriggerObserver}
                 onTrigger={handleTriggerObserver}
+                isLoading={isObserverPanelLoading}
                 assessment={isHistoryBannerVisible ? assessmentEntries : null}
                 assessmentLocale={uiLocale}
                 className="h-full w-full"
@@ -1244,6 +1293,7 @@ System Context:
             <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
               <HistoryBanner
                 isVisible={isHistoryBannerVisible}
+                isLoading={isHistoryLoading}
                 sessionTitle={historyQuery.data?.session.title ?? null}
               />
 
@@ -1251,7 +1301,42 @@ System Context:
                 aria-label={m.live_page_title()}
                 className="flex min-h-0 flex-1 flex-col overflow-hidden border border-border bg-background"
               >
-                {isNewSession ? (
+                {isReadOnlyHistory ? (
+                  isHistoryLoading ? (
+                    <Loading text={m.live_history_loading()} className="flex-1 py-0" />
+                  ) : historyError ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-10 text-center">
+                      <p className="text-sm font-semibold text-foreground">
+                        {m.live_history_error()}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => historyQuery.refetch()}
+                        className="h-9 rounded-md border-border bg-background px-4"
+                      >
+                        {m.live_retry()}
+                      </Button>
+                    </div>
+                  ) : historyMessages.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-10 text-center">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-muted/20">
+                        <Sparkles aria-hidden="true" className="h-5 w-5 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {m.live_history_no_transcript()}
+                      </p>
+                    </div>
+                  ) : (
+                    <LiveTranscript
+                      messages={displayMessages}
+                      status={status}
+                      assistantName={assistantName}
+                      className="h-full w-full"
+                    />
+                  )
+                ) : isNewSession ? (
                   <div className="flex flex-1 flex-col items-start justify-center gap-4 px-5 py-10">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">

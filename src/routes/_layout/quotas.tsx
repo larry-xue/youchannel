@@ -42,7 +42,7 @@ function QuotaPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loading size="lg" />
+        <Loading />
       </div>
     );
   }

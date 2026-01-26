@@ -779,7 +779,7 @@ function DashboardPlaylists() {
         </Dialog>
 
         {accountQuery.isLoading ? (
-          <Loading text={m.loading_checking_account()} size="md" />
+          <Loading text={m.loading_checking_account()} />
         ) : !hasAccount || search.code ? (
           <ConnectYouTubeAlert
             code={search.code}
@@ -800,7 +800,7 @@ function DashboardPlaylists() {
                 </div>
                 <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
                   {isLoadingPlaylists ? (
-                    <Loading size="sm" text={m.playlists_loading()} />
+                    <Loading text={m.playlists_loading()} />
                   ) : playlistsQuery.isError ? (
                     <p className="px-2 text-sm text-destructive">
                       {m.playlists_error_load()}
@@ -867,7 +867,7 @@ function DashboardPlaylists() {
             <div className="min-w-0 flex-1 space-y-6">
               {isLoadingPlaylists ? (
                 <div className="flex h-40 items-center justify-center rounded-2xl bg-muted/30">
-                  <Loading text={m.playlist_loading_single()} size="sm" />
+                  <Loading text={m.playlist_loading_single()} />
                 </div>
               ) : activePlaylist ? (
                 <div className="flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-muted/30 p-6 transition-[background-color,border-color] border border-border/50">
@@ -978,7 +978,7 @@ function DashboardPlaylists() {
                     </div>
                   )}
                   {isLoadingItems ? (
-                    <Loading text={m.library_loading()} size="md" />
+                    <Loading text={m.library_loading()} />
                   ) : itemsQuery.isError ? (
                     <div className="rounded-2xl bg-destructive/10 px-6 py-4 text-sm text-destructive">
                       {m.playlist_items_error()}

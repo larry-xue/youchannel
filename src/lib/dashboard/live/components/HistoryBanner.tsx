@@ -1,16 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { History, Plus } from "lucide-react";
+import { History, Loader2, Plus } from "lucide-react";
 import { memo } from "react";
 import { Button } from "~/lib/components/ui/button";
 import * as m from "~/paraglide/messages";
 
 type HistoryBannerProps = {
   isVisible: boolean;
+  isLoading?: boolean;
   sessionTitle?: string | null;
 };
 
 export const HistoryBanner = memo(function HistoryBanner({
   isVisible,
+  isLoading = false,
   sessionTitle,
 }: HistoryBannerProps) {
   if (!isVisible) return null;
@@ -31,7 +33,19 @@ export const HistoryBanner = memo(function HistoryBanner({
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {m.live_history_title()}
             </p>
-            <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {isLoading ? (
+                <span className="inline-flex items-center gap-2 text-muted-foreground">
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-4 w-4 motion-safe:animate-spin motion-reduce:animate-none"
+                  />
+                  {m.live_history_loading()}
+                </span>
+              ) : (
+                title
+              )}
+            </p>
           </div>
         </div>
 

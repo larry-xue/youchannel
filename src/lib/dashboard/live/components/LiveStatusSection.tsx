@@ -31,7 +31,10 @@ export const LiveStatusSection = memo(function LiveStatusSection({
             "font-medium text-muted-foreground border border-border",
           )}
         >
-          <Loader2 aria-hidden="true" className="h-3.5 w-3.5" />
+          <Loader2
+            aria-hidden="true"
+            className="h-3.5 w-3.5 motion-safe:animate-spin motion-reduce:animate-none"
+          />
           <span>{m.live_status_connecting()}</span>
           <span aria-hidden="true" className="tabular-nums text-muted-foreground">
             ({reconnectAttempt})

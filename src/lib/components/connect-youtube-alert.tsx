@@ -81,7 +81,7 @@ export function ConnectYouTubeAlert({ code, state, error }: ConnectYouTubeAlertP
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Loading size="sm" text={m.connect_redirecting()} />
+          <Loading text={m.connect_redirecting()} />
         </EmptyContent>
       </Empty>
     );

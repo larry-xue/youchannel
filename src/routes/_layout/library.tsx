@@ -86,7 +86,7 @@ function DashboardPlaylists() {
 
         <div className="space-y-6">
           {isLoading ? (
-            <Loading text={m.library_loading()} size="md" />
+            <Loading text={m.library_loading()} />
           ) : videos.length === 0 ? (
             <EmptyVideoState />
           ) : (

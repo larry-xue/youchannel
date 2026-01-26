@@ -8,6 +8,7 @@ import {
 } from "~/lib/components/ui/accordion";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
+import { Loading } from "~/lib/components/ui/loading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/lib/components/ui/tabs";
 import type { LiveSessionAssessment } from "~/lib/dashboard/live/assessment";
 import type { LiveObserverOutput } from "~/lib/dashboard/live/useLiveObserverSidecar";
@@ -22,6 +23,7 @@ type ObserverPanelProps = {
   error: unknown;
   canTrigger: boolean;
   onTrigger: () => void;
+  isLoading?: boolean;
   assessment?: LiveSessionAssessment | null;
   assessmentLocale?: string;
   className?: string;
@@ -32,6 +34,7 @@ export const ObserverPanel = memo(function ObserverPanel({
   error,
   canTrigger,
   onTrigger,
+  isLoading = false,
   assessment,
   assessmentLocale,
   className,
@@ -149,25 +152,31 @@ export const ObserverPanel = memo(function ObserverPanel({
               )}
 
               {!hasOutputs ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">
-                    <Sparkles aria-hidden="true" className="h-5 w-5 text-primary" />
+                isLoading ? (
+                  <Loading text={m.live_history_loading()} className="py-14" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-primary/10">
+                      <Sparkles aria-hidden="true" className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {m.live_observer_empty()}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onTrigger}
+                      disabled={!canTrigger}
+                      className="h-9 rounded-md border-border bg-background px-4"
+                    >
+                      <Sparkles aria-hidden="true" className="h-4 w-4" />
+                      <span className="text-sm font-semibold">
+                        {m.live_observer_run()}
+                      </span>
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {m.live_observer_empty()}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={onTrigger}
-                    disabled={!canTrigger}
-                    className="h-9 rounded-md border-border bg-background px-4"
-                  >
-                    <Sparkles aria-hidden="true" className="h-4 w-4" />
-                    <span className="text-sm font-semibold">{m.live_observer_run()}</span>
-                  </Button>
-                </div>
+                )
               ) : (
                 <Accordion type="multiple" className="border border-border">
                   {outputs.map((entry) => (

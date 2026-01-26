@@ -22,6 +22,7 @@ type LiveControlsProps = {
   isConnecting: boolean;
   isReadOnlyHistory: boolean;
   isViewingHistory: boolean;
+  sessionTimerKey: string | null;
   isRecording: boolean;
   isPaused: boolean;
   isStartDisabled: boolean;
@@ -49,23 +50,34 @@ const formatElapsedTime = (elapsedMs: number) => {
   return `${pad(minutes)}:${pad(seconds)}`;
 };
 
-const useSessionElapsedMs = (isRunning: boolean) => {
+const useSessionElapsedMs = (timerKey: string | null) => {
   const storeRef = useRef<{
+    timerKey: string | null;
     startMs: number | null;
     elapsedMs: number;
-  }>({ startMs: null, elapsedMs: 0 });
+  }>({ timerKey: null, startMs: null, elapsedMs: 0 });
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      if (!isRunning) {
-        storeRef.current.startMs = null;
-        storeRef.current.elapsedMs = 0;
+      if (!timerKey) {
+        if (
+          storeRef.current.timerKey !== null ||
+          storeRef.current.startMs !== null ||
+          storeRef.current.elapsedMs !== 0
+        ) {
+          storeRef.current.timerKey = null;
+          storeRef.current.startMs = null;
+          storeRef.current.elapsedMs = 0;
+          onStoreChange();
+        }
         return () => {};
       }
 
-      if (storeRef.current.startMs === null) {
+      if (storeRef.current.timerKey !== timerKey || storeRef.current.startMs === null) {
+        storeRef.current.timerKey = timerKey;
         storeRef.current.startMs = Date.now();
         storeRef.current.elapsedMs = 0;
+        onStoreChange();
       }
 
       const timer = setInterval(() => {
@@ -77,14 +89,14 @@ const useSessionElapsedMs = (isRunning: boolean) => {
 
       return () => clearInterval(timer);
     },
-    [isRunning],
+    [timerKey],
   );
 
   const getSnapshot = useCallback(() => {
-    if (!isRunning) return 0;
+    if (!timerKey || storeRef.current.timerKey !== timerKey) return 0;
 
     return storeRef.current.elapsedMs;
-  }, [isRunning]);
+  }, [timerKey]);
 
   return useSyncExternalStore(subscribe, getSnapshot, () => 0);
 };
@@ -96,6 +108,7 @@ export const LiveControls = memo(function LiveControls({
   isConnecting,
   isReadOnlyHistory,
   isViewingHistory,
+  sessionTimerKey,
   isRecording,
   isPaused,
   isStartDisabled,
@@ -117,8 +130,8 @@ export const LiveControls = memo(function LiveControls({
     };
   }, []);
 
-  const isTimerRunning = isActiveSession || isConnecting;
-  const elapsedMs = useSessionElapsedMs(isTimerRunning);
+  const isTimerRunning = Boolean(sessionTimerKey);
+  const elapsedMs = useSessionElapsedMs(sessionTimerKey);
 
   const formattedElapsed = useMemo(() => formatElapsedTime(elapsedMs), [elapsedMs]);
 

@@ -144,6 +144,7 @@ export function LivePage() {
   const hasLoadedVoiceRef = useRef(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState<number | null>(null);
+  const [sessionTimerKey, setSessionTimerKey] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [syncStates, setSyncStates] = useState<Map<string, MessageSyncState>>(new Map());
@@ -801,10 +802,12 @@ export function LivePage() {
     setReconnectAttempt(null);
     setIsFetchingToken(true);
     observer.reset();
+
+    const session = buildSessionMeta();
+    setSessionTimerKey(session.sessionId);
     try {
       const [, { token }] = await Promise.all([syncPreviousSession(), getGeminiToken()]);
 
-      const session = buildSessionMeta();
       resumptionHandleRef.current = null;
       isResumableRef.current = false;
       hasSentGreetingRef.current = false;
@@ -846,6 +849,7 @@ System Context:
       console.error("Connection error:", err);
       setSessionError(err instanceof Error ? err.message : "Failed to connect");
       pendingSessionRef.current = null;
+      setSessionTimerKey(null);
     } finally {
       setIsFetchingToken(false);
     }
@@ -898,6 +902,7 @@ System Context:
       isAutoReconnectingRef.current = false;
       reconnectAttemptRef.current = 0;
       setReconnectAttempt(null);
+      setSessionTimerKey(null);
       clearReconnectTimer();
       liveSystemPromptRef.current = null;
       liveAuthTokenRef.current = null;
@@ -969,6 +974,7 @@ System Context:
     isAutoReconnectingRef.current = false;
     reconnectAttemptRef.current = 0;
     setReconnectAttempt(null);
+    setSessionTimerKey(null);
     clearReconnectTimer();
     liveSystemPromptRef.current = null;
     liveAuthTokenRef.current = null;
@@ -1247,6 +1253,7 @@ System Context:
                         isViewingHistory={isViewingHistory}
                         isConnecting={isConnecting}
                         isReadOnlyHistory={isReadOnlyHistory}
+                        sessionTimerKey={sessionTimerKey}
                         isRecording={isRecording}
                         isPaused={isPaused}
                         isStartDisabled={isStartDisabled}
@@ -1378,6 +1385,7 @@ System Context:
                       isViewingHistory={isViewingHistory}
                       isConnecting={isConnecting}
                       isReadOnlyHistory={isReadOnlyHistory}
+                      sessionTimerKey={sessionTimerKey}
                       isRecording={isRecording}
                       isPaused={isPaused}
                       isStartDisabled={isStartDisabled}

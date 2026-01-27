@@ -199,11 +199,17 @@ export function useGeminiLive({
 
   const handleSpeechEnd = useCallback(
     (chunk: { pcm: Float32Array; sampleCount: number }) => {
-      if (!sessionRef.current) return;
-      sessionRef.current.sendRealtimeInput({ activityEnd: {} });
+      const session = sessionRef.current;
+      if (!session) return;
 
       const messageId = currentUserAudioMessageIdRef.current;
       currentUserAudioMessageIdRef.current = null;
+
+      if (messageId) {
+        session.sendRealtimeInput({ activityEnd: {} });
+      } else {
+        console.debug("[GeminiLive] Skipping activityEnd (no active speech message)");
+      }
 
       if (messageId && typeof URL !== "undefined") {
         const wavBuffer = float32ToWavBuffer(chunk.pcm, 16000, 1);
@@ -235,13 +241,14 @@ export function useGeminiLive({
     onSpeechStart: handleSpeechStart,
     onSpeechEnd: handleSpeechEnd,
     onVADMisfire: () => {
+      const session = sessionRef.current;
       const messageId = currentUserAudioMessageIdRef.current;
       currentUserAudioMessageIdRef.current = null;
       if (messageId) {
         removeMessage(messageId);
       }
-      if (sessionRef.current) {
-        sessionRef.current.sendRealtimeInput({ activityEnd: {} });
+      if (session && messageId) {
+        session.sendRealtimeInput({ activityEnd: {} });
       }
     },
     onError: setError,

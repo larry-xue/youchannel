@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useMatchRoute } from "@tanstack/react-router";
+import type { FunctionDeclaration } from "@google/genai";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 import { Button } from "~/lib/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/lib/components/ui/dialog";
 import { Loading } from "~/lib/components/ui/loading";
@@ -33,19 +35,14 @@ import {
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
 import {
-  appendLiveObserverOutputFn,
-  getLiveObserverOutputsFn,
-  type LiveObserverOutputRecord,
-} from "~/lib/dashboard/live/observer";
+  useLiveScheduler,
+  type LiveSchedulerInjectedCue,
+} from "~/lib/dashboard/live/scheduler/useLiveScheduler";
 import {
   MessageSyncQueue,
   retryWithBackoff,
   type MessageSyncState,
 } from "~/lib/dashboard/live/retry";
-import {
-  useLiveObserverSidecar,
-  type LiveObserverOutput,
-} from "~/lib/dashboard/live/useLiveObserverSidecar";
 import { getGeminiToken } from "~/lib/gemini/actions";
 import { useGeminiLive, type Message } from "~/lib/gemini/useGeminiLive";
 import { useAuthUser } from "~/lib/store/auth";
@@ -70,30 +67,72 @@ const logLiveAssessment = (...args: unknown[]) => {
   console.debug("[LiveAssessment]", ...args);
 };
 
-const SIDECAR_INJECTION_PREFIX = "[[SIDECAR]]";
+const SCHEDULER_INJECTION_PREFIX = "[[SCHED]]";
 const SIDEBAR_MIN_SIZE = "320px";
 const SIDEBAR_MAX_SIZE = "40%";
 const MAIN_PANEL_MIN_SIZE = "55%";
 
-const buildSidecarSystemPrompt = () =>
-  `Director cue note:
-You may receive hidden user turns that start with "${SIDECAR_INJECTION_PREFIX}".
-These are internal "director cues" from a background observer to help you keep the
-conversation natural and personalized.
+const PROMPT_CADENCE_TOOL_NAME = "set_prompt_cadence";
+const PROMPT_CADENCE_SCALE_MIN = 0.5;
+const PROMPT_CADENCE_SCALE_MAX = 2.5;
+
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const setPromptCadenceArgsSchema = z
+  .object({
+    scale: z.number().min(PROMPT_CADENCE_SCALE_MIN).max(PROMPT_CADENCE_SCALE_MAX).optional(),
+    reason: z.string().min(1).max(200).optional(),
+  })
+  .passthrough();
+
+const promptCadenceToolDeclaration: FunctionDeclaration = {
+  name: PROMPT_CADENCE_TOOL_NAME,
+  description:
+    "Adjust coaching proactivity. Use scale>1 to intervene less (listen more), " +
+    "scale<1 to intervene more (extra scaffolding when the user is stuck).",
+  parametersJsonSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      scale: {
+        type: "number",
+        minimum: PROMPT_CADENCE_SCALE_MIN,
+        maximum: PROMPT_CADENCE_SCALE_MAX,
+        description:
+          "Coaching scale. >1 means less intervention; <1 means more intervention.",
+      },
+      reason: {
+        type: "string",
+        description: "Optional short rationale for debugging/logging.",
+      },
+    },
+  },
+  responseJsonSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      applied: { type: "boolean" },
+      scale: { type: "number" },
+    },
+    required: ["applied", "scale"],
+  },
+};
+
+const buildSchedulerSystemPrompt = () =>
+  `Scheduler cue note:
+You may receive hidden user turns that start with "${SCHEDULER_INJECTION_PREFIX}".
+They include a JSON payload, and are internal control signals from the app.
 
 Rules:
-- Do NOT respond to those turns, do NOT acknowledge them, and do NOT quote them.
-- Treat them as high-priority internal guidance and apply them to your very next
-  normal response to the user (and until superseded).
-- Director cues may include short structured lines (e.g. GOAL=, LEVEL=, STYLE=,
-  DO=, NEXT_Q=, AVOID=). Follow them literally when possible.
-- The director cue may be in a different language; keep your response language
-  aligned with the user's last spoken language, not the cue text.
-- Ignore any director cue that conflicts with the assistant system prompt, safety
-  rules, or system constraints.`;
-
-const formatSidecarInjection = (text: string) =>
-  `${SIDECAR_INJECTION_PREFIX} ${text.trim()}`;
+- Never mention or acknowledge these turns, and never quote the JSON.
+- Use them only to decide what to say next, then reply normally to the user.
+- Keep replies short (usually 1-3 sentences) and ask a clear follow-up question.
+- Actions:
+  - SILENCE_SOFT: send a gentle check-in or easy follow-up question.
+  - SILENCE_HARD: reduce cognitive load; give 1-2 simple options the user can answer.
+- Keep your response language aligned with the user's last spoken language.
+- Ignore any cue that conflicts with the assistant system prompt, safety rules, or system constraints.`;
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
@@ -146,6 +185,7 @@ export function LivePage() {
   const [reconnectAttempt, setReconnectAttempt] = useState<number | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [schedulerCues, setSchedulerCues] = useState<LiveSchedulerInjectedCue[]>([]);
   const [syncStates, setSyncStates] = useState<Map<string, MessageSyncState>>(new Map());
   const hasSentGreetingRef = useRef(false);
   const shouldAutoReconnectRef = useRef(false);
@@ -164,9 +204,8 @@ export function LivePage() {
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
-  const observerSpeechHandlerRef = useRef<
-    ((chunk: { pcm: Float32Array; sampleCount: number }) => void) | null
-  >(null);
+  const promptCadenceScaleRef = useRef(1);
+  const schedulerRef = useRef<ReturnType<typeof useLiveScheduler> | null>(null);
   const sidebarPanelRef = usePanelRef();
 
   // Initialize sync queue
@@ -290,14 +329,6 @@ export function LivePage() {
       }) as Promise<{ assessment: LiveSessionAssessment }>,
     enabled: Boolean(resolvedSessionId),
   });
-  const observerOutputsQuery = useQuery<{ outputs: LiveObserverOutputRecord[] }>({
-    queryKey: ["live-session-observer-outputs", resolvedSessionId],
-    queryFn: () =>
-      getLiveObserverOutputsFn({
-        data: { liveSessionId: resolvedSessionId! },
-      }) as Promise<{ outputs: LiveObserverOutputRecord[] }>,
-    enabled: Boolean(resolvedSessionId),
-  });
   const historyMessages = useMemo(() => {
     if (!historyQuery.data) return [];
     return historyQuery.data.messages.map((message, index) => ({
@@ -311,16 +342,6 @@ export function LivePage() {
     }));
   }, [historyQuery.data]);
   const assessmentEntries = assessmentQuery.data?.assessment ?? [];
-  const observerHistoryOutputs = useMemo<LiveObserverOutput[]>(() => {
-    const outputs = observerOutputsQuery.data?.outputs ?? [];
-    return outputs.map((entry) => ({
-      id: entry.clientOutputId ?? entry.id,
-      createdAt: new Date(entry.createdAt).getTime(),
-      transcript: entry.transcript,
-      suggestions: entry.suggestions,
-      confidence: entry.confidence,
-    }));
-  }, [observerOutputsQuery.data]);
 
   const lastHistorySequenceNumber = useMemo(() => {
     if (!historyMessages.length) return 0;
@@ -375,33 +396,79 @@ export function LivePage() {
     });
   }, []);
 
+  const handleSetPromptCadence = useCallback((args: Record<string, unknown>) => {
+    const parsed = setPromptCadenceArgsSchema.safeParse(args);
+    if (!parsed.success) {
+      console.warn("[LiveCadence] Invalid set_prompt_cadence args", parsed.error);
+      return { applied: false, scale: promptCadenceScaleRef.current };
+    }
+
+    const requestedScale = parsed.data.scale ?? promptCadenceScaleRef.current;
+    const nextScale = clampNumber(
+      requestedScale,
+      PROMPT_CADENCE_SCALE_MIN,
+      PROMPT_CADENCE_SCALE_MAX,
+    );
+
+    if (nextScale !== promptCadenceScaleRef.current) {
+      console.debug("[LiveCadence] set_prompt_cadence", {
+        from: promptCadenceScaleRef.current,
+        to: nextScale,
+        reason: parsed.data.reason ?? null,
+      });
+      promptCadenceScaleRef.current = nextScale;
+    }
+
+    return { applied: true, scale: nextScale };
+  }, []);
+
+  const liveTools = useMemo(
+    () => [{ functionDeclarations: [promptCadenceToolDeclaration] }],
+    [],
+  );
+  const liveToolHandlers = useMemo(
+    () => ({ [PROMPT_CADENCE_TOOL_NAME]: handleSetPromptCadence }),
+    [handleSetPromptCadence],
+  );
+
+  const handleUserSpeechStart = useCallback(() => {
+    schedulerRef.current?.onUserSpeechStart();
+  }, []);
+
+  const handleUserSpeechEnd = useCallback(
+    (chunk: { pcm: Float32Array; sampleCount: number }) => {
+      schedulerRef.current?.onUserSpeechEnd(chunk);
+    },
+    [],
+  );
+
   const {
     connect,
     disconnect,
     startRecording,
     sendText,
-    sendContext,
     status,
     error,
     isRecording,
     messages,
     stopRecording: pause,
+    stopOutputAudio,
     resume,
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
     initialSequenceNumber: lastHistorySequenceNumber,
     onResumptionHandle: handleResumptionHandle,
-    onUserSpeechEnd: (chunk) => {
-      observerSpeechHandlerRef.current?.(chunk);
-    },
+    onUserSpeechStart: handleUserSpeechStart,
+    onUserSpeechEnd: handleUserSpeechEnd,
+    tools: liveTools,
+    toolHandlers: liveToolHandlers,
   });
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
   const assistantName = LIVE_ASSISTANT_NAME;
-  const assistantPrompt = LIVE_SYSTEM_PROMPT;
   const isActiveSession = status === "connected";
   const isConnecting = status === "connecting" || isFetchingToken;
   const currentLiveSessionId =
@@ -412,79 +479,74 @@ export function LivePage() {
     !isConnecting &&
     resolvedSessionId !== (currentLiveSessionId ?? null);
   const isReadOnlyHistory = isViewingHistory;
-  const handleObserverOutput = useCallback(
-    async (output: LiveObserverOutput) => {
-      if (isReadOnlyHistory) return;
-      const session = activeSessionRef.current;
-      if (!session) return;
-
-      let liveSessionId = session.liveSessionId;
-      if (!liveSessionId) {
-        try {
-          liveSessionId = await ensureLiveSessionId();
-        } catch (persistError) {
-          console.warn("[Observer] Failed to ensure live session id", persistError);
-          return;
-        }
-      }
-
-      try {
-        await appendLiveObserverOutputFn({
-          data: {
-            liveSessionId,
-            output: {
-              clientOutputId: output.id,
-              transcript: output.transcript,
-              suggestions: output.suggestions,
-              confidence: output.confidence,
-              uiLocale,
-              createdAt: new Date(output.createdAt).toISOString(),
-            },
-          },
-        });
-      } catch (persistError) {
-        console.warn("[Observer] Failed to persist output", persistError);
-      }
-    },
-    [ensureLiveSessionId, isReadOnlyHistory, uiLocale],
-  );
   const displayMessages = useMemo(() => {
     if (!resolvedSessionId) return messages;
     return isViewingHistory ? historyMessages : messages;
   }, [historyMessages, isViewingHistory, messages, resolvedSessionId]);
-  const observer = useLiveObserverSidecar({
-    uiLocale,
-    assistantName,
-    assistantPrompt,
-    status,
-    isReadOnlyHistory,
-    messages: displayMessages,
-    minSequenceNumber: lastHistorySequenceNumber,
-    onInjectPrompt: (text) => {
-      sendContext(formatSidecarInjection(text));
-    },
-    onOutput: handleObserverOutput,
-  });
-  useEffect(() => {
-    observerSpeechHandlerRef.current = observer.ingestSpeechSegment;
-  }, [observer.ingestSpeechSegment]);
-  const canTriggerObserver = isReadOnlyHistory ? false : observer.canTrigger;
-  const observerPanelOutputs = useMemo(() => {
-    if (!resolvedSessionId) return observer.outputs;
-    return isViewingHistory ? observerHistoryOutputs : observer.outputs;
-  }, [isViewingHistory, observer.outputs, observerHistoryOutputs, resolvedSessionId]);
-  const observerPanelError = isReadOnlyHistory
-    ? observerOutputsQuery.error
-    : observer.error;
   const isHistoryLoading = Boolean(resolvedSessionId) && historyQuery.isLoading;
   const historyError = resolvedSessionId ? historyQuery.error : null;
-  const isObserverPanelLoading =
-    isReadOnlyHistory &&
-    (isHistoryLoading || observerOutputsQuery.isLoading || assessmentQuery.isLoading);
   const isNewSession =
     !isViewingHistory && displayMessages.length === 0 && !isActiveSession;
   const isHistoryBannerVisible =
     Boolean(resolvedSessionId) && !isActiveSession && !isConnecting;
+  const isObserverDebugEnabled = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    if (!import.meta.env.DEV) return false;
+    return new URLSearchParams(window.location.search).has("debugObserver");
+  }, []);
+  const isSchedulerDebugEnabled = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    if (!import.meta.env.DEV) return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.has("debugScheduler") || params.has("debugObserver") || import.meta.env.DEV;
+  }, []);
+  const isInsightsPanelVisible = isHistoryBannerVisible || isObserverDebugEnabled;
+  const isInsightsPanelLoading =
+    isInsightsPanelVisible && (isHistoryLoading || assessmentQuery.isLoading);
+
+  const sendHiddenTurn = useCallback(
+    (text: string) => {
+      sendText(text, true);
+    },
+    [sendText],
+  );
+
+  const getSchedulerSessionContext = useCallback(() => {
+    const session = activeSessionRef.current ?? pendingSessionRef.current;
+    return {
+      clientSessionId: session?.sessionId ?? null,
+      liveSessionId: session?.liveSessionId ?? null,
+    };
+  }, []);
+
+  const handleSchedulerCueInjected = useCallback(
+    (cue: LiveSchedulerInjectedCue) => {
+      if (!isSchedulerDebugEnabled) return;
+      setSchedulerCues((prev) => [...prev, cue].slice(-200));
+    },
+    [isSchedulerDebugEnabled],
+  );
+
+  const liveScheduler = useLiveScheduler({
+    status,
+    isReadOnlyHistory,
+    isRecording,
+    isPaused,
+    messages,
+    proactivityScaleRef: promptCadenceScaleRef,
+    sendHiddenTurn,
+    stopOutput: stopOutputAudio,
+    getSessionContext: getSchedulerSessionContext,
+    onCueInjected: isSchedulerDebugEnabled ? handleSchedulerCueInjected : undefined,
+  });
+
+  schedulerRef.current = liveScheduler;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (globalThis as unknown as { __liveSchedulerDebug?: unknown }).__liveSchedulerDebug =
+      liveScheduler.debug;
+  }, [liveScheduler.debug]);
   const isStartDisabled =
     isConnecting ||
     (!isActiveSession &&
@@ -797,10 +859,10 @@ export function LivePage() {
   );
 
   const connectSession = useCallback(async () => {
+    setSchedulerCues([]);
     setSessionError(null);
     setReconnectAttempt(null);
     setIsFetchingToken(true);
-    observer.reset();
     try {
       const [, { token }] = await Promise.all([syncPreviousSession(), getGeminiToken()]);
 
@@ -837,7 +899,7 @@ System Context:
 - Language: ${getLocale()}
 - User Agent: ${navigator.userAgent}
 `;
-      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSidecarSystemPrompt()}`;
+      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSchedulerSystemPrompt()}`;
       liveSystemPromptRef.current = fullSystemPrompt;
       liveAuthTokenRef.current = token;
 
@@ -855,7 +917,6 @@ System Context:
     clearSyncedIds,
     connect,
     loadSyncedIds,
-    observer.reset,
     selectedVoice,
     syncPreviousSession,
     userName,
@@ -994,10 +1055,6 @@ System Context:
     setTextInput("");
   }, [isActiveSession, isReadOnlyHistory, sendText, textInput]);
 
-  const handleTriggerObserver = useCallback(() => {
-    observer.triggerNow();
-  }, [observer.triggerNow]);
-
   const handleRetryFailedMessages = useCallback(async () => {
     const failedIds = syncQueueRef.current?.retryFailed() || [];
     if (failedIds.length === 0) return;
@@ -1121,7 +1178,7 @@ System Context:
       )}
 
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        {!isDesktop && (
+        {!isDesktop && isInsightsPanelVisible && (
           <Dialog open={isInsightsOpen} onOpenChange={setIsInsightsOpen}>
             <DialogContent
               className={cn(
@@ -1129,14 +1186,12 @@ System Context:
                 "h-dvh w-screen overflow-hidden rounded-none border-0 bg-background p-0 shadow-none",
               )}
             >
-              <DialogTitle className="sr-only">{m.live_observer_title()}</DialogTitle>
+              <DialogTitle className="sr-only">
+                {m.live_assessment_title()}
+              </DialogTitle>
               <ObserverPanel
-                outputs={observerPanelOutputs}
-                error={observerPanelError}
-                canTrigger={canTriggerObserver}
-                onTrigger={handleTriggerObserver}
-                isLoading={isObserverPanelLoading}
-                assessment={isHistoryBannerVisible ? assessmentEntries : null}
+                isLoading={isInsightsPanelLoading}
+                assessment={assessmentEntries}
                 assessmentLocale={uiLocale}
                 className="h-full w-full"
               />
@@ -1200,6 +1255,11 @@ System Context:
                           messages={displayMessages}
                           status={status}
                           assistantName={assistantName}
+                          schedulerCues={
+                            isSchedulerDebugEnabled && !isReadOnlyHistory
+                              ? schedulerCues
+                              : undefined
+                          }
                           className="h-full w-full"
                         />
                       )
@@ -1227,6 +1287,9 @@ System Context:
                         messages={displayMessages}
                         status={status}
                         assistantName={assistantName}
+                        schedulerCues={
+                          isSchedulerDebugEnabled && !isReadOnlyHistory ? schedulerCues : undefined
+                        }
                         className="h-full w-full"
                       />
                     )}
@@ -1264,33 +1327,36 @@ System Context:
               </main>
             </ResizablePanel>
 
-            <ResizableHandle withHandle className="bg-border/70 hover:bg-border" />
+            {isInsightsPanelVisible && (
+              <>
+                <ResizableHandle
+                  withHandle
+                  className="bg-border/70 hover:bg-border"
+                />
 
-            <ResizablePanel
-              panelRef={sidebarPanelRef}
-              minSize={SIDEBAR_MIN_SIZE}
-              maxSize={SIDEBAR_MAX_SIZE}
-              collapsible
-              collapsedSize={0}
-            >
-              <ObserverPanel
-                outputs={observerPanelOutputs}
-                error={observerPanelError}
-                canTrigger={canTriggerObserver}
-                onTrigger={handleTriggerObserver}
-                isLoading={isObserverPanelLoading}
-                assessment={isHistoryBannerVisible ? assessmentEntries : null}
-                assessmentLocale={uiLocale}
-                className="h-full w-full"
-              />
-            </ResizablePanel>
+                <ResizablePanel
+                  panelRef={sidebarPanelRef}
+                  minSize={SIDEBAR_MIN_SIZE}
+                  maxSize={SIDEBAR_MAX_SIZE}
+                  collapsible
+                  collapsedSize={0}
+                >
+                  <ObserverPanel
+                    isLoading={isInsightsPanelLoading}
+                    assessment={assessmentEntries}
+                    assessmentLocale={uiLocale}
+                    className="h-full w-full"
+                  />
+                </ResizablePanel>
+              </>
+            )}
           </ResizablePanelGroup>
         ) : (
           <main
             id="live-main"
             className="flex min-h-0 flex-1 flex-col overflow-hidden border-y border-border bg-background"
           >
-            <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
               <HistoryBanner
                 isVisible={isHistoryBannerVisible}
                 isLoading={isHistoryLoading}
@@ -1333,6 +1399,11 @@ System Context:
                       messages={displayMessages}
                       status={status}
                       assistantName={assistantName}
+                      schedulerCues={
+                        isSchedulerDebugEnabled && !isReadOnlyHistory
+                          ? schedulerCues
+                          : undefined
+                      }
                       className="h-full w-full"
                     />
                   )
@@ -1357,6 +1428,9 @@ System Context:
                     messages={displayMessages}
                     status={status}
                     assistantName={assistantName}
+                    schedulerCues={
+                      isSchedulerDebugEnabled && !isReadOnlyHistory ? schedulerCues : undefined
+                    }
                     className="h-full w-full"
                   />
                 )}

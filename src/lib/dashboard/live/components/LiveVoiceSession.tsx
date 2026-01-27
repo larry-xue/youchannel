@@ -1,5 +1,6 @@
 import { User } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
+import { Badge } from "~/lib/components/ui/badge";
 import { ScrollArea } from "~/lib/components/ui/scroll-area";
 import {
   Select,
@@ -8,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/lib/components/ui/select";
+import type { LiveSchedulerInjectedCue } from "~/lib/dashboard/live/scheduler/useLiveScheduler";
 import type { GeminiLiveStatus, Message } from "~/lib/gemini/useGeminiLive";
 import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
@@ -17,6 +19,7 @@ interface LiveTranscriptProps {
   messages: Message[];
   status: GeminiLiveStatus;
   assistantName?: string;
+  schedulerCues?: LiveSchedulerInjectedCue[];
   className?: string;
 }
 
@@ -24,17 +27,19 @@ export function LiveTranscript({
   messages,
   status,
   assistantName = LIVE_ASSISTANT_NAME,
+  schedulerCues,
   className,
 }: LiveTranscriptProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1];
   const lastMessageContent = lastMessage?.content;
   const lastMessageAudioUrl = lastMessage?.audioUrl;
+  const lastSchedulerCueId = schedulerCues?.[schedulerCues.length - 1]?.actionId ?? null;
 
   // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length, lastMessageContent, lastMessageAudioUrl]);
+  }, [lastMessageAudioUrl, lastMessageContent, lastSchedulerCueId, messages.length]);
   const isActiveSession = status === "connected";
 
   const assistantInitial = useMemo(() => {
@@ -42,6 +47,48 @@ export function LiveTranscript({
     const initial = trimmed.length > 0 ? trimmed.slice(0, 1).toUpperCase() : "A";
     return initial;
   }, [assistantName]);
+
+  const transcriptRows = useMemo(() => {
+    if (!schedulerCues || schedulerCues.length === 0) {
+      return messages.map((message) => ({ kind: "message" as const, message }));
+    }
+
+    const messageIds = new Set(messages.map((message) => message.id));
+    const cuesByAssistantId = new Map<string, LiveSchedulerInjectedCue[]>();
+    const orphanCues: LiveSchedulerInjectedCue[] = [];
+
+    schedulerCues.forEach((cue) => {
+      const assistantTurnId = cue.assistantTurnId;
+      if (!assistantTurnId || !messageIds.has(assistantTurnId)) {
+        orphanCues.push(cue);
+        return;
+      }
+      const existing = cuesByAssistantId.get(assistantTurnId);
+      if (existing) {
+        existing.push(cue);
+      } else {
+        cuesByAssistantId.set(assistantTurnId, [cue]);
+      }
+    });
+
+    cuesByAssistantId.forEach((cues) => cues.sort((a, b) => a.ts.localeCompare(b.ts)));
+    orphanCues.sort((a, b) => a.ts.localeCompare(b.ts));
+
+    const rows: Array<
+      | { kind: "message"; message: Message }
+      | { kind: "scheduler"; cue: LiveSchedulerInjectedCue }
+    > = [];
+
+    messages.forEach((message) => {
+      rows.push({ kind: "message", message });
+      const cues = cuesByAssistantId.get(message.id);
+      if (!cues) return;
+      cues.forEach((cue) => rows.push({ kind: "scheduler", cue }));
+    });
+
+    orphanCues.forEach((cue) => rows.push({ kind: "scheduler", cue }));
+    return rows;
+  }, [messages, schedulerCues]);
 
   return (
     <ScrollArea className={cn("h-full min-h-0", className)}>
@@ -63,7 +110,26 @@ export function LiveTranscript({
             <p className="text-sm text-muted-foreground">{m.live_page_subtitle()}</p>
           </div>
         ) : (
-          messages.map((message) => {
+          transcriptRows.map((row) => {
+            if (row.kind === "scheduler") {
+              return (
+                <div key={`sched-${row.cue.actionId}`} className="flex justify-center">
+                  <Badge
+                    variant="secondary"
+                    title={row.cue.text}
+                    className={cn(
+                      "max-w-[90%] rounded-md bg-muted/30 px-3 py-2",
+                      "font-mono text-[10px] leading-relaxed text-foreground/80",
+                      "whitespace-pre-wrap break-words",
+                    )}
+                  >
+                    {row.cue.text}
+                  </Badge>
+                </div>
+              );
+            }
+
+            const message = row.message;
             const isUser = message.role === "user";
             const trimmedContent = message.content.trim();
             const hasAudio = Boolean(message.audioUrl);

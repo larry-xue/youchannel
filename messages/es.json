@@ -65,6 +65,7 @@
   "live_assessment_strengths": "Fortalezas",
   "live_assessment_weaknesses": "Debilidades",
   "live_assessment_recommendations": "Recomendaciones",
+  "live_assessment_empty": "La evaluación aparecerá después de finalizar la llamada.",
   "live_select_persona": "Seleccionar persona",
   "live_history_title": "Historial",
   "live_history_subtitle": "Sesiones en vivo",

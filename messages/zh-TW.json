@@ -65,6 +65,7 @@
   "live_assessment_strengths": "優勢",
   "live_assessment_weaknesses": "弱項",
   "live_assessment_recommendations": "建議",
+  "live_assessment_empty": "結束通話後將顯示評估結果。",
   "live_select_persona": "選擇角色",
   "live_history_title": "歷史",
   "live_history_subtitle": "即時會話",

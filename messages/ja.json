@@ -65,6 +65,7 @@
   "live_assessment_strengths": "強み",
   "live_assessment_weaknesses": "弱み",
   "live_assessment_recommendations": "おすすめ",
+  "live_assessment_empty": "通話終了後に評価が表示されます。",
   "live_select_persona": "キャラクターを選択",
   "live_history_title": "履歴",
   "live_history_subtitle": "ライブセッション",

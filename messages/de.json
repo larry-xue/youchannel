@@ -65,6 +65,7 @@
   "live_assessment_strengths": "Stärken",
   "live_assessment_weaknesses": "Schwächen",
   "live_assessment_recommendations": "Empfehlungen",
+  "live_assessment_empty": "Die Bewertung erscheint, nachdem du das Gespräch beendet hast.",
   "live_select_persona": "Persona auswählen",
   "live_history_title": "Verlauf",
   "live_history_subtitle": "Live-Sitzungen",

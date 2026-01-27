@@ -42,7 +42,7 @@ export async function retryWithBackoff<T>(
         opts.onRetry(attempt + 1, error);
       }
 
-      console.warn(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms`, error);
+      console.log(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms`, error);
 
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -130,7 +130,11 @@ export class MessageSyncQueue {
    */
   getPendingMessages(): string[] {
     return Array.from(this.messageStates.values())
-      .filter((state) => state.status === "pending" || (state.status === "failed" && state.retryCount < 3))
+      .filter(
+        (state) =>
+          state.status === "pending" ||
+          (state.status === "failed" && state.retryCount < 3),
+      )
       .map((state) => state.id);
   }
 

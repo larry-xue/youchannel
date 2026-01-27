@@ -113,6 +113,7 @@
   "live_assessment_strengths": "Strengths",
   "live_assessment_weaknesses": "Weaknesses",
   "live_assessment_recommendations": "Recommendations",
+  "live_assessment_empty": "Assessment will appear after you end the call.",
   "live_select_persona": "Select a persona",
   "live_history_title": "History",
   "live_history_subtitle": "Live Sessions",

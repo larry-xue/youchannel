@@ -1,5 +1,7 @@
 import {
   GoogleGenAI,
+  type FunctionCall,
+  type FunctionResponse,
   type LiveConnectConfig,
   type LiveServerMessage,
   Modality,
@@ -18,6 +20,10 @@ const formatHandleForLog = (handle: string) => {
   return `${handle.length}:${suffix}`;
 };
 
+type GeminiLiveToolHandler = (
+  args: Record<string, unknown>,
+) => Record<string, unknown> | Promise<Record<string, unknown>>;
+
 interface UseGeminiLiveOptions {
   apiKey: string;
   model?: string;
@@ -31,7 +37,10 @@ interface UseGeminiLiveOptions {
     pcm: Float32Array;
     sampleCount: number;
   }) => void;
+  onUserSpeechStart?: () => void;
   onUserSpeechEnd?: (chunk: { pcm: Float32Array; sampleCount: number }) => void;
+  tools?: LiveConnectConfig["tools"];
+  toolHandlers?: Record<string, GeminiLiveToolHandler>;
 }
 
 type GeminiLiveConnectOptions = {
@@ -47,7 +56,10 @@ export function useGeminiLive({
   messageWindowSize = 200,
   onResumptionHandle,
   onInputAudioChunk,
+  onUserSpeechStart,
   onUserSpeechEnd,
+  tools,
+  toolHandlers,
 }: UseGeminiLiveOptions) {
   const [status, setStatus] = useState<GeminiLiveStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +67,19 @@ export function useGeminiLive({
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const isManualDisconnectRef = useRef(false);
+
+  const toolsRef = useRef<LiveConnectConfig["tools"] | undefined>(tools);
+  const toolHandlersRef = useRef<Record<string, GeminiLiveToolHandler> | undefined>(
+    toolHandlers,
+  );
+
+  useEffect(() => {
+    toolsRef.current = tools;
+  }, [tools]);
+
+  useEffect(() => {
+    toolHandlersRef.current = toolHandlers;
+  }, [toolHandlers]);
 
   const handleInputAudio = useCallback((media: { mimeType: string; data: string }) => {
     if (sessionRef.current) {
@@ -88,6 +113,57 @@ export function useGeminiLive({
     assistantAudioChunksRef.current = [];
   }, []);
 
+  const handleToolCalls = useCallback(async (functionCalls: FunctionCall[]) => {
+    const session = sessionRef.current;
+    if (!session) return;
+
+    const handlers = toolHandlersRef.current;
+
+    const responsePromises = functionCalls.map(
+      async (call): Promise<FunctionResponse | null> => {
+        const id = call.id;
+        const name = call.name;
+        if (!id || !name) {
+          console.warn("[GeminiLive] Tool call missing id/name", call);
+          return null;
+        }
+
+        const handler = handlers?.[name];
+        if (!handler) {
+          return {
+            id,
+            name,
+            response: { error: `No tool handler registered for ${name}` },
+          };
+        }
+
+        try {
+          const output = await handler(call.args ?? {});
+          return { id, name, response: { output } };
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return { id, name, response: { error: message } };
+        }
+      },
+    );
+
+    const isFunctionResponse = (
+      value: FunctionResponse | null,
+    ): value is FunctionResponse => value !== null;
+
+    const resolvedResponses = (await Promise.all(responsePromises)).filter(
+      isFunctionResponse,
+    );
+
+    if (resolvedResponses.length === 0) return;
+
+    if (typeof session.sendToolResponse === "function") {
+      session.sendToolResponse({ functionResponses: resolvedResponses });
+    } else {
+      console.error("sendToolResponse not found on session");
+    }
+  }, []);
+
   const finalizeAssistantAudioCapture = useCallback(() => {
     const messageId = currentAssistantAudioMessageIdRef.current;
     const chunks = assistantAudioChunksRef.current;
@@ -116,9 +192,10 @@ export function useGeminiLive({
   const handleSpeechStart = useCallback(() => {
     if (!sessionRef.current) return;
     if (currentUserAudioMessageIdRef.current) return;
+    onUserSpeechStart?.();
     currentUserAudioMessageIdRef.current = beginUserAudioMessage();
     sessionRef.current.sendRealtimeInput({ activityStart: {} });
-  }, [beginUserAudioMessage]);
+  }, [beginUserAudioMessage, onUserSpeechStart]);
 
   const handleSpeechEnd = useCallback(
     (chunk: { pcm: Float32Array; sampleCount: number }) => {
@@ -203,8 +280,9 @@ export function useGeminiLive({
         const config: LiveConnectConfig = {
           responseModalities: [Modality.AUDIO],
           systemInstruction,
+          tools: toolsRef.current,
           thinkingConfig: {
-            thinkingBudget: 1024,
+            includeThoughts: true,
           },
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName } },
@@ -212,9 +290,10 @@ export function useGeminiLive({
           enableAffectiveDialog: true,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
+          proactivity: { proactiveAudio: true },
           sessionResumption,
           realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
-          temperature: 0.4,
+          temperature: 1,
         };
 
         sessionRef.current = await clientRef.current.live.connect({
@@ -230,6 +309,16 @@ export function useGeminiLive({
               }
             },
             onmessage: async (message: LiveServerMessage) => {
+              if (message.toolCall?.functionCalls?.length) {
+                await handleToolCalls(message.toolCall.functionCalls);
+              }
+
+              if (message.toolCallCancellation?.ids?.length) {
+                console.debug("[GeminiLive] Tool calls cancelled", {
+                  ids: message.toolCallCancellation.ids,
+                });
+              }
+
               const outputPcm16Bytes = await handleAudioChunk(message);
               if (outputPcm16Bytes) {
                 const messageId =
@@ -324,6 +413,7 @@ export function useGeminiLive({
       handleOutputText,
       handleTurnComplete,
       initialSequenceNumber,
+      handleToolCalls,
       model,
       onResumptionHandle,
       resetAssistantAudioCapture,
@@ -439,6 +529,7 @@ export function useGeminiLive({
       disconnect,
       startRecording,
       stopRecording,
+      stopOutputAudio,
       sendText,
       sendContext,
       sendTurns,
@@ -455,6 +546,7 @@ export function useGeminiLive({
       disconnect,
       startRecording,
       stopRecording,
+      stopOutputAudio,
       sendText,
       sendContext,
       sendTurns,

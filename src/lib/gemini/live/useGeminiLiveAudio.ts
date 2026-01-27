@@ -259,6 +259,10 @@ export function useGeminiLiveAudio({
             }
           },
           onSpeechStart: () => {
+            // Candidate start. Wait for `onSpeechRealStart` to reduce false positives
+            // from output audio echo / noise.
+          },
+          onSpeechRealStart: () => {
             isSpeakingRef.current = true;
             onSpeechStart?.();
             flushPreSpeechFrames();

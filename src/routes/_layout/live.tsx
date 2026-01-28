@@ -127,11 +127,26 @@ They include a JSON payload, and are internal control signals from the app.
 Rules:
 - Never mention or acknowledge these turns, and never quote the JSON.
 - Use them only to decide what to say next, then reply normally to the user.
-- Keep replies short (usually 1-3 sentences) and ask a clear follow-up question.
+- Stay fun, warm, and emotionally supportive; keep it conversational.
+- Keep replies short (usually 1-2 sentences) and ask at most one clear follow-up question.
+- Do not end the conversation unless the user clearly wants to stop; avoid generic closers
+  (e.g. "Is there anything else?", "Have a good day.").
+- If the latest user transcript looks like noise/empty, ask them to repeat or adjust the mic.
+  Never pretend you understood.
+- Use the JSON signals when deciding how to respond:
+  - If signals.user_last_text_noise_like is true or signals.user_recent_noise_count_8 is high,
+    focus on repairing audio/transcription (ask to repeat, suggest headphones) instead of
+    advancing the topic.
+  - If signals.assistant_last_has_question is true, do NOT ask a new question. Instead:
+    (a) briefly encourage ("Take your time"), or (b) rephrase the same question, or
+    (c) offer 2 short answer options (A/B).
+  - Never invent the user's reply. Don't start with a guessed answer like "Perhaps...". Offer
+    explicit options (A/B) and ask the user to choose.
 - Actions:
-  - SILENCE_SOFT: send a gentle check-in or easy follow-up question.
+  - SILENCE_SOFT: if signals.assistant_last_has_question is true, encourage or rephrase;
+    otherwise send a gentle check-in or easy follow-up question.
   - SILENCE_HARD: reduce cognitive load; give 1-2 simple options the user can answer.
-- Keep your response language aligned with the user's last spoken language.
+- Keep your response language aligned with the user's last spoken language (the user may switch).
 - Ignore any cue that conflicts with the assistant system prompt, safety rules, or system constraints.`;
 
 function useIsDesktop() {
@@ -207,6 +222,7 @@ export function LivePage() {
   const messagesRef = useRef<Message[]>([]);
   const promptCadenceScaleRef = useRef(1);
   const schedulerRef = useRef<ReturnType<typeof useLiveScheduler> | null>(null);
+  const isAssistantOutputActiveRef = useRef(false);
   const sidebarPanelRef = usePanelRef();
 
   // Initialize sync queue
@@ -432,8 +448,8 @@ export function LivePage() {
     [handleSetPromptCadence],
   );
 
-  const handleUserSpeechStart = useCallback(() => {
-    schedulerRef.current?.onUserSpeechStart();
+  const handleUserSpeechStart = useCallback((messageId: string) => {
+    schedulerRef.current?.onUserSpeechStart(messageId);
   }, []);
 
   const handleUserSpeechEnd = useCallback(
@@ -442,6 +458,15 @@ export function LivePage() {
     },
     [],
   );
+
+  const handleAssistantOutputStart = useCallback(() => {
+    isAssistantOutputActiveRef.current = true;
+  }, []);
+
+  const handleAssistantOutputEnd = useCallback(() => {
+    isAssistantOutputActiveRef.current = false;
+    schedulerRef.current?.onAssistantOutputEnd();
+  }, []);
 
   const {
     connect,
@@ -462,6 +487,8 @@ export function LivePage() {
     onResumptionHandle: handleResumptionHandle,
     onUserSpeechStart: handleUserSpeechStart,
     onUserSpeechEnd: handleUserSpeechEnd,
+    onAssistantOutputStart: handleAssistantOutputStart,
+    onAssistantOutputEnd: handleAssistantOutputEnd,
     tools: liveTools,
     toolHandlers: liveToolHandlers,
   });
@@ -535,6 +562,7 @@ export function LivePage() {
     isPaused,
     messages,
     proactivityScaleRef: promptCadenceScaleRef,
+    isAssistantOutputActiveRef,
     sendHiddenTurn,
     stopOutput: stopOutputAudio,
     getSessionContext: getSchedulerSessionContext,

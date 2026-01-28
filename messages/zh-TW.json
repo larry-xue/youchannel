@@ -24,6 +24,7 @@
   "live_status_connecting": "連線中...",
   "live_status_error": "連線錯誤",
   "live_status_listening": "正在聆聽...",
+  "live_status_transcribing": "正在辨識...",
   "live_voice_message": "語音訊息",
   "live_status_ready": "準備聊天",
   "live_skip_to_content": "跳到內容",

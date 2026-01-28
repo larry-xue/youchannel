@@ -7,6 +7,7 @@ const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
 const LEVEL_UPDATE_INTERVAL = 33;
 const LEVEL_MULTIPLIER = 5;
+const OUTPUT_END_DEBOUNCE_MS = 250;
 
 const VAD_ASSET_BASE_PATH =
   "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
@@ -26,6 +27,8 @@ type UseGeminiLiveAudioOptions = {
   onSpeechStart?: () => void;
   onSpeechEnd?: (chunk: { pcm: Float32Array; sampleCount: number }) => void;
   onVADMisfire?: () => void;
+  onOutputAudioStart?: () => void;
+  onOutputAudioEnd?: () => void;
   onError: (message: string) => void;
 };
 
@@ -45,6 +48,8 @@ export function useGeminiLiveAudio({
   onSpeechStart,
   onSpeechEnd,
   onVADMisfire,
+  onOutputAudioStart,
+  onOutputAudioEnd,
   onError,
 }: UseGeminiLiveAudioOptions) {
   const [isRecording, setIsRecording] = useState(false);
@@ -59,6 +64,8 @@ export function useGeminiLiveAudio({
 
   const nextStartTimeRef = useRef<number>(0);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const isOutputActiveRef = useRef(false);
+  const outputEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const vadRef = useRef<MicVAD | null>(null);
   const startPromiseRef = useRef<Promise<void> | null>(null);
@@ -82,10 +89,19 @@ export function useGeminiLiveAudio({
   }, []);
 
   const stopOutputAudio = useCallback(() => {
+    const pendingEndTimer = outputEndTimerRef.current;
+    if (pendingEndTimer) clearTimeout(pendingEndTimer);
+    outputEndTimerRef.current = null;
+
     audioSourcesRef.current.forEach((source) => source.stop());
     audioSourcesRef.current.clear();
     nextStartTimeRef.current = 0;
-  }, []);
+
+    if (isOutputActiveRef.current) {
+      isOutputActiveRef.current = false;
+      onOutputAudioEnd?.();
+    }
+  }, [onOutputAudioEnd]);
 
   const releaseAudioContexts = useCallback(() => {
     const inputContext = inputContextRef.current;
@@ -131,22 +147,31 @@ export function useGeminiLiveAudio({
 
   const handleAudioChunk = useCallback(
     async (message: LiveServerMessage): Promise<Uint8Array | null> => {
-    const parts = message.serverContent?.modelTurn?.parts;
-    const audioPart = parts?.find((part) => (part as InlineAudioPart).inlineData);
-    const inlineData = audioPart?.inlineData;
-    if (!inlineData?.data) return null;
+      const parts = message.serverContent?.modelTurn?.parts;
+      const audioPart = parts?.find((part) => (part as InlineAudioPart).inlineData);
+      const inlineData = audioPart?.inlineData;
+      if (!inlineData?.data) return null;
 
-    const pcm16Bytes = decode(inlineData.data);
+      const pcm16Bytes = decode(inlineData.data);
 
-    if (!outputContextRef.current || !outputNodeRef.current) {
-      return pcm16Bytes;
-    }
+      if (!outputContextRef.current || !outputNodeRef.current) {
+        return pcm16Bytes;
+      }
 
-    const ctx = outputContextRef.current;
-    nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+      const pendingEndTimer = outputEndTimerRef.current;
+      if (pendingEndTimer) clearTimeout(pendingEndTimer);
+      outputEndTimerRef.current = null;
 
-    try {
-      const audioBuffer = await decodeAudioData(
+      if (!isOutputActiveRef.current) {
+        isOutputActiveRef.current = true;
+        onOutputAudioStart?.();
+      }
+
+      const ctx = outputContextRef.current;
+      nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+
+      try {
+        const audioBuffer = await decodeAudioData(
         pcm16Bytes,
         ctx,
         OUTPUT_SAMPLE_RATE,
@@ -165,6 +190,18 @@ export function useGeminiLiveAudio({
       source.connect(outputNodeRef.current);
       source.addEventListener("ended", () => {
         audioSourcesRef.current.delete(source);
+        if (audioSourcesRef.current.size > 0) return;
+
+        const currentTimer = outputEndTimerRef.current;
+        if (currentTimer) clearTimeout(currentTimer);
+
+        outputEndTimerRef.current = setTimeout(() => {
+          outputEndTimerRef.current = null;
+          if (audioSourcesRef.current.size > 0) return;
+          if (!isOutputActiveRef.current) return;
+          isOutputActiveRef.current = false;
+          onOutputAudioEnd?.();
+        }, OUTPUT_END_DEBOUNCE_MS);
       });
 
       source.start(nextStartTimeRef.current);
@@ -175,7 +212,7 @@ export function useGeminiLiveAudio({
     }
       return pcm16Bytes;
     },
-    [],
+    [onOutputAudioEnd, onOutputAudioStart],
   );
 
   const resetPreSpeechBuffer = useCallback(() => {
@@ -239,6 +276,7 @@ export function useGeminiLiveAudio({
         const vad = await MicVAD.new({
           startOnLoad: false,
           model: "legacy",
+          redemptionMs: 800,
           baseAssetPath: VAD_ASSET_BASE_PATH,
           onnxWASMBasePath: ONNX_WASM_BASE_PATH,
           audioContext: inputContext,

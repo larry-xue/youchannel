@@ -26,6 +26,16 @@ const cefrSchema = z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]);
 
 const bcp47Schema = z.string().min(2).max(35);
 
+const practiceDrillSchema = z.object({
+  id: z.string().min(1).max(40),
+  kind: z.literal("shadowing"),
+  title: z.string().min(1).max(80),
+  why: z.string().min(1).max(200),
+  target_text: z.string().min(1).max(300),
+  source_user_quote: z.string().min(1).max(300).optional(),
+  tip: z.string().min(1).max(160).optional(),
+});
+
 const assessmentEntrySchema = z.object({
   language: bcp47Schema,
   overall_cefr: cefrSchema,
@@ -41,6 +51,7 @@ const assessmentEntrySchema = z.object({
   strengths: z.array(z.string()).max(5),
   weaknesses: z.array(z.string()).max(5),
   recommendations: z.array(z.string()).max(5),
+  practice_drills: z.array(practiceDrillSchema).max(10).optional(),
 });
 
 const assessmentArraySchema = z.array(assessmentEntrySchema);
@@ -215,7 +226,7 @@ const normalizeAssessmentArray = (
     if (single) entries = [single];
   }
 
-  return dedupeAssessments(entries);
+  return assessmentArraySchema.parse(dedupeAssessments(entries));
 };
 
 const mergeAssessments = (
@@ -285,10 +296,27 @@ Return a JSON array (no extra keys, no markdown). Each item:
   "summary": "string",
   "strengths": ["..."],
   "weaknesses": ["..."],
-  "recommendations": ["..."]
+  "recommendations": ["..."],
+  "practice_drills": [
+    {
+      "id": "shadow_1",
+      "kind": "shadowing",
+      "title": "string (ui locale)",
+      "why": "string (ui locale)",
+      "target_text": "string (target language)",
+      "source_user_quote": "string (target language, optional)",
+      "tip": "string (ui locale, optional)"
+    }
+  ]
 }
 
 Write summary/strengths/weaknesses/recommendations in ${uiLocale}.
+For practice_drills:
+- title/why/tip MUST be written in ${uiLocale}.
+- target_text/source_user_quote MUST be in the same language as "language".
+- Create 3-5 drills per language when possible.
+- Keep target_text short and speakable (1 sentence, <= 20 words if possible).
+- Use ids like "shadow_1", "shadow_2", ... unique per language entry.
 
 If previous_assessment is provided, update the relevant language entries
 with new evidence and override fields where needed.
@@ -327,13 +355,27 @@ is an array of assessment items. Each item must follow this schema:
   "summary": "string",
   "strengths": ["..."],
   "weaknesses": ["..."],
-  "recommendations": ["..."]
+  "recommendations": ["..."],
+  "practice_drills": [
+    {
+      "id": "shadow_1",
+      "kind": "shadowing",
+      "title": "string (ui locale)",
+      "why": "string (ui locale)",
+      "target_text": "string (target language)",
+      "source_user_quote": "string (target language, optional)",
+      "tip": "string (ui locale, optional)"
+    }
+  ]
 }
 
 If multiple languages are present, include multiple items.
 Only include languages with sufficient evidence; if none, return [].
 
 Write summary/strengths/weaknesses/recommendations in ${uiLocale}.
+For practice_drills, enforce:
+- title/why/tip in ${uiLocale}
+- target_text/source_user_quote in the same language as "language"
 previous_assessment: ${previous}
 
 Raw assessment text:
@@ -393,6 +435,23 @@ ${rawText}`;
               strengths: { type: "array", items: { type: "string" } },
               weaknesses: { type: "array", items: { type: "string" } },
               recommendations: { type: "array", items: { type: "string" } },
+              practice_drills: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    kind: { type: "string", enum: ["shadowing"] },
+                    title: { type: "string" },
+                    why: { type: "string" },
+                    target_text: { type: "string" },
+                    source_user_quote: { type: "string" },
+                    tip: { type: "string" },
+                  },
+                  required: ["id", "kind", "title", "why", "target_text"],
+                  additionalProperties: false,
+                },
+              },
             },
             required: [
               "language",
@@ -543,11 +602,23 @@ export const evaluateLiveSessionFn = createServerFn({ method: "POST" })
       });
 
       try {
-        if (typeof (session as any).sendClientContent !== "function") {
+        type LiveSessionClientContent = {
+          turns: Array<{
+            role: string;
+            parts: Array<{ text: string }>;
+          }>;
+          turnComplete: boolean;
+        };
+        type LiveSessionClient = {
+          sendClientContent?: (content: LiveSessionClientContent) => Promise<unknown>;
+        };
+
+        const client = session as unknown as LiveSessionClient;
+        if (typeof client.sendClientContent !== "function") {
           throw new Error("sendClientContent is not available on live session");
         }
 
-        await (session as any).sendClientContent({
+        await client.sendClientContent({
           turns: [
             {
               role: "user",

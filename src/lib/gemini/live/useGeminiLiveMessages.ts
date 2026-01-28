@@ -24,6 +24,51 @@ const revokeObjectUrl = (url: string | undefined) => {
   URL.revokeObjectURL(url);
 };
 
+const findRecentUserAudioPlaceholderIndex = (messages: Message[]) => {
+  const now = Date.now();
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role !== "user") continue;
+    if (message.content.trim()) continue;
+    const ageMs = now - message.timestamp.getTime();
+    if (ageMs > 30000) continue;
+    return i;
+  }
+  return -1;
+};
+
+const findRecentAssistantIndexForContinuation = (messages: Message[]) => {
+  const now = Date.now();
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role !== "assistant") continue;
+    const ageMs = now - message.timestamp.getTime();
+    if (ageMs > 15000) continue;
+    if (!message.content.trim()) continue;
+    return i;
+  }
+  return -1;
+};
+
+const shouldInsertSpaceBetween = (prevText: string, nextText: string) => {
+  if (!prevText || !nextText) return false;
+  const prevLast = prevText.slice(-1);
+  const nextFirst = nextText.slice(0, 1);
+  if (!prevLast || !nextFirst) return false;
+  if (/\s/.test(prevLast) || /\s/.test(nextFirst)) return false;
+  if (/^[,.;:!?]/.test(nextFirst)) return false;
+
+  const isAsciiWordChar = (char: string) => /^[A-Za-z0-9]$/.test(char);
+  const isSentencePunct = (char: string) => /^[.!?]$/.test(char);
+
+  if (isAsciiWordChar(prevLast) && isAsciiWordChar(nextFirst)) return true;
+  if (isSentencePunct(prevLast) && isAsciiWordChar(nextFirst)) return true;
+  return false;
+};
+
+const appendTranscriptionText = (prevText: string, nextText: string) =>
+  shouldInsertSpaceBetween(prevText, nextText) ? `${prevText} ${nextText}` : prevText + nextText;
+
 export function useGeminiLiveMessages({
   initialSequenceNumber,
   messageWindowSize,
@@ -102,8 +147,6 @@ export function useGeminiLiveMessages({
       const outputText = message.serverContent?.outputTranscription?.text;
       if (!outputText) return;
 
-      const isFinalChunk = Boolean(message.serverContent?.turnComplete);
-
       setMessages((prev) => {
         const existingIdx = resolveStreamingAssistantIndex(prev);
 
@@ -111,12 +154,26 @@ export function useGeminiLiveMessages({
           const existing = prev[existingIdx];
           const updated: Message = {
             ...existing,
-            content: existing.content + outputText,
-            isStreaming: isFinalChunk || existing.isStreaming === false ? false : true,
+            content: appendTranscriptionText(existing.content, outputText),
+            isStreaming: existing.isStreaming,
           };
           const newArr = [...prev];
           newArr[existingIdx] = updated;
           return applyMessageWindow(newArr);
+        }
+
+        if (/^\s/.test(outputText)) {
+          const recentAssistantIdx = findRecentAssistantIndexForContinuation(prev);
+          if (recentAssistantIdx >= 0) {
+            const existing = prev[recentAssistantIdx];
+            const updated: Message = {
+              ...existing,
+              content: appendTranscriptionText(existing.content, outputText),
+            };
+            const newArr = [...prev];
+            newArr[recentAssistantIdx] = updated;
+            return applyMessageWindow(newArr);
+          }
         }
 
         const newId = crypto.randomUUID();
@@ -130,7 +187,7 @@ export function useGeminiLiveMessages({
           content: outputText,
           timestamp: new Date(),
           sequenceNumber: getNextSequenceNumber(),
-          isStreaming: isFinalChunk ? false : true,
+          isStreaming: true,
         };
         return applyMessageWindow([...updatedPrev, newMessage]);
       });
@@ -160,6 +217,21 @@ export function useGeminiLiveMessages({
 
         if (!inputText.trim()) {
           return prev;
+        }
+
+        const placeholderIdx = findRecentUserAudioPlaceholderIndex(prev);
+        if (placeholderIdx >= 0) {
+          const placeholder = prev[placeholderIdx];
+          currentUserMessageIdRef.current = placeholder.id;
+
+          const updated: Message = {
+            ...placeholder,
+            content: placeholder.content + inputText,
+            isStreaming: true,
+          };
+          const newArr = [...prev];
+          newArr[placeholderIdx] = updated;
+          return applyMessageWindow(newArr);
         }
 
         const newId = crypto.randomUUID();
@@ -238,7 +310,6 @@ export function useGeminiLiveMessages({
     const previousModelId = currentModelMessageIdRef.current;
     const newId = crypto.randomUUID();
     currentUserMessageIdRef.current = newId;
-    currentModelMessageIdRef.current = null;
 
     setMessages((prev) => {
       let nextPrev = prev;

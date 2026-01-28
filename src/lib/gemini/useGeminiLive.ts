@@ -15,6 +15,19 @@ import { float32ToWavBuffer, pcm16BytesToWavBuffer } from "~/lib/gemini/utils";
 
 export type { GeminiLiveStatus, Message } from "~/lib/gemini/live/types";
 
+const USER_SPEECH_END_DEBOUNCE_MS = 300;
+
+const concatFloat32Chunks = (chunks: Float32Array[]) => {
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const combined = new Float32Array(totalLength);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return combined;
+};
+
 const formatHandleForLog = (handle: string) => {
   const suffix = handle.slice(-6);
   return `${handle.length}:${suffix}`;
@@ -37,8 +50,10 @@ interface UseGeminiLiveOptions {
     pcm: Float32Array;
     sampleCount: number;
   }) => void;
-  onUserSpeechStart?: () => void;
+  onUserSpeechStart?: (messageId: string) => void;
   onUserSpeechEnd?: (chunk: { pcm: Float32Array; sampleCount: number }) => void;
+  onAssistantOutputStart?: () => void;
+  onAssistantOutputEnd?: () => void;
   tools?: LiveConnectConfig["tools"];
   toolHandlers?: Record<string, GeminiLiveToolHandler>;
 }
@@ -58,6 +73,8 @@ export function useGeminiLive({
   onInputAudioChunk,
   onUserSpeechStart,
   onUserSpeechEnd,
+  onAssistantOutputStart,
+  onAssistantOutputEnd,
   tools,
   toolHandlers,
 }: UseGeminiLiveOptions) {
@@ -107,10 +124,16 @@ export function useGeminiLive({
   const currentUserAudioMessageIdRef = useRef<string | null>(null);
   const currentAssistantAudioMessageIdRef = useRef<string | null>(null);
   const assistantAudioChunksRef = useRef<Uint8Array[]>([]);
+  const userAudioChunksRef = useRef<Float32Array[]>([]);
+  const userSpeechEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetAssistantAudioCapture = useCallback(() => {
     currentAssistantAudioMessageIdRef.current = null;
     assistantAudioChunksRef.current = [];
+  }, []);
+
+  const resetUserAudioCapture = useCallback(() => {
+    userAudioChunksRef.current = [];
   }, []);
 
   const handleToolCalls = useCallback(async (functionCalls: FunctionCall[]) => {
@@ -191,11 +214,22 @@ export function useGeminiLive({
 
   const handleSpeechStart = useCallback(() => {
     if (!sessionRef.current) return;
+
+    const pendingTimer = userSpeechEndTimerRef.current;
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      userSpeechEndTimerRef.current = null;
+      console.debug("[GeminiLive] User speech end debounce cancelled");
+    }
+
     if (currentUserAudioMessageIdRef.current) return;
-    onUserSpeechStart?.();
-    currentUserAudioMessageIdRef.current = beginUserAudioMessage();
+
+    resetUserAudioCapture();
+    const messageId = beginUserAudioMessage();
+    currentUserAudioMessageIdRef.current = messageId;
+    onUserSpeechStart?.(messageId);
     sessionRef.current.sendRealtimeInput({ activityStart: {} });
-  }, [beginUserAudioMessage, onUserSpeechStart]);
+  }, [beginUserAudioMessage, onUserSpeechStart, resetUserAudioCapture]);
 
   const handleSpeechEnd = useCallback(
     (chunk: { pcm: Float32Array; sampleCount: number }) => {
@@ -203,25 +237,52 @@ export function useGeminiLive({
       if (!session) return;
 
       const messageId = currentUserAudioMessageIdRef.current;
-      currentUserAudioMessageIdRef.current = null;
-
-      if (messageId) {
-        session.sendRealtimeInput({ activityEnd: {} });
-      } else {
-        console.debug("[GeminiLive] Skipping activityEnd (no active speech message)");
+      if (!messageId) {
+        console.debug("[GeminiLive] Skipping speech end (no active speech message)");
+        onUserSpeechEnd?.(chunk);
+        return;
       }
 
-      if (messageId && typeof URL !== "undefined") {
-        const wavBuffer = float32ToWavBuffer(chunk.pcm, 16000, 1);
-        const audioUrl = URL.createObjectURL(
-          new Blob([wavBuffer], { type: "audio/wav" }),
-        );
-        attachAudioToMessage(messageId, audioUrl);
-      }
-
+      userAudioChunksRef.current.push(chunk.pcm);
       onUserSpeechEnd?.(chunk);
+
+      const pendingTimer = userSpeechEndTimerRef.current;
+      if (pendingTimer) clearTimeout(pendingTimer);
+
+      const scheduledMessageId = messageId;
+      userSpeechEndTimerRef.current = setTimeout(() => {
+        userSpeechEndTimerRef.current = null;
+
+        const activeMessageId = currentUserAudioMessageIdRef.current;
+        if (activeMessageId !== scheduledMessageId) return;
+
+        currentUserAudioMessageIdRef.current = null;
+        const activeSession = sessionRef.current;
+        if (activeSession) {
+          activeSession.sendRealtimeInput({ activityEnd: {} });
+        }
+
+        if (typeof URL !== "undefined") {
+          const chunks = userAudioChunksRef.current;
+          resetUserAudioCapture();
+          const combined = concatFloat32Chunks(chunks);
+          const wavBuffer = float32ToWavBuffer(combined, 16000, 1);
+          const audioUrl = URL.createObjectURL(
+            new Blob([wavBuffer], { type: "audio/wav" }),
+          );
+          attachAudioToMessage(scheduledMessageId, audioUrl);
+        } else {
+          resetUserAudioCapture();
+        }
+
+        console.debug("[GeminiLive] activityEnd sent (debounced)");
+      }, USER_SPEECH_END_DEBOUNCE_MS);
+
+      console.debug("[GeminiLive] activityEnd scheduled", {
+        debounceMs: USER_SPEECH_END_DEBOUNCE_MS,
+      });
     },
-    [attachAudioToMessage, onUserSpeechEnd],
+    [attachAudioToMessage, onUserSpeechEnd, resetUserAudioCapture],
   );
 
   const {
@@ -240,10 +301,16 @@ export function useGeminiLive({
     onInputAudioChunk,
     onSpeechStart: handleSpeechStart,
     onSpeechEnd: handleSpeechEnd,
+    onOutputAudioStart: onAssistantOutputStart,
+    onOutputAudioEnd: onAssistantOutputEnd,
     onVADMisfire: () => {
       const session = sessionRef.current;
       const messageId = currentUserAudioMessageIdRef.current;
       currentUserAudioMessageIdRef.current = null;
+      const pendingSpeechEnd = userSpeechEndTimerRef.current;
+      if (pendingSpeechEnd) clearTimeout(pendingSpeechEnd);
+      userSpeechEndTimerRef.current = null;
+      resetUserAudioCapture();
       if (messageId) {
         removeMessage(messageId);
       }
@@ -297,7 +364,7 @@ export function useGeminiLive({
           enableAffectiveDialog: true,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
-          proactivity: { proactiveAudio: true },
+          proactivity: { proactiveAudio: false },
           sessionResumption,
           realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
           temperature: 1,
@@ -447,6 +514,12 @@ export function useGeminiLive({
     stopOutputAudio();
     releaseAudioContexts();
     resetAssistantAudioCapture();
+    resetUserAudioCapture();
+
+    const pendingSpeechEnd = userSpeechEndTimerRef.current;
+    if (pendingSpeechEnd) clearTimeout(pendingSpeechEnd);
+    userSpeechEndTimerRef.current = null;
+    currentUserAudioMessageIdRef.current = null;
 
     if (sessionRef.current) {
       sessionRef.current.close();
@@ -457,6 +530,7 @@ export function useGeminiLive({
   }, [
     releaseAudioContexts,
     resetAssistantAudioCapture,
+    resetUserAudioCapture,
     resetLevels,
     stopAudioRecording,
     stopOutputAudio,

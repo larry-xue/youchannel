@@ -133,21 +133,22 @@ export function LiveTranscript({
             const isUser = message.role === "user";
             const trimmedContent = message.content.trim();
             const hasAudio = Boolean(message.audioUrl);
-            const showBubble =
-              !isUser ||
-              trimmedContent.length > 0 ||
-              message.isStreaming === true ||
-              hasAudio;
-            const bubbleText =
-              trimmedContent.length > 0
-                ? message.content
-                : message.isStreaming
-                  ? isUser
-                    ? m.live_status_listening()
-                    : m.live_voice_message()
-                  : hasAudio
-                    ? m.live_voice_message()
-                    : message.content;
+            const showBubble = trimmedContent.length > 0 || message.isStreaming === true;
+
+            let bubbleText = message.content;
+            if (trimmedContent.length > 0) {
+              bubbleText = message.content;
+            } else if (message.isStreaming) {
+              if (isUser) {
+                bubbleText = hasAudio
+                  ? m.live_status_transcribing()
+                  : m.live_status_listening();
+              } else {
+                bubbleText = "…";
+              }
+            } else if (hasAudio) {
+              bubbleText = m.live_voice_message();
+            }
             return (
               <div
                 key={message.id}
@@ -179,7 +180,7 @@ export function LiveTranscript({
                   )}
                   {message.audioUrl && (
                     <audio
-                      className="mt-2 w-full max-w-2xl"
+                      className={cn("w-full max-w-2xl", showBubble && "mt-2")}
                       controls
                       preload="metadata"
                       src={message.audioUrl}

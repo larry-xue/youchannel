@@ -24,6 +24,7 @@
   "live_status_connecting": "Conectando...",
   "live_status_error": "Error de conexión",
   "live_status_listening": "Escuchando...",
+  "live_status_transcribing": "Transcribiendo...",
   "live_voice_message": "Mensaje de voz",
   "live_status_ready": "Listo para chatear",
   "live_skip_to_content": "Saltar al contenido",

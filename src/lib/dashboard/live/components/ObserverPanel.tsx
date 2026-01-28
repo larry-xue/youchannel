@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -7,12 +7,26 @@ import {
   AccordionTrigger,
 } from "~/lib/components/ui/accordion";
 import { Badge } from "~/lib/components/ui/badge";
+import { Button } from "~/lib/components/ui/button";
 import { Loading } from "~/lib/components/ui/loading";
 import type { LiveSessionAssessment } from "~/lib/dashboard/live/assessment";
+import {
+  scoreShadowingAttemptFn,
+  type ShadowingScore,
+} from "~/lib/dashboard/live/practice";
+import { arrayBufferToBase64, float32ToWavBuffer } from "~/lib/gemini/utils";
 import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
 
 type DimensionKey = keyof LiveSessionAssessment[number]["dimensions"];
+type PracticeDrill = NonNullable<LiveSessionAssessment[number]["practice_drills"]>[number];
+
+type DrillAttemptState = {
+  status: "idle" | "recording" | "scoring" | "done" | "error";
+  audioUrl?: string;
+  score?: ShadowingScore;
+  error?: string;
+};
 
 type ObserverPanelProps = {
   isLoading?: boolean;
@@ -49,6 +63,248 @@ export const ObserverPanel = memo(function ObserverPanel({
       assessment.find((entry) => entry.language === resolvedLanguage) ?? assessment[0]
     );
   }, [assessment, resolvedLanguage]);
+
+  const practiceDrills = useMemo(() => {
+    if (!activeEntry?.practice_drills) return [];
+    return activeEntry.practice_drills;
+  }, [activeEntry]);
+
+  const [drillAttemptState, setDrillAttemptState] = useState<
+    Record<string, DrillAttemptState>
+  >({});
+  const drillAttemptStateRef = useRef<Record<string, DrillAttemptState>>({});
+
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingDrillIdRef = useRef<string | null>(null);
+  const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeEntryRef = useRef<LiveSessionAssessment[number] | null>(null);
+  const assessmentLocaleRef = useRef<string | null>(assessmentLocale ?? null);
+
+  useEffect(() => {
+    activeEntryRef.current = activeEntry;
+  }, [activeEntry]);
+
+  useEffect(() => {
+    assessmentLocaleRef.current = assessmentLocale ?? null;
+  }, [assessmentLocale]);
+
+  useEffect(() => {
+    drillAttemptStateRef.current = drillAttemptState;
+  }, [drillAttemptState]);
+
+  const revokeObjectUrl = useCallback((url: string | undefined) => {
+    if (!url) return;
+    if (typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return;
+    if (!url.startsWith("blob:")) return;
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const setAttemptState = useCallback(
+    (drillId: string, next: Partial<DrillAttemptState>) => {
+      setDrillAttemptState((prev) => {
+        const existing = prev[drillId];
+        const audioUrl = next.audioUrl ?? existing?.audioUrl;
+        if (existing?.audioUrl && next.audioUrl && existing.audioUrl !== next.audioUrl) {
+          revokeObjectUrl(existing.audioUrl);
+        }
+        return {
+          ...prev,
+          [drillId]: {
+            status: existing?.status ?? "idle",
+            ...existing,
+            ...next,
+            audioUrl,
+          },
+        };
+      });
+    },
+    [revokeObjectUrl],
+  );
+
+  const stopMediaStream = useCallback(() => {
+    const stream = streamRef.current;
+    streamRef.current = null;
+    if (!stream) return;
+    stream.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  const clearRecorder = useCallback(() => {
+    const timer = autoStopTimerRef.current;
+    if (timer) clearTimeout(timer);
+    autoStopTimerRef.current = null;
+
+    recorderRef.current = null;
+    recordingDrillIdRef.current = null;
+    chunksRef.current = [];
+    stopMediaStream();
+  }, [stopMediaStream]);
+
+  useEffect(() => {
+    return () => {
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      clearRecorder();
+      Object.values(drillAttemptStateRef.current).forEach((state) =>
+        revokeObjectUrl(state.audioUrl),
+      );
+    };
+  }, [clearRecorder, revokeObjectUrl]);
+
+  const decodeBlobToWav = useCallback(async (blob: Blob) => {
+    if (typeof window === "undefined") {
+      throw new Error("Audio decoding is not available on the server.");
+    }
+    const raw = await blob.arrayBuffer();
+    const context = new AudioContext();
+    try {
+      const audioBuffer = await context.decodeAudioData(raw.slice(0));
+      const channelCount = audioBuffer.numberOfChannels;
+      const frameCount = audioBuffer.length;
+      const mono = new Float32Array(frameCount);
+
+      for (let channel = 0; channel < channelCount; channel += 1) {
+        const data = audioBuffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i += 1) {
+          mono[i] += data[i] / channelCount;
+        }
+      }
+
+      const wavBuffer = float32ToWavBuffer(mono, audioBuffer.sampleRate, 1);
+      const base64 = arrayBufferToBase64(wavBuffer);
+      const audioUrl = URL.createObjectURL(new Blob([wavBuffer], { type: "audio/wav" }));
+      return { mimeType: "audio/wav", data: base64, audioUrl };
+    } finally {
+      await context.close().catch(() => {
+        // ignore best-effort cleanup
+      });
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    if (recorder.state === "inactive") return;
+    recorder.stop();
+  }, []);
+
+  const startRecording = useCallback(
+    async (drill: PracticeDrill) => {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        setAttemptState(drill.id, {
+          status: "error",
+          error: "getUserMedia is not available in this environment.",
+        });
+        return;
+      }
+
+      if (!activeEntryRef.current) return;
+
+      const existingRecorder = recorderRef.current;
+      if (existingRecorder && existingRecorder.state !== "inactive") {
+        existingRecorder.stop();
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+
+        const preferredTypes = ["audio/webm;codecs=opus", "audio/webm"];
+        const mimeType = preferredTypes.find((type) =>
+          typeof MediaRecorder !== "undefined" &&
+          typeof MediaRecorder.isTypeSupported === "function" &&
+          MediaRecorder.isTypeSupported(type),
+        );
+
+        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        recorderRef.current = recorder;
+        chunksRef.current = [];
+        recordingDrillIdRef.current = drill.id;
+
+        console.debug("[LivePractice] recording_start", {
+          drillId: drill.id,
+          mimeType: recorder.mimeType || mimeType || null,
+        });
+
+        setAttemptState(drill.id, {
+          status: "recording",
+          score: undefined,
+          audioUrl: undefined,
+          error: undefined,
+        });
+
+        recorder.addEventListener("dataavailable", (event) => {
+          if (!event.data || event.data.size === 0) return;
+          chunksRef.current.push(event.data);
+        });
+
+        recorder.addEventListener("stop", async () => {
+          const drillId = recordingDrillIdRef.current;
+          const entry = activeEntryRef.current;
+          const uiLocale = assessmentLocaleRef.current ?? "en";
+          const recordedChunks = [...chunksRef.current];
+          const recordedMimeType = recorder.mimeType || "audio/webm";
+          clearRecorder();
+          if (!drillId || !entry) return;
+
+          setAttemptState(drillId, { status: "scoring" });
+
+          try {
+            const recordedBlob = new Blob(recordedChunks, { type: recordedMimeType });
+            const wav = await decodeBlobToWav(recordedBlob);
+            setAttemptState(drillId, { audioUrl: wav.audioUrl });
+
+            console.debug("[LivePractice] scoring_start", {
+              drillId,
+              language: entry.language,
+              targetChars: drill.target_text.length,
+            });
+
+            const result = await scoreShadowingAttemptFn({
+              data: {
+                uiLocale,
+                language: entry.language,
+                targetText: drill.target_text,
+                audio: { mimeType: wav.mimeType, data: wav.data },
+              },
+            });
+
+            console.debug("[LivePractice] scoring_done", {
+              drillId,
+              overall: result.overall,
+              accuracy: result.accuracy,
+              pronunciation: result.pronunciation,
+              fluency: result.fluency,
+            });
+
+            setAttemptState(drillId, { status: "done", score: result });
+          } catch (err) {
+            console.error("[LivePractice] scoring_failed", err);
+            const message = err instanceof Error ? err.message : String(err);
+            setAttemptState(drillId, { status: "error", error: message });
+          }
+        });
+
+        recorder.start();
+
+        autoStopTimerRef.current = setTimeout(() => {
+          const current = recorderRef.current;
+          if (!current || current.state === "inactive") return;
+          console.debug("[LivePractice] recording_autostop", { drillId: drill.id });
+          current.stop();
+        }, 8000);
+      } catch (err) {
+        console.error("[LivePractice] recording_failed", err);
+        const message = err instanceof Error ? err.message : String(err);
+        setAttemptState(drill.id, { status: "error", error: message });
+        clearRecorder();
+      }
+    },
+    [clearRecorder, decodeBlobToWav, setAttemptState],
+  );
 
   const languageCount = assessment?.length ?? 0;
   const hasMultipleLanguages = languageCount > 1;
@@ -181,6 +437,126 @@ export const ObserverPanel = memo(function ObserverPanel({
                     </div>
 
                     <Accordion type="multiple" className="border border-border">
+                      {practiceDrills.length > 0 && (
+                        <AccordionItem
+                          value={`${activeEntry.language}-practice`}
+                          className="px-4"
+                        >
+                          <AccordionTrigger className="py-4 text-left hover:no-underline">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                              {m.live_practice_title()}
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-4 text-sm">
+                            <div className="space-y-4">
+                              {practiceDrills.map((drill) => {
+                                const state = drillAttemptState[drill.id] ?? {
+                                  status: "idle" as const,
+                                };
+                                const isRecording = state.status === "recording";
+                                const isScoring = state.status === "scoring";
+
+                                return (
+                                  <div
+                                    key={`${activeEntry.language}-practice-${drill.id}`}
+                                    className="space-y-3 border border-border bg-muted/10 p-4"
+                                  >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                      <div className="min-w-0 space-y-1">
+                                        <p className="text-sm font-semibold text-foreground">
+                                          {drill.title}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {drill.why}
+                                        </p>
+                                        {drill.tip && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {drill.tip}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="flex shrink-0 items-center gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          onClick={() => {
+                                            if (isRecording) {
+                                              stopRecording();
+                                            } else {
+                                              void startRecording(drill);
+                                            }
+                                          }}
+                                          disabled={isScoring}
+                                        >
+                                          {isRecording
+                                            ? m.live_practice_stop()
+                                            : m.live_practice_record()}
+                                        </Button>
+                                      </div>
+                                    </div>
+
+                                    <div className="rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground">
+                                      {drill.target_text}
+                                    </div>
+
+                                    {state.audioUrl && (
+                                      <audio
+                                        className="w-full"
+                                        controls
+                                        preload="metadata"
+                                        src={state.audioUrl}
+                                      />
+                                    )}
+
+                                    {state.status === "scoring" && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {m.live_practice_scoring()}
+                                      </p>
+                                    )}
+
+                                    {state.status === "error" && state.error && (
+                                      <p className="text-xs text-destructive">
+                                        {state.error}
+                                      </p>
+                                    )}
+
+                                    {state.status === "done" && state.score && (
+                                      <div className="space-y-2">
+                                        <div className="flex flex-wrap gap-2">
+                                          <Badge variant="secondary" className="rounded-md">
+                                            {m.live_practice_score_overall()}{" "}
+                                            {state.score.overall}
+                                          </Badge>
+                                          <Badge variant="secondary" className="rounded-md">
+                                            {m.live_practice_score_accuracy()}{" "}
+                                            {state.score.accuracy}
+                                          </Badge>
+                                          <Badge variant="secondary" className="rounded-md">
+                                            {m.live_practice_score_pronunciation()}{" "}
+                                            {state.score.pronunciation}
+                                          </Badge>
+                                          <Badge variant="secondary" className="rounded-md">
+                                            {m.live_practice_score_fluency()}{" "}
+                                            {state.score.fluency}
+                                          </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          {state.score.feedback}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {m.live_practice_next_focus()}:{" "}
+                                          {state.score.next_focus}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )}
+
                       {activeEntry.strengths.length > 0 && (
                         <AccordionItem
                           value={`${activeEntry.language}-strengths`}
@@ -278,4 +654,3 @@ export const ObserverPanel = memo(function ObserverPanel({
     </aside>
   );
 });
-

@@ -193,7 +193,25 @@ const normalizeAssessmentEntry = (
         ? record.lang
         : undefined;
   const language = normalizeLanguageTag(rawLanguage ?? fallbackLanguage);
-  const parsed = assessmentEntrySchema.safeParse({ ...record, language });
+
+  const normalizedCandidate: Record<string, unknown> = { ...record, language };
+  const rawDrills = normalizedCandidate.practice_drills;
+  if (Array.isArray(rawDrills)) {
+    const drills = rawDrills
+      .map((item) => practiceDrillSchema.safeParse(item))
+      .filter((result) => result.success)
+      .map((result) => result.data);
+
+    if (drills.length > 0) {
+      normalizedCandidate.practice_drills = drills;
+    } else {
+      delete normalizedCandidate.practice_drills;
+    }
+  } else {
+    delete normalizedCandidate.practice_drills;
+  }
+
+  const parsed = assessmentEntrySchema.safeParse(normalizedCandidate);
   return parsed.success ? parsed.data : null;
 };
 
@@ -381,95 +399,84 @@ previous_assessment: ${previous}
 Raw assessment text:
 ${rawText}`;
 
+  const responseFormat = {
+    type: "object",
+    properties: {
+      assessments: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            language: { type: "string" },
+            overall_cefr: {
+              type: "string",
+              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+            },
+            dimensions: {
+              type: "object",
+              properties: {
+                pronunciation: {
+                  type: "string",
+                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                },
+                fluency: {
+                  type: "string",
+                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                },
+                grammar: {
+                  type: "string",
+                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                },
+                vocabulary: {
+                  type: "string",
+                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                },
+                comprehension: {
+                  type: "string",
+                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+                },
+              },
+              required: [
+                "pronunciation",
+                "fluency",
+                "grammar",
+                "vocabulary",
+                "comprehension",
+              ],
+              additionalProperties: false,
+            },
+            confidence: { type: "number" },
+            summary: { type: "string" },
+            strengths: { type: "array", items: { type: "string" } },
+            weaknesses: { type: "array", items: { type: "string" } },
+            recommendations: { type: "array", items: { type: "string" } },
+            practice_drills: {
+              type: "array",
+              items: { type: "object" },
+            },
+          },
+          required: [
+            "language",
+            "overall_cefr",
+            "dimensions",
+            "confidence",
+            "summary",
+            "strengths",
+            "weaknesses",
+            "recommendations",
+          ],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["assessments"],
+    additionalProperties: false,
+  };
+
   const interaction = await ai.interactions.create({
     model: FORMAT_MODEL,
     input: [{ type: "text", text: prompt }],
-    response_format: {
-      type: "object",
-      properties: {
-        assessments: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              language: { type: "string" },
-              overall_cefr: {
-                type: "string",
-                enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-              },
-              dimensions: {
-                type: "object",
-                properties: {
-                  pronunciation: {
-                    type: "string",
-                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                  },
-                  fluency: {
-                    type: "string",
-                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                  },
-                  grammar: {
-                    type: "string",
-                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                  },
-                  vocabulary: {
-                    type: "string",
-                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                  },
-                  comprehension: {
-                    type: "string",
-                    enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                  },
-                },
-                required: [
-                  "pronunciation",
-                  "fluency",
-                  "grammar",
-                  "vocabulary",
-                  "comprehension",
-                ],
-                additionalProperties: false,
-              },
-              confidence: { type: "number" },
-              summary: { type: "string" },
-              strengths: { type: "array", items: { type: "string" } },
-              weaknesses: { type: "array", items: { type: "string" } },
-              recommendations: { type: "array", items: { type: "string" } },
-              practice_drills: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string" },
-                    kind: { type: "string", enum: ["shadowing"] },
-                    title: { type: "string" },
-                    why: { type: "string" },
-                    target_text: { type: "string" },
-                    source_user_quote: { type: "string" },
-                    tip: { type: "string" },
-                  },
-                  required: ["id", "kind", "title", "why", "target_text"],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: [
-              "language",
-              "overall_cefr",
-              "dimensions",
-              "confidence",
-              "summary",
-              "strengths",
-              "weaknesses",
-              "recommendations",
-            ],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ["assessments"],
-      additionalProperties: false,
-    },
+    response_format: responseFormat,
     response_mime_type: "application/json",
   });
 

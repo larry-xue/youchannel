@@ -1,8 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
 import { Info, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "~/lib/components/ui/alert";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
@@ -10,21 +8,17 @@ import { Card, CardContent } from "~/lib/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "~/lib/components/ui/dialog";
 import { Progress } from "~/lib/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
-import { createLiveUserProfileVersionFn } from "~/lib/dashboard/live/profile";
-import { getGeminiToken } from "~/lib/gemini/actions";
+import { generateLiveUserProfileVersionFn } from "~/lib/dashboard/live/profile";
 import { useWavRecorder, type WavRecording } from "~/lib/gemini/live/useWavRecorder";
 import { decode } from "~/lib/gemini/utils";
 import { cn } from "~/lib/utils";
 import * as m from "~/paraglide/messages";
 import { getLocale } from "~/paraglide/runtime";
-
-const PROFILE_MODEL = "gemini-3-flash-preview";
 
 type GeoState =
   | { status: "idle" }
@@ -36,33 +30,11 @@ type GeoState =
       coords: { lat: number; lng: number; accuracyMeters: number | null };
     };
 
-const roundNumber = (value: number, decimals: number) => {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-};
-
 const formatSeconds = (seconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(seconds));
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-};
-
-const generatedProfileSchema = z
-  .object({
-    manual_text: z.string().min(1).max(20000),
-    data: z.record(z.unknown()).optional().default({}),
-    source: z.record(z.unknown()).optional().default({}),
-  })
-  .passthrough();
-
-const getTextFromResponse = (response: unknown) => {
-  const value = (response as { text?: unknown } | null)?.text;
-  if (typeof value === "function") {
-    const asFn = value as () => string;
-    return asFn();
-  }
-  return typeof value === "string" ? value : "";
 };
 
 type LivePersonalizationProps = {
@@ -249,100 +221,21 @@ export function LivePersonalization({
     setInlineError(null);
 
     try {
-      const { token } = await getGeminiToken();
-      if (!token) throw new Error("Missing Gemini token");
-
-      const ai = new GoogleGenAI({
-        apiKey: token,
-        httpOptions: { apiVersion: "v1alpha" },
-      });
-
-      const geoPayload =
-        geo.status === "granted"
-          ? {
-              lat: roundNumber(geo.coords.lat, 3),
-              lng: roundNumber(geo.coords.lng, 3),
-              accuracy_m: geo.coords.accuracyMeters,
-            }
-          : null;
-
-      const prompt = `You are generating a user profile used as SYSTEM CONTEXT for a realtime voice conversation (Gemini Live).
-
-Input:
-- UI locale: ${uiLocale}
-- Device time zone (IANA): ${deviceTimeZone}
-- Optional approximate coordinates (rounded): ${geoPayload ? JSON.stringify(geoPayload) : "null"}
-
-Tasks:
-1) Transcribe the audio and infer the user's conversation preferences and learning goals.
-2) If coordinates are provided, you MAY use the googleSearch tool to infer:
-   country, region/state, city (best effort). If uncertain, use null.
-
-Output STRICT JSON only (no markdown), with this shape:
-{
-  "manual_text": "string",
-  "data": {
-    "ui_locale": "string",
-    "device_time_zone": "string",
-    "geo": {
-      "country": "string|null",
-      "region": "string|null",
-      "city": "string|null",
-      "time_zone": "string",
-      "captured_at": "string (ISO)"
-    }
-  },
-  "source": {}
-}
-
-Rules:
-- NEVER include raw coordinates in the output.
-- Do NOT include the full transcript in the output.
-- manual_text must be concise (max ~500 words) and written in English.
-- Prefer stable preferences (topics, correction style, pacing, tone) and avoid PII.
-`;
-
-      const response = await ai.models.generateContent({
-        model: PROFILE_MODEL,
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: recording.audio.mimeType,
-                  data: recording.audio.data,
-                },
-              },
-            ],
-          },
-        ],
-        config: {
-          responseMimeType: "application/json",
-          tools: [{ googleSearch: {} }],
-        },
-      });
-
-      const responseText = getTextFromResponse(response);
-      const parsedJson = JSON.parse(responseText);
-      const parsed = generatedProfileSchema.safeParse(parsedJson);
-      if (!parsed.success) {
-        throw new Error("Failed to parse Gemini profile output");
-      }
-
-      const source = {
-        ...parsed.data.source,
-        model: PROFILE_MODEL,
-        generated_at: new Date().toISOString(),
-        input_audio_ms: recording.durationMs,
-        geo_status: geo.status,
-      };
-
-      await createLiveUserProfileVersionFn({
+      await generateLiveUserProfileVersionFn({
         data: {
-          manualText: parsed.data.manual_text,
-          data: parsed.data.data,
-          source,
+          uiLocale,
+          deviceTimeZone,
+          durationMs: recording.durationMs,
+          audio: recording.audio,
+          geoStatus: geo.status,
+          geo:
+            geo.status === "granted"
+              ? {
+                  lat: geo.coords.lat,
+                  lng: geo.coords.lng,
+                  accuracy_m: geo.coords.accuracyMeters,
+                }
+              : null,
         },
       });
 
@@ -392,8 +285,6 @@ Rules:
 
   const buttonLabel = m.live_personalize_button();
   const hasProfile = typeof profileVersion === "number" && profileVersion > 0;
-  const totalSteps = 3;
-  const stepLabel = m.live_personalize_step_label({ current: step, total: totalSteps });
   const canGoNext =
     step === 1 ? Boolean(recording) && !isRecording : step === 2 ? true : canGenerate;
 

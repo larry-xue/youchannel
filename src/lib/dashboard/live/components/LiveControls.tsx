@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import { Button } from "~/lib/components/ui/button";
 import { Textarea } from "~/lib/components/ui/textarea";
@@ -32,6 +33,7 @@ type LiveControlsProps = {
   onTextInputChange: (value: string) => void;
   onSendMessage: () => void;
   canSendText: boolean;
+  personalizationControl?: ReactNode;
   className?: string;
 };
 
@@ -118,6 +120,7 @@ export const LiveControls = memo(function LiveControls({
   onTextInputChange,
   onSendMessage,
   canSendText,
+  personalizationControl,
   className,
 }: LiveControlsProps) {
   const [isEndingCall, setIsEndingCall] = useState(false);
@@ -192,6 +195,7 @@ export const LiveControls = memo(function LiveControls({
             disabled={isActiveSession || isConnecting || isReadOnlyHistory}
             className="h-10 w-full sm:w-[180px]"
           />
+          {personalizationControl}
           <span
             role="status"
             aria-live="polite"

@@ -1169,15 +1169,6 @@ ${liveProfile.manualText}
         />
       )}
 
-      <div className="fixed bottom-4 left-4 z-40">
-        <LivePersonalization
-          disabled={!authUser}
-          profileVersion={liveUserProfileQuery.data?.profile?.currentVersion ?? null}
-          onSaved={handleLiveProfileSaved}
-          className="pointer-events-auto"
-        />
-      </div>
-
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         {!isDesktop && isInsightsPanelVisible && (
           <Dialog open={isInsightsOpen} onOpenChange={setIsInsightsOpen}>
@@ -1299,6 +1290,15 @@ ${liveProfile.manualText}
                       <LiveControls
                         selectedVoice={selectedVoice}
                         onVoiceChange={setSelectedVoice}
+                        personalizationControl={
+                          <LivePersonalization
+                            disabled={!authUser || isActiveSession || isConnecting}
+                            profileVersion={
+                              liveUserProfileQuery.data?.profile?.currentVersion ?? null
+                            }
+                            onSaved={handleLiveProfileSaved}
+                          />
+                        }
                         isActiveSession={isActiveSession}
                         isViewingHistory={isViewingHistory}
                         isConnecting={isConnecting}
@@ -1434,6 +1434,15 @@ ${liveProfile.manualText}
                     <LiveControls
                       selectedVoice={selectedVoice}
                       onVoiceChange={setSelectedVoice}
+                      personalizationControl={
+                        <LivePersonalization
+                          disabled={!authUser || isActiveSession || isConnecting}
+                          profileVersion={
+                            liveUserProfileQuery.data?.profile?.currentVersion ?? null
+                          }
+                          onSaved={handleLiveProfileSaved}
+                        />
+                      }
                       isActiveSession={isActiveSession}
                       isViewingHistory={isViewingHistory}
                       isConnecting={isConnecting}

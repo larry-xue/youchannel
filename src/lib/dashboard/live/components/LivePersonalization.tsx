@@ -1,25 +1,16 @@
 import { GoogleGenAI } from "@google/genai";
-import { driver } from "driver.js";
-import "driver.js/dist/driver.css";
-import { Info, Sparkles } from "lucide-react";
+import { Info, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "~/lib/components/ui/alert";
 import { Badge } from "~/lib/components/ui/badge";
 import { Button } from "~/lib/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/lib/components/ui/card";
+import { Card, CardContent } from "~/lib/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "~/lib/components/ui/dialog";
@@ -88,6 +79,7 @@ export function LivePersonalization({
   className,
 }: LivePersonalizationProps) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(1);
   const [recording, setRecording] = useState<WavRecording | null>(null);
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [isGenerating, setIsGenerating] = useState(false);
@@ -104,7 +96,6 @@ export function LivePersonalization({
   );
 
   const canGenerate = Boolean(recording) && !isGenerating;
-  const tourStartedRef = useRef(false);
 
   const recordingPreviewUrl = useMemo(() => {
     if (!recording) return null;
@@ -147,43 +138,6 @@ export function LivePersonalization({
     };
   }, [isRecording]);
 
-  const startTour = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (tourStartedRef.current) return;
-    tourStartedRef.current = true;
-
-    const tour = driver({
-      showProgress: true,
-      steps: [
-        {
-          element: "#live-personalize-record",
-          popover: {
-            title: m.live_personalize_tour_record_title(),
-            description: m.live_personalize_tour_record_desc(),
-          },
-        },
-        {
-          element: "#live-personalize-geo",
-          popover: {
-            title: m.live_personalize_tour_geo_title(),
-            description: m.live_personalize_tour_geo_desc(),
-          },
-        },
-        {
-          element: "#live-personalize-generate",
-          popover: {
-            title: m.live_personalize_tour_generate_title(),
-            description: m.live_personalize_tour_generate_desc(),
-          },
-        },
-      ],
-    });
-
-    requestAnimationFrame(() => {
-      tour.drive();
-    });
-  }, []);
-
   const resetForm = useCallback(() => {
     if (isGenerating) return;
 
@@ -196,6 +150,7 @@ export function LivePersonalization({
     setInlineError(null);
     setRecording(null);
     setGeo({ status: "idle" });
+    setStep(1);
   }, [isGenerating, isRecording, stop]);
 
   const handleOpenChange = useCallback(
@@ -203,31 +158,13 @@ export function LivePersonalization({
       setOpen(nextOpen);
       if (!nextOpen) {
         resetForm();
-        tourStartedRef.current = false;
       } else {
         setInlineError(null);
+        setStep(1);
       }
     },
     [resetForm],
   );
-
-  useEffect(() => {
-    if (!open) return;
-    if (typeof window === "undefined") return;
-
-    const key = "live.personalization_tour_seen";
-    try {
-      if (window.localStorage.getItem(key)) return;
-      window.localStorage.setItem(key, "1");
-    } catch (err) {
-      console.warn("[LivePersonalization] Failed to read/write tour flag", err);
-    }
-
-    const timer = window.setTimeout(() => {
-      startTour();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [open, startTour]);
 
   const toggleRecording = useCallback(async () => {
     if (isGenerating) return;
@@ -249,6 +186,18 @@ export function LivePersonalization({
       setRecording(result);
     }
   }, [isGenerating, isRecording, start, stop]);
+
+  const goBack = useCallback(() => {
+    if (isGenerating) return;
+    setInlineError(null);
+    setStep((prev) => Math.max(1, prev - 1));
+  }, [isGenerating]);
+
+  const goNext = useCallback(() => {
+    if (isGenerating) return;
+    setInlineError(null);
+    setStep((prev) => Math.min(3, prev + 1));
+  }, [isGenerating]);
 
   const requestGeo = useCallback(async () => {
     if (isGenerating) return;
@@ -443,6 +392,10 @@ Rules:
 
   const buttonLabel = m.live_personalize_button();
   const hasProfile = typeof profileVersion === "number" && profileVersion > 0;
+  const totalSteps = 3;
+  const stepLabel = m.live_personalize_step_label({ current: step, total: totalSteps });
+  const canGoNext =
+    step === 1 ? Boolean(recording) && !isRecording : step === 2 ? true : canGenerate;
 
   return (
     <div className={cn("pointer-events-auto", className)}>
@@ -455,8 +408,8 @@ Rules:
             aria-label={buttonLabel}
             onClick={() => handleOpenChange(true)}
             className={cn(
-              "h-11 w-11 rounded-full border-border bg-background/80 backdrop-blur",
-              "shadow-sm hover:bg-background sm:w-auto sm:px-4",
+              "h-10 w-10 rounded-md border-border bg-background",
+              "shadow-xs hover:bg-accent sm:w-auto sm:px-3",
             )}
           >
             <Sparkles aria-hidden="true" className="h-4 w-4 text-primary" />
@@ -472,7 +425,7 @@ Rules:
             )}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={8}>
+        <TooltipContent side="top" sideOffset={8}>
           {buttonLabel}
         </TooltipContent>
       </Tooltip>
@@ -482,130 +435,182 @@ Rules:
           <DialogHeader className="gap-3">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
-                <DialogTitle className="flex flex-wrap items-center gap-2">
+                <DialogTitle className="type-h1 flex flex-wrap items-center gap-2">
                   <span>{m.live_personalize_title()}</span>
                   {hasProfile && <Badge variant="outline">v{profileVersion}</Badge>}
                 </DialogTitle>
-                <DialogDescription>{m.live_personalize_description()}</DialogDescription>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={isGenerating}
-                onClick={resetForm}
-                className="shrink-0"
-              >
-                {m.action_clear()}
-              </Button>
             </div>
 
-            <Alert className="border-border bg-muted/10">
-              <Info />
-              <AlertTitle>{m.live_personalize_privacy_note()}</AlertTitle>
-              <AlertDescription>
-                <p>{m.live_personalize_tour_generate_desc()}</p>
-              </AlertDescription>
-            </Alert>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* <p className="text-xs font-semibold text-muted-foreground">{stepLabel}</p> */}
+              <div className="flex items-center gap-2">
+                {([1, 2, 3] as const).map((value) => (
+                  <span
+                    key={value}
+                    aria-hidden="true"
+                    className={cn(
+                      "h-1.5 w-10 rounded-full",
+                      value <= step ? "bg-primary" : "bg-border",
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="grid gap-4">
             <Card className="py-0">
-              <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="text-base">
-                  {m.live_personalize_record_title()}
-                </CardTitle>
-                <CardDescription>{m.live_personalize_record_desc()}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    id="live-personalize-record"
-                    type="button"
-                    variant={isRecording ? "secondary" : "default"}
-                    onClick={() => void toggleRecording()}
-                    disabled={isGenerating}
-                    className="min-w-36"
-                  >
-                    {isRecording
-                      ? m.live_personalize_record_stop()
-                      : m.live_personalize_record_start()}
-                  </Button>
-                  {isRecording && (
-                    <p
-                      aria-live="polite"
-                      className="text-xs font-medium text-muted-foreground"
-                    >
-                      {formatSeconds(recordingSeconds)}
-                    </p>
+              <CardContent className="p-0">
+                <div className="p-5">
+                  {step === 1 && (
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {m.live_personalize_record_title()}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {m.live_personalize_record_desc()}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          id="live-personalize-record"
+                          type="button"
+                          variant={isRecording ? "secondary" : "default"}
+                          onClick={() => void toggleRecording()}
+                          disabled={isGenerating}
+                          className="min-w-40"
+                        >
+                          {isRecording
+                            ? m.live_personalize_record_stop()
+                            : m.live_personalize_record_start()}
+                        </Button>
+
+                        {isRecording && (
+                          <Badge
+                            variant="secondary"
+                            className="tabular-nums text-muted-foreground"
+                          >
+                            {formatSeconds(recordingSeconds)}
+                          </Badge>
+                        )}
+
+                        {!isRecording && recording && (
+                          <Badge variant="secondary">
+                            {m.live_personalize_recorded({
+                              seconds: Math.max(
+                                1,
+                                Math.round(recording.durationMs / 1000),
+                              ),
+                            })}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {isRecording && (
+                        <div className="space-y-2">
+                          <Progress value={recordingProgress} />
+                        </div>
+                      )}
+
+                      {recordingPreviewUrl && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {m.live_personalize_audio_preview_label()}
+                          </p>
+                          <audio
+                            className="w-full"
+                            controls
+                            preload="metadata"
+                            src={recordingPreviewUrl}
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
-                  {!isRecording && recording && (
-                    <Badge variant="secondary">
-                      {m.live_personalize_recorded({
-                        seconds: Math.max(1, Math.round(recording.durationMs / 1000)),
-                      })}
-                    </Badge>
+
+                  {step === 2 && (
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {m.live_personalize_geo_title()}
+                          </p>
+                          <Badge variant="secondary" className="bg-secondary/60">
+                            {m.live_personalize_optional_badge()}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {m.live_personalize_geo_desc()}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          id="live-personalize-geo"
+                          type="button"
+                          variant="outline"
+                          onClick={() => void requestGeo()}
+                          disabled={isGenerating || geo.status === "requesting"}
+                          className="min-w-40"
+                        >
+                          {m.live_personalize_geo_button()}
+                        </Button>
+                        <Badge
+                          variant={
+                            geo.status === "denied" || geo.status === "error"
+                              ? "outline"
+                              : "secondary"
+                          }
+                          className="bg-muted/30 text-muted-foreground"
+                        >
+                          {geoLabel}
+                        </Badge>
+                      </div>
+                    </div>
                   )}
-                </div>
 
-                {isRecording && (
-                  <div className="space-y-2">
-                    <Progress value={recordingProgress} />
-                  </div>
-                )}
+                  {step === 3 && (
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {m.live_personalize_save_title()}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {m.live_personalize_apply_note()}
+                        </p>
+                      </div>
 
-                {recordingPreviewUrl && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {m.live_voice_message()}
-                    </p>
-                    <audio
-                      className="w-full"
-                      controls
-                      preload="metadata"
-                      src={recordingPreviewUrl}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {recording && (
+                          <Badge variant="secondary">
+                            {m.live_personalize_recorded({
+                              seconds: Math.max(
+                                1,
+                                Math.round(recording.durationMs / 1000),
+                              ),
+                            })}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="bg-muted/30 text-muted-foreground">
+                          {m.live_personalize_summary_geo({ status: geoLabel })}
+                        </Badge>
+                      </div>
 
-            <Card className="py-0">
-              <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="text-base">
-                  {m.live_personalize_geo_title()}
-                </CardTitle>
-                <CardDescription>{m.live_personalize_geo_desc()}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    id="live-personalize-geo"
-                    type="button"
-                    variant="outline"
-                    onClick={() => void requestGeo()}
-                    disabled={isGenerating || geo.status === "requesting"}
-                    className="min-w-36"
-                  >
-                    {m.live_personalize_geo_button()}
-                  </Button>
-                  <Badge
-                    variant={
-                      geo.status === "denied" || geo.status === "error"
-                        ? "outline"
-                        : "secondary"
-                    }
-                    className="bg-muted/30 text-muted-foreground"
-                  >
-                    {geoLabel}
-                  </Badge>
-                  {geo.status === "granted" &&
-                    typeof geo.coords.accuracyMeters === "number" &&
-                    geo.coords.accuracyMeters > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        ~{roundNumber(geo.coords.accuracyMeters, 0)}m
-                      </p>
-                    )}
+                      <Alert className="border-border bg-muted/10">
+                        <Info />
+                        <AlertTitle>{m.live_personalize_notice_title()}</AlertTitle>
+                        <AlertDescription>
+                          <ul className="list-disc space-y-1 pl-5 text-sm">
+                            <li>{m.live_personalize_privacy_note()}</li>
+                            <li>{m.live_personalize_apply_note()}</li>
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -618,21 +623,47 @@ Rules:
                 </AlertDescription>
               </Alert>
             )}
-          </div>
 
-          <DialogFooter>
-            <Button
-              id="live-personalize-generate"
-              type="button"
-              onClick={() => void generateAndSave()}
-              disabled={!canGenerate}
-              className="min-w-40"
-            >
-              {isGenerating
-                ? m.live_personalize_generating()
-                : m.live_personalize_generate()}
-            </Button>
-          </DialogFooter>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={step === 1 || isGenerating}
+                onClick={goBack}
+                className="min-w-28"
+              >
+                {m.action_back()}
+              </Button>
+
+              {step < 3 ? (
+                <Button
+                  type="button"
+                  onClick={goNext}
+                  disabled={!canGoNext || isGenerating}
+                  className="min-w-28"
+                >
+                  {m.action_next()}
+                </Button>
+              ) : (
+                <Button
+                  id="live-personalize-generate"
+                  type="button"
+                  onClick={() => void generateAndSave()}
+                  disabled={!canGenerate}
+                  className="min-w-40"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                      {m.live_personalize_generating()}
+                    </>
+                  ) : (
+                    m.live_personalize_generate()
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

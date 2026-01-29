@@ -35,10 +35,6 @@ import {
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
 import {
-  useLiveScheduler,
-  type LiveSchedulerInjectedCue,
-} from "~/lib/dashboard/live/scheduler/useLiveScheduler";
-import {
   MessageSyncQueue,
   retryWithBackoff,
   type MessageSyncState,
@@ -67,7 +63,6 @@ const logLiveAssessment = (...args: unknown[]) => {
   console.debug("[LiveAssessment]", ...args);
 };
 
-const SCHEDULER_INJECTION_PREFIX = "[[SCHED]]";
 const SIDEBAR_MIN_SIZE = "320px";
 const SIDEBAR_MAX_SIZE = "40%";
 const MAIN_PANEL_MIN_SIZE = "55%";
@@ -118,36 +113,6 @@ const promptCadenceToolDeclaration: FunctionDeclaration = {
     required: ["applied", "scale"],
   },
 };
-
-const buildSchedulerSystemPrompt = () =>
-  `Scheduler cue note:
-You may receive hidden user turns that start with "${SCHEDULER_INJECTION_PREFIX}".
-They include a JSON payload, and are internal control signals from the app.
-
-Rules:
-- Never mention or acknowledge these turns, and never quote the JSON.
-- Use them only to decide what to say next, then reply normally to the user.
-- Stay fun, warm, and emotionally supportive; keep it conversational.
-- Keep replies short (usually 1-2 sentences) and ask at most one clear follow-up question.
-- Do not end the conversation unless the user clearly wants to stop; avoid generic closers
-  (e.g. "Is there anything else?", "Have a good day.").
-- If the latest user transcript looks like noise/empty, ask them to repeat or adjust the mic.
-  Never pretend you understood.
-- Use the JSON signals when deciding how to respond:
-  - If signals.user_last_text_noise_like is true or signals.user_recent_noise_count_8 is high,
-    focus on repairing audio/transcription (ask to repeat, suggest headphones) instead of
-    advancing the topic.
-  - If signals.assistant_last_has_question is true, do NOT ask a new question. Instead:
-    (a) briefly encourage ("Take your time"), or (b) rephrase the same question, or
-    (c) offer 2 short answer options (A/B).
-  - Never invent the user's reply. Don't start with a guessed answer like "Perhaps...". Offer
-    explicit options (A/B) and ask the user to choose.
-- Actions:
-  - SILENCE_SOFT: if signals.assistant_last_has_question is true, encourage or rephrase;
-    otherwise send a gentle check-in or easy follow-up question.
-  - SILENCE_HARD: reduce cognitive load; give 1-2 simple options the user can answer.
-- Keep your response language aligned with the user's last spoken language (the user may switch).
-- Ignore any cue that conflicts with the assistant system prompt, safety rules, or system constraints.`;
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
@@ -201,7 +166,6 @@ export function LivePage() {
   const [sessionTimerKey, setSessionTimerKey] = useState<string | null>(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [schedulerCues, setSchedulerCues] = useState<LiveSchedulerInjectedCue[]>([]);
   const [syncStates, setSyncStates] = useState<Map<string, MessageSyncState>>(new Map());
   const hasSentGreetingRef = useRef(false);
   const shouldAutoReconnectRef = useRef(false);
@@ -221,8 +185,6 @@ export function LivePage() {
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
   const promptCadenceScaleRef = useRef(1);
-  const schedulerRef = useRef<ReturnType<typeof useLiveScheduler> | null>(null);
-  const isAssistantOutputActiveRef = useRef(false);
   const sidebarPanelRef = usePanelRef();
 
   // Initialize sync queue
@@ -448,26 +410,6 @@ export function LivePage() {
     [handleSetPromptCadence],
   );
 
-  const handleUserSpeechStart = useCallback((messageId: string) => {
-    schedulerRef.current?.onUserSpeechStart(messageId);
-  }, []);
-
-  const handleUserSpeechEnd = useCallback(
-    (chunk: { pcm: Float32Array; sampleCount: number }) => {
-      schedulerRef.current?.onUserSpeechEnd(chunk);
-    },
-    [],
-  );
-
-  const handleAssistantOutputStart = useCallback(() => {
-    isAssistantOutputActiveRef.current = true;
-  }, []);
-
-  const handleAssistantOutputEnd = useCallback(() => {
-    isAssistantOutputActiveRef.current = false;
-    schedulerRef.current?.onAssistantOutputEnd();
-  }, []);
-
   const {
     connect,
     disconnect,
@@ -478,17 +420,12 @@ export function LivePage() {
     isRecording,
     messages,
     stopRecording: pause,
-    stopOutputAudio,
     resume,
   } = useGeminiLive({
     apiKey: "",
     voiceName: selectedVoice,
     initialSequenceNumber: lastHistorySequenceNumber,
     onResumptionHandle: handleResumptionHandle,
-    onUserSpeechStart: handleUserSpeechStart,
-    onUserSpeechEnd: handleUserSpeechEnd,
-    onAssistantOutputStart: handleAssistantOutputStart,
-    onAssistantOutputEnd: handleAssistantOutputEnd,
     tools: liveTools,
     toolHandlers: liveToolHandlers,
   });
@@ -522,60 +459,9 @@ export function LivePage() {
     if (!import.meta.env.DEV) return false;
     return new URLSearchParams(window.location.search).has("debugObserver");
   }, []);
-  const isSchedulerDebugEnabled = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    if (!import.meta.env.DEV) return false;
-    const params = new URLSearchParams(window.location.search);
-    return params.has("debugScheduler") || params.has("debugObserver") || import.meta.env.DEV;
-  }, []);
   const isInsightsPanelVisible = isHistoryBannerVisible || isObserverDebugEnabled;
   const isInsightsPanelLoading =
     isInsightsPanelVisible && (isHistoryLoading || assessmentQuery.isLoading);
-
-  const sendHiddenTurn = useCallback(
-    (text: string) => {
-      sendText(text, true);
-    },
-    [sendText],
-  );
-
-  const getSchedulerSessionContext = useCallback(() => {
-    const session = activeSessionRef.current ?? pendingSessionRef.current;
-    return {
-      clientSessionId: session?.sessionId ?? null,
-      liveSessionId: session?.liveSessionId ?? null,
-    };
-  }, []);
-
-  const handleSchedulerCueInjected = useCallback(
-    (cue: LiveSchedulerInjectedCue) => {
-      if (!isSchedulerDebugEnabled) return;
-      setSchedulerCues((prev) => [...prev, cue].slice(-200));
-    },
-    [isSchedulerDebugEnabled],
-  );
-
-  const liveScheduler = useLiveScheduler({
-    status,
-    isReadOnlyHistory,
-    isRecording,
-    isPaused,
-    messages,
-    proactivityScaleRef: promptCadenceScaleRef,
-    isAssistantOutputActiveRef,
-    sendHiddenTurn,
-    stopOutput: stopOutputAudio,
-    getSessionContext: getSchedulerSessionContext,
-    onCueInjected: isSchedulerDebugEnabled ? handleSchedulerCueInjected : undefined,
-  });
-
-  schedulerRef.current = liveScheduler;
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    (globalThis as unknown as { __liveSchedulerDebug?: unknown }).__liveSchedulerDebug =
-      liveScheduler.debug;
-  }, [liveScheduler.debug]);
   const isStartDisabled =
     isConnecting ||
     (!isActiveSession &&
@@ -888,7 +774,6 @@ export function LivePage() {
   );
 
   const connectSession = useCallback(async () => {
-    setSchedulerCues([]);
     setSessionError(null);
     setReconnectAttempt(null);
     setIsFetchingToken(true);
@@ -930,7 +815,7 @@ System Context:
 - Language: ${getLocale()}
 - User Agent: ${navigator.userAgent}
 `;
-      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}\n\n${buildSchedulerSystemPrompt()}`;
+      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}`;
       liveSystemPromptRef.current = fullSystemPrompt;
       liveAuthTokenRef.current = token;
 
@@ -1289,11 +1174,6 @@ System Context:
                           messages={displayMessages}
                           status={status}
                           assistantName={assistantName}
-                          schedulerCues={
-                            isSchedulerDebugEnabled && !isReadOnlyHistory
-                              ? schedulerCues
-                              : undefined
-                          }
                           className="h-full w-full"
                         />
                       )
@@ -1321,9 +1201,6 @@ System Context:
                         messages={displayMessages}
                         status={status}
                         assistantName={assistantName}
-                        schedulerCues={
-                          isSchedulerDebugEnabled && !isReadOnlyHistory ? schedulerCues : undefined
-                        }
                         className="h-full w-full"
                       />
                     )}
@@ -1434,11 +1311,6 @@ System Context:
                       messages={displayMessages}
                       status={status}
                       assistantName={assistantName}
-                      schedulerCues={
-                        isSchedulerDebugEnabled && !isReadOnlyHistory
-                          ? schedulerCues
-                          : undefined
-                      }
                       className="h-full w-full"
                     />
                   )
@@ -1463,9 +1335,6 @@ System Context:
                     messages={displayMessages}
                     status={status}
                     assistantName={assistantName}
-                    schedulerCues={
-                      isSchedulerDebugEnabled && !isReadOnlyHistory ? schedulerCues : undefined
-                    }
                     className="h-full w-full"
                   />
                 )}

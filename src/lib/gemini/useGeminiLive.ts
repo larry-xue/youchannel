@@ -228,7 +228,7 @@ export function useGeminiLive({
             : onResumptionHandle
               ? {}
               : undefined;
-
+        console.log('systemInstruction = ', systemInstruction)
         const config: LiveConnectConfig = {
           responseModalities: [Modality.AUDIO],
           systemInstruction,
@@ -244,7 +244,8 @@ export function useGeminiLive({
           inputAudioTranscription: {},
           proactivity: { proactiveAudio: false },
           sessionResumption,
-          temperature: 1,
+          temperature: 0.8,
+          topP: 0.9
         };
 
         sessionRef.current = await clientRef.current.live.connect({

@@ -54,6 +54,7 @@ export function LivePersonalization({
   const [step, setStep] = useState(1);
   const [recording, setRecording] = useState<WavRecording | null>(null);
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
+  const [sensitiveProfileConsent, setSensitiveProfileConsent] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
@@ -122,6 +123,7 @@ export function LivePersonalization({
     setInlineError(null);
     setRecording(null);
     setGeo({ status: "idle" });
+    setSensitiveProfileConsent(false);
     setStep(1);
   }, [isGenerating, isRecording, stop]);
 
@@ -133,6 +135,7 @@ export function LivePersonalization({
       } else {
         setInlineError(null);
         setStep(1);
+        setSensitiveProfileConsent(false);
       }
     },
     [resetForm],
@@ -226,6 +229,7 @@ export function LivePersonalization({
           uiLocale,
           deviceTimeZone,
           durationMs: recording.durationMs,
+          sensitiveProfileConsent,
           audio: recording.audio,
           geoStatus: geo.status,
           geo:
@@ -252,11 +256,11 @@ export function LivePersonalization({
       console.error("[LivePersonalization] Failed to generate profile", err);
       const message = err instanceof Error ? err.message : m.live_personalize_error();
       setInlineError(message);
-      toast.error(message);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [deviceTimeZone, geo, isGenerating, onSaved, recording, uiLocale]);
+        toast.error(message);
+      } finally {
+        setIsGenerating(false);
+      }
+  }, [deviceTimeZone, geo, isGenerating, onSaved, recording, sensitiveProfileConsent, uiLocale]);
 
   const geoLabel = useMemo(() => {
     switch (geo.status) {
@@ -490,12 +494,41 @@ export function LivePersonalization({
                         </Badge>
                       </div>
 
+                      <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/10 p-4">
+                        <input
+                          type="checkbox"
+                          checked={sensitiveProfileConsent}
+                          onChange={(event) =>
+                            setSensitiveProfileConsent(event.currentTarget.checked)
+                          }
+                          disabled={isGenerating}
+                          className="mt-1 h-4 w-4 cursor-pointer accent-primary"
+                          aria-describedby="live-personalize-sensitive-desc"
+                        />
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-foreground">
+                            {m.live_personalize_sensitive_opt_in_label()}
+                          </p>
+                          <p
+                            id="live-personalize-sensitive-desc"
+                            className="text-sm text-muted-foreground"
+                          >
+                            {m.live_personalize_sensitive_opt_in_desc()}
+                          </p>
+                        </div>
+                      </label>
+
                       <Alert className="border-border bg-muted/10">
                         <Info />
                         <AlertTitle>{m.live_personalize_notice_title()}</AlertTitle>
                         <AlertDescription>
                           <ul className="list-disc space-y-1 pl-5 text-sm">
                             <li>{m.live_personalize_privacy_note()}</li>
+                            <li>
+                              {sensitiveProfileConsent
+                                ? m.live_personalize_sensitive_note_on()
+                                : m.live_personalize_sensitive_note_off()}
+                            </li>
                             <li>{m.live_personalize_apply_note()}</li>
                           </ul>
                         </AlertDescription>

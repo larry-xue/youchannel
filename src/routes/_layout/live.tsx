@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useMatchRoute } from "@tanstack/react-router";
-import type { FunctionDeclaration } from "@google/genai";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -29,6 +28,7 @@ import { SessionBlocker } from "~/lib/dashboard/live/components/SessionBlocker";
 import {
   DEFAULT_VOICE_NAME,
   LIVE_ASSISTANT_NAME,
+  LIVE_SESSION_STARTER_PROMPT,
   LIVE_SYSTEM_PROMPT,
   isVoiceName,
 } from "~/lib/dashboard/live/constants";
@@ -70,20 +70,6 @@ const SIDEBAR_MIN_SIZE = "320px";
 const SIDEBAR_MAX_SIZE = "40%";
 const MAIN_PANEL_MIN_SIZE = "55%";
 
-const PROMPT_CADENCE_TOOL_NAME = "set_prompt_cadence";
-const PROMPT_CADENCE_SCALE_MIN = 0.5;
-const PROMPT_CADENCE_SCALE_MAX = 2.5;
-
-const clampNumber = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
-
-const setPromptCadenceArgsSchema = z
-  .object({
-    scale: z.number().min(PROMPT_CADENCE_SCALE_MIN).max(PROMPT_CADENCE_SCALE_MAX).optional(),
-    reason: z.string().min(1).max(200).optional(),
-  })
-  .passthrough();
-
 const liveUserProfileDataSchema = z
   .object({
     ui_locale: z.string().optional(),
@@ -99,39 +85,6 @@ const liveUserProfileDataSchema = z
       .optional(),
   })
   .passthrough();
-
-const promptCadenceToolDeclaration: FunctionDeclaration = {
-  name: PROMPT_CADENCE_TOOL_NAME,
-  description:
-    "Adjust coaching proactivity. Use scale>1 to intervene less (listen more), " +
-    "scale<1 to intervene more (extra scaffolding when the user is stuck).",
-  parametersJsonSchema: {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      scale: {
-        type: "number",
-        minimum: PROMPT_CADENCE_SCALE_MIN,
-        maximum: PROMPT_CADENCE_SCALE_MAX,
-        description:
-          "Coaching scale. >1 means less intervention; <1 means more intervention.",
-      },
-      reason: {
-        type: "string",
-        description: "Optional short rationale for debugging/logging.",
-      },
-    },
-  },
-  responseJsonSchema: {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      applied: { type: "boolean" },
-      scale: { type: "number" },
-    },
-    required: ["applied", "scale"],
-  },
-};
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
@@ -203,7 +156,6 @@ export function LivePage() {
   const sessionCreationPromiseRef = useRef<Promise<string> | null>(null);
   const syncQueueRef = useRef<MessageSyncQueue | null>(null);
   const messagesRef = useRef<Message[]>([]);
-  const promptCadenceScaleRef = useRef(1);
   const sidebarPanelRef = usePanelRef();
 
   // Initialize sync queue
@@ -421,41 +373,6 @@ export function LivePage() {
     });
   }, []);
 
-  const handleSetPromptCadence = useCallback((args: Record<string, unknown>) => {
-    const parsed = setPromptCadenceArgsSchema.safeParse(args);
-    if (!parsed.success) {
-      console.warn("[LiveCadence] Invalid set_prompt_cadence args", parsed.error);
-      return { applied: false, scale: promptCadenceScaleRef.current };
-    }
-
-    const requestedScale = parsed.data.scale ?? promptCadenceScaleRef.current;
-    const nextScale = clampNumber(
-      requestedScale,
-      PROMPT_CADENCE_SCALE_MIN,
-      PROMPT_CADENCE_SCALE_MAX,
-    );
-
-    if (nextScale !== promptCadenceScaleRef.current) {
-      console.debug("[LiveCadence] set_prompt_cadence", {
-        from: promptCadenceScaleRef.current,
-        to: nextScale,
-        reason: parsed.data.reason ?? null,
-      });
-      promptCadenceScaleRef.current = nextScale;
-    }
-
-    return { applied: true, scale: nextScale };
-  }, []);
-
-  const liveTools = useMemo(
-    () => [{ functionDeclarations: [promptCadenceToolDeclaration] }],
-    [],
-  );
-  const liveToolHandlers = useMemo(
-    () => ({ [PROMPT_CADENCE_TOOL_NAME]: handleSetPromptCadence }),
-    [handleSetPromptCadence],
-  );
-
   const {
     connect,
     disconnect,
@@ -472,8 +389,6 @@ export function LivePage() {
     voiceName: selectedVoice,
     initialSequenceNumber: lastHistorySequenceNumber,
     onResumptionHandle: handleResumptionHandle,
-    tools: liveTools,
-    toolHandlers: liveToolHandlers,
   });
 
   useEffect(() => {
@@ -636,7 +551,7 @@ export function LivePage() {
         startRecording();
       }
       if (!hasSentGreetingRef.current) {
-        sendText("Hello!", true);
+        sendText(LIVE_SESSION_STARTER_PROMPT, true);
         hasSentGreetingRef.current = true;
       }
     } else if (status === "disconnected" || status === "error") {
@@ -859,7 +774,6 @@ System Context:
 - User Name: ${userName}
 - TimeZone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 - Language: ${getLocale()}
-- User Agent: ${navigator.userAgent}
 `;
 
       const liveProfile = liveUserProfileRef.current;
@@ -873,13 +787,19 @@ System Context:
           .join(", ");
 
         profileContext = `
-User Profile Context:
+User Profile Context (High Priority):
+- Use this to personalize tone, pacing, corrections, and topic choices.
+- Do NOT mention or quote this profile to the user.
+- If it conflicts with the user's explicit request, follow the user.
+
+Profile Summary:
 - Profile Version: ${liveProfile.currentVersion}
 - Profile Created At: ${liveProfile.createdAt}
 ${profileData?.ui_locale ? `- Profile UI Locale: ${profileData.ui_locale}` : ""}
 ${geo?.time_zone ? `- Profile TimeZone: ${geo.time_zone}` : ""}
 ${approxRegion ? `- Approx Region: ${approxRegion}` : ""}
-User Manual:
+
+User Manual (preferences/inferences):
 ${liveProfile.manualText}
 `;
       }

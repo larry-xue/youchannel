@@ -3,6 +3,7 @@ import { createFileRoute, useMatchRoute } from "@tanstack/react-router";
 import type { FunctionDeclaration } from "@google/genai";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "~/lib/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/lib/components/ui/dialog";
@@ -20,6 +21,7 @@ import {
 } from "~/lib/dashboard/live/assessment";
 import { HistoryBanner } from "~/lib/dashboard/live/components/HistoryBanner";
 import { LiveControls } from "~/lib/dashboard/live/components/LiveControls";
+import { LivePersonalization } from "~/lib/dashboard/live/components/LivePersonalization";
 import { LiveStatusSection } from "~/lib/dashboard/live/components/LiveStatusSection";
 import { LiveTranscript } from "~/lib/dashboard/live/components/LiveVoiceSession";
 import { ObserverPanel } from "~/lib/dashboard/live/components/ObserverPanel";
@@ -34,6 +36,7 @@ import {
   getLiveSessionDetailFn,
   type LiveSessionDetailResponse,
 } from "~/lib/dashboard/live/history";
+import { getLiveUserProfileFn, type LiveUserProfile } from "~/lib/dashboard/live/profile";
 import {
   MessageSyncQueue,
   retryWithBackoff,
@@ -78,6 +81,22 @@ const setPromptCadenceArgsSchema = z
   .object({
     scale: z.number().min(PROMPT_CADENCE_SCALE_MIN).max(PROMPT_CADENCE_SCALE_MAX).optional(),
     reason: z.string().min(1).max(200).optional(),
+  })
+  .passthrough();
+
+const liveUserProfileDataSchema = z
+  .object({
+    ui_locale: z.string().optional(),
+    device_time_zone: z.string().optional(),
+    geo: z
+      .object({
+        country: z.string().nullable().optional(),
+        region: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        time_zone: z.string().optional(),
+        captured_at: z.string().optional(),
+      })
+      .optional(),
   })
   .passthrough();
 
@@ -200,6 +219,33 @@ export function LivePage() {
   const lastSyncedCountRef = useRef<number>(0);
   const uiLocale = getLocale();
   const queryClient = useQueryClient();
+  const liveUserProfileQuery = useQuery<{ profile: LiveUserProfile | null }>({
+    queryKey: ["live-user-profile"],
+    queryFn: () => getLiveUserProfileFn() as Promise<{ profile: LiveUserProfile | null }>,
+    enabled: Boolean(authUser),
+    staleTime: 1000 * 60 * 5,
+  });
+  const liveUserProfileRef = useRef<LiveUserProfile | null>(null);
+
+  useEffect(() => {
+    liveUserProfileRef.current = liveUserProfileQuery.data?.profile ?? null;
+  }, [liveUserProfileQuery.data]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    if (liveUserProfileQuery.isLoading) return;
+    if (liveUserProfileQuery.data?.profile) return;
+
+    try {
+      const key = "live.personalization_hint_seen";
+      if (window.localStorage.getItem(key)) return;
+      window.localStorage.setItem(key, "1");
+    } catch (err) {
+      console.warn("[LivePersonalization] Failed to persist hint flag", err);
+    }
+
+    toast.message(m.live_personalize_hint());
+  }, [authUser, liveUserProfileQuery.data, liveUserProfileQuery.isLoading]);
   const getSyncedIdsStorageKey = useCallback(
     (sessionId: string) => {
       const activeLiveSessionId =
@@ -815,7 +861,30 @@ System Context:
 - Language: ${getLocale()}
 - User Agent: ${navigator.userAgent}
 `;
-      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}`;
+
+      const liveProfile = liveUserProfileRef.current;
+      let profileContext = "";
+      if (liveProfile) {
+        const parsed = liveUserProfileDataSchema.safeParse(liveProfile.data);
+        const profileData = parsed.success ? parsed.data : null;
+        const geo = profileData?.geo;
+        const approxRegion = [geo?.city, geo?.region, geo?.country]
+          .filter((value): value is string => typeof value === "string" && value.length > 0)
+          .join(", ");
+
+        profileContext = `
+User Profile Context:
+- Profile Version: ${liveProfile.currentVersion}
+- Profile Created At: ${liveProfile.createdAt}
+${profileData?.ui_locale ? `- Profile UI Locale: ${profileData.ui_locale}` : ""}
+${geo?.time_zone ? `- Profile TimeZone: ${geo.time_zone}` : ""}
+${approxRegion ? `- Approx Region: ${approxRegion}` : ""}
+User Manual:
+${liveProfile.manualText}
+`;
+      }
+
+      const fullSystemPrompt = `${LIVE_SYSTEM_PROMPT}\n\n${deviceContext}${profileContext}`;
       liveSystemPromptRef.current = fullSystemPrompt;
       liveAuthTokenRef.current = token;
 
@@ -1077,6 +1146,10 @@ System Context:
     [],
   );
 
+  const handleLiveProfileSaved = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["live-user-profile"] });
+  }, [queryClient]);
+
   return (
     <div className="relative flex h-screen min-h-0 flex-col">
       <a
@@ -1095,6 +1168,15 @@ System Context:
           getActiveLiveSessionId={getActiveLiveSessionId}
         />
       )}
+
+      <div className="fixed bottom-4 left-4 z-40">
+        <LivePersonalization
+          disabled={!authUser}
+          profileVersion={liveUserProfileQuery.data?.profile?.currentVersion ?? null}
+          onSaved={handleLiveProfileSaved}
+          className="pointer-events-auto"
+        />
+      </div>
 
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         {!isDesktop && isInsightsPanelVisible && (

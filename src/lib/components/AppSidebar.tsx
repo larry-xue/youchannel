@@ -17,6 +17,8 @@ const getDashboardNavItems = () => [
   { label: m.playlists(), to: "/playlists" },
   { label: m.quota_title(), to: "/quotas" },
   { label: m.live(), to: "/live" },
+  { label: m.progress(), to: "/learn/progress" },
+  { label: m.practice(), to: "/learn/practice" },
 ];
 
 const LIVE_SESSION_LIMIT = 6;

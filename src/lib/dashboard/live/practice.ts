@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { computeDrillKey } from "~/lib/dashboard/live/drillKey";
 import { getSupabaseAndUser } from "~/lib/dashboard/utils.server";
 
 const SHADOWING_MODEL = "gemini-2.5-flash";
@@ -9,6 +10,8 @@ const scoreShadowingAttemptSchema = z.object({
   uiLocale: z.string().min(2).max(35),
   language: z.string().min(2).max(35),
   targetText: z.string().min(1).max(400),
+  liveSessionId: z.string().uuid().optional(),
+  drillId: z.string().min(1).max(80).optional(),
   audio: z.object({
     mimeType: z.string().min(4).max(50),
     data: z.string().min(16),
@@ -27,10 +30,16 @@ const scoreShadowingResponseSchema = z.object({
 
 export type ShadowingScore = z.infer<typeof scoreShadowingResponseSchema>;
 
+export type ShadowingAttemptResult = ShadowingScore & {
+  attemptId: string;
+  drillKey: string;
+  createdAt: string;
+};
+
 export const scoreShadowingAttemptFn = createServerFn({ method: "POST" })
   .inputValidator((data) => scoreShadowingAttemptSchema.parse(data))
-  .handler(async ({ data }): Promise<ShadowingScore> => {
-    await getSupabaseAndUser();
+  .handler(async ({ data }): Promise<ShadowingAttemptResult> => {
+    const { supabase, user } = await getSupabaseAndUser();
 
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_LIVE_API_KEY;
     if (!apiKey) {
@@ -134,12 +143,48 @@ Rules:
     }
 
     const roundScore = (value: number) => Math.round(value);
-    return {
+    const score: ShadowingScore = {
       ...validated.data,
       overall: roundScore(validated.data.overall),
       accuracy: roundScore(validated.data.accuracy),
       pronunciation: roundScore(validated.data.pronunciation),
       fluency: roundScore(validated.data.fluency),
     };
-  });
 
+    const drillKey = computeDrillKey({
+      language: data.language,
+      kind: "shadowing",
+      targetText: data.targetText,
+    });
+
+    const { data: attemptRow, error: attemptError } = await supabase
+      .from("shadowing_attempts")
+      .insert({
+        user_id: user.id,
+        live_session_id: data.liveSessionId ?? null,
+        language: data.language,
+        drill_key: drillKey,
+        drill_id: data.drillId ?? null,
+        drill_kind: "shadowing",
+        target_text: data.targetText,
+        heard_text: score.heard_text,
+        overall: score.overall,
+        accuracy: score.accuracy,
+        pronunciation: score.pronunciation,
+        fluency: score.fluency,
+        model: SHADOWING_MODEL,
+      })
+      .select("id, created_at")
+      .single();
+
+    if (attemptError || !attemptRow) {
+      throw new Error(attemptError?.message || "Failed to save shadowing attempt.");
+    }
+
+    return {
+      ...score,
+      attemptId: attemptRow.id,
+      drillKey,
+      createdAt: attemptRow.created_at,
+    };
+  });

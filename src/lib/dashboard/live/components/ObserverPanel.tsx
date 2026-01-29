@@ -268,12 +268,14 @@ export const ObserverPanel = memo(function ObserverPanel({
                 uiLocale,
                 language: entry.language,
                 targetText: drill.target_text,
+                drillId: drill.id,
                 audio: { mimeType: wav.mimeType, data: wav.data },
               },
             });
 
             console.debug("[LivePractice] scoring_done", {
               drillId,
+              attemptId: result.attemptId,
               overall: result.overall,
               accuracy: result.accuracy,
               pronunciation: result.pronunciation,

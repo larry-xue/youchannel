@@ -404,69 +404,7 @@ ${rawText}`;
     properties: {
       assessments: {
         type: "array",
-        items: {
-          type: "object",
-          properties: {
-            language: { type: "string" },
-            overall_cefr: {
-              type: "string",
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-            },
-            dimensions: {
-              type: "object",
-              properties: {
-                pronunciation: {
-                  type: "string",
-                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                },
-                fluency: {
-                  type: "string",
-                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                },
-                grammar: {
-                  type: "string",
-                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                },
-                vocabulary: {
-                  type: "string",
-                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                },
-                comprehension: {
-                  type: "string",
-                  enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
-                },
-              },
-              required: [
-                "pronunciation",
-                "fluency",
-                "grammar",
-                "vocabulary",
-                "comprehension",
-              ],
-              additionalProperties: false,
-            },
-            confidence: { type: "number" },
-            summary: { type: "string" },
-            strengths: { type: "array", items: { type: "string" } },
-            weaknesses: { type: "array", items: { type: "string" } },
-            recommendations: { type: "array", items: { type: "string" } },
-            practice_drills: {
-              type: "array",
-              items: { type: "object" },
-            },
-          },
-          required: [
-            "language",
-            "overall_cefr",
-            "dimensions",
-            "confidence",
-            "summary",
-            "strengths",
-            "weaknesses",
-            "recommendations",
-          ],
-          additionalProperties: false,
-        },
+        items: { type: "object" },
       },
     },
     required: ["assessments"],

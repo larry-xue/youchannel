@@ -18,6 +18,8 @@ import { Route as LayoutPlaylistsRouteImport } from './routes/_layout/playlists'
 import { Route as LayoutLiveRouteImport } from './routes/_layout/live'
 import { Route as LayoutLibraryRouteImport } from './routes/_layout/library'
 import { Route as LayoutLiveSessionIdRouteImport } from './routes/_layout/live.$sessionId'
+import { Route as LayoutLearnProgressRouteImport } from './routes/_layout/learn/progress'
+import { Route as LayoutLearnPracticeRouteImport } from './routes/_layout/learn/practice'
 import { Route as LayoutLearnVideoIdRouteImport } from './routes/_layout/learn/$videoId'
 
 const SigninRoute = SigninRouteImport.update({
@@ -64,6 +66,16 @@ const LayoutLiveSessionIdRoute = LayoutLiveSessionIdRouteImport.update({
   path: '/$sessionId',
   getParentRoute: () => LayoutLiveRoute,
 } as any)
+const LayoutLearnProgressRoute = LayoutLearnProgressRouteImport.update({
+  id: '/learn/progress',
+  path: '/learn/progress',
+  getParentRoute: () => LayoutRouteRoute,
+} as any)
+const LayoutLearnPracticeRoute = LayoutLearnPracticeRouteImport.update({
+  id: '/learn/practice',
+  path: '/learn/practice',
+  getParentRoute: () => LayoutRouteRoute,
+} as any)
 const LayoutLearnVideoIdRoute = LayoutLearnVideoIdRouteImport.update({
   id: '/learn/$videoId',
   path: '/learn/$videoId',
@@ -79,6 +91,8 @@ export interface FileRoutesByFullPath {
   '/playlists': typeof LayoutPlaylistsRoute
   '/quotas': typeof LayoutQuotasRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
+  '/learn/practice': typeof LayoutLearnPracticeRoute
+  '/learn/progress': typeof LayoutLearnProgressRoute
   '/live/$sessionId': typeof LayoutLiveSessionIdRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +104,8 @@ export interface FileRoutesByTo {
   '/playlists': typeof LayoutPlaylistsRoute
   '/quotas': typeof LayoutQuotasRoute
   '/learn/$videoId': typeof LayoutLearnVideoIdRoute
+  '/learn/practice': typeof LayoutLearnPracticeRoute
+  '/learn/progress': typeof LayoutLearnProgressRoute
   '/live/$sessionId': typeof LayoutLiveSessionIdRoute
 }
 export interface FileRoutesById {
@@ -103,6 +119,8 @@ export interface FileRoutesById {
   '/_layout/playlists': typeof LayoutPlaylistsRoute
   '/_layout/quotas': typeof LayoutQuotasRoute
   '/_layout/learn/$videoId': typeof LayoutLearnVideoIdRoute
+  '/_layout/learn/practice': typeof LayoutLearnPracticeRoute
+  '/_layout/learn/progress': typeof LayoutLearnProgressRoute
   '/_layout/live/$sessionId': typeof LayoutLiveSessionIdRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +134,8 @@ export interface FileRouteTypes {
     | '/playlists'
     | '/quotas'
     | '/learn/$videoId'
+    | '/learn/practice'
+    | '/learn/progress'
     | '/live/$sessionId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,6 +147,8 @@ export interface FileRouteTypes {
     | '/playlists'
     | '/quotas'
     | '/learn/$videoId'
+    | '/learn/practice'
+    | '/learn/progress'
     | '/live/$sessionId'
   id:
     | '__root__'
@@ -139,6 +161,8 @@ export interface FileRouteTypes {
     | '/_layout/playlists'
     | '/_layout/quotas'
     | '/_layout/learn/$videoId'
+    | '/_layout/learn/practice'
+    | '/_layout/learn/progress'
     | '/_layout/live/$sessionId'
   fileRoutesById: FileRoutesById
 }
@@ -214,6 +238,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutLiveSessionIdRouteImport
       parentRoute: typeof LayoutLiveRoute
     }
+    '/_layout/learn/progress': {
+      id: '/_layout/learn/progress'
+      path: '/learn/progress'
+      fullPath: '/learn/progress'
+      preLoaderRoute: typeof LayoutLearnProgressRouteImport
+      parentRoute: typeof LayoutRouteRoute
+    }
+    '/_layout/learn/practice': {
+      id: '/_layout/learn/practice'
+      path: '/learn/practice'
+      fullPath: '/learn/practice'
+      preLoaderRoute: typeof LayoutLearnPracticeRouteImport
+      parentRoute: typeof LayoutRouteRoute
+    }
     '/_layout/learn/$videoId': {
       id: '/_layout/learn/$videoId'
       path: '/learn/$videoId'
@@ -242,6 +280,8 @@ interface LayoutRouteRouteChildren {
   LayoutPlaylistsRoute: typeof LayoutPlaylistsRoute
   LayoutQuotasRoute: typeof LayoutQuotasRoute
   LayoutLearnVideoIdRoute: typeof LayoutLearnVideoIdRoute
+  LayoutLearnPracticeRoute: typeof LayoutLearnPracticeRoute
+  LayoutLearnProgressRoute: typeof LayoutLearnProgressRoute
 }
 
 const LayoutRouteRouteChildren: LayoutRouteRouteChildren = {
@@ -250,6 +290,8 @@ const LayoutRouteRouteChildren: LayoutRouteRouteChildren = {
   LayoutPlaylistsRoute: LayoutPlaylistsRoute,
   LayoutQuotasRoute: LayoutQuotasRoute,
   LayoutLearnVideoIdRoute: LayoutLearnVideoIdRoute,
+  LayoutLearnPracticeRoute: LayoutLearnPracticeRoute,
+  LayoutLearnProgressRoute: LayoutLearnProgressRoute,
 }
 
 const LayoutRouteRouteWithChildren = LayoutRouteRoute._addFileChildren(

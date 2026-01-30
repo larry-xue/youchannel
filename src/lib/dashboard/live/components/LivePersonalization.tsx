@@ -13,6 +13,17 @@ import {
 } from "~/lib/components/ui/dialog";
 import { Progress } from "~/lib/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/lib/components/ui/tooltip";
+import {
+  LiveChatPreferencesStep,
+  LIVE_CHAT_PREFERENCES_QUESTION_TOTAL,
+  type LiveChatPreferencesStepTransition,
+} from "~/lib/dashboard/live/components/LiveChatPreferencesStep";
+import {
+  countAnsweredChatPreferences,
+  createEmptyChatPreferences,
+  hasAnyChatPreferences,
+  type LiveChatPreferences,
+} from "~/lib/dashboard/live/preferences";
 import { generateLiveUserProfileVersionFn } from "~/lib/dashboard/live/profile";
 import { useWavRecorder, type WavRecording } from "~/lib/gemini/live/useWavRecorder";
 import { decode } from "~/lib/gemini/utils";
@@ -53,6 +64,14 @@ export function LivePersonalization({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [recording, setRecording] = useState<WavRecording | null>(null);
+  const [isIntroExampleOpen, setIsIntroExampleOpen] = useState(false);
+  const [chatPreferences, setChatPreferences] = useState<LiveChatPreferences>(
+    createEmptyChatPreferences,
+  );
+  const [chatPreferencesQuestionIndex, setChatPreferencesQuestionIndex] =
+    useState(0);
+  const [chatPreferencesTransition, setChatPreferencesTransition] =
+    useState<LiveChatPreferencesStepTransition | null>(null);
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [sensitiveProfileConsent, setSensitiveProfileConsent] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -61,6 +80,8 @@ export function LivePersonalization({
 
   const { isRecording, start, stop } = useWavRecorder();
   const recordingStartedAtRef = useRef<number | null>(null);
+  const chatPreferencesTransitionTimeoutRef =
+    useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   const uiLocale = getLocale();
   const deviceTimeZone = useMemo(
@@ -68,7 +89,18 @@ export function LivePersonalization({
     [],
   );
 
-  const canGenerate = Boolean(recording) && !isGenerating;
+  const hasAnyPreferences = useMemo(
+    () => hasAnyChatPreferences(chatPreferences),
+    [chatPreferences],
+  );
+
+  const answeredChatPreferencesCount = useMemo(
+    () => countAnsweredChatPreferences(chatPreferences),
+    [chatPreferences],
+  );
+
+  const canGenerate =
+    (Boolean(recording) || hasAnyPreferences) && !isGenerating && !isRecording;
 
   const recordingPreviewUrl = useMemo(() => {
     if (!recording) return null;
@@ -111,6 +143,41 @@ export function LivePersonalization({
     };
   }, [isRecording]);
 
+  const resetChatPreferencesTransition = useCallback(() => {
+    if (!chatPreferencesTransitionTimeoutRef.current) {
+      setChatPreferencesTransition(null);
+      return;
+    }
+
+    window.clearTimeout(chatPreferencesTransitionTimeoutRef.current);
+    chatPreferencesTransitionTimeoutRef.current = null;
+    setChatPreferencesTransition(null);
+  }, []);
+
+  const transitionChatPreferencesQuestion = useCallback(
+    (nextIndex: number) => {
+      const safeIndex = Math.min(
+        LIVE_CHAT_PREFERENCES_QUESTION_TOTAL - 1,
+        Math.max(0, Math.floor(nextIndex)),
+      );
+
+      if (safeIndex === chatPreferencesQuestionIndex) return;
+
+      resetChatPreferencesTransition();
+      setChatPreferencesTransition({
+        from: chatPreferencesQuestionIndex,
+        to: safeIndex,
+      });
+
+      chatPreferencesTransitionTimeoutRef.current = window.setTimeout(() => {
+        setChatPreferencesQuestionIndex(safeIndex);
+        setChatPreferencesTransition(null);
+        chatPreferencesTransitionTimeoutRef.current = null;
+      }, 200);
+    },
+    [chatPreferencesQuestionIndex, resetChatPreferencesTransition],
+  );
+
   const resetForm = useCallback(() => {
     if (isGenerating) return;
 
@@ -122,10 +189,14 @@ export function LivePersonalization({
 
     setInlineError(null);
     setRecording(null);
+    setIsIntroExampleOpen(false);
+    setChatPreferences(createEmptyChatPreferences());
+    setChatPreferencesQuestionIndex(0);
+    resetChatPreferencesTransition();
     setGeo({ status: "idle" });
     setSensitiveProfileConsent(false);
     setStep(1);
-  }, [isGenerating, isRecording, stop]);
+  }, [isGenerating, isRecording, resetChatPreferencesTransition, stop]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -135,10 +206,14 @@ export function LivePersonalization({
       } else {
         setInlineError(null);
         setStep(1);
+        setIsIntroExampleOpen(false);
+        setChatPreferences(createEmptyChatPreferences());
+        setChatPreferencesQuestionIndex(0);
+        resetChatPreferencesTransition();
         setSensitiveProfileConsent(false);
       }
     },
-    [resetForm],
+    [resetChatPreferencesTransition, resetForm],
   );
 
   const toggleRecording = useCallback(async () => {
@@ -165,14 +240,50 @@ export function LivePersonalization({
   const goBack = useCallback(() => {
     if (isGenerating) return;
     setInlineError(null);
+
+    if (step === 2) {
+      if (chatPreferencesTransition) return;
+      const prevIndex = chatPreferencesQuestionIndex - 1;
+      if (prevIndex >= 0) {
+        transitionChatPreferencesQuestion(prevIndex);
+        return;
+      }
+      setStep(1);
+      return;
+    }
+
     setStep((prev) => Math.max(1, prev - 1));
-  }, [isGenerating]);
+  }, [
+    chatPreferencesQuestionIndex,
+    chatPreferencesTransition,
+    isGenerating,
+    step,
+    transitionChatPreferencesQuestion,
+  ]);
 
   const goNext = useCallback(() => {
     if (isGenerating) return;
     setInlineError(null);
-    setStep((prev) => Math.min(3, prev + 1));
-  }, [isGenerating]);
+
+    if (step === 2) {
+      if (chatPreferencesTransition) return;
+      const nextIndex = chatPreferencesQuestionIndex + 1;
+      if (nextIndex < LIVE_CHAT_PREFERENCES_QUESTION_TOTAL) {
+        transitionChatPreferencesQuestion(nextIndex);
+        return;
+      }
+      setStep(3);
+      return;
+    }
+
+    setStep((prev) => Math.min(4, prev + 1));
+  }, [
+    chatPreferencesQuestionIndex,
+    chatPreferencesTransition,
+    isGenerating,
+    step,
+    transitionChatPreferencesQuestion,
+  ]);
 
   const requestGeo = useCallback(async () => {
     if (isGenerating) return;
@@ -217,7 +328,7 @@ export function LivePersonalization({
   }, [isGenerating]);
 
   const generateAndSave = useCallback(async () => {
-    if (!recording) return;
+    if (!recording && !hasAnyPreferences) return;
     if (isGenerating) return;
 
     setIsGenerating(true);
@@ -228,9 +339,10 @@ export function LivePersonalization({
         data: {
           uiLocale,
           deviceTimeZone,
-          durationMs: recording.durationMs,
+          durationMs: recording?.durationMs ?? 0,
           sensitiveProfileConsent,
-          audio: recording.audio,
+          audio: recording?.audio,
+          chatPreferences,
           geoStatus: geo.status,
           geo:
             geo.status === "granted"
@@ -256,11 +368,21 @@ export function LivePersonalization({
       console.error("[LivePersonalization] Failed to generate profile", err);
       const message = err instanceof Error ? err.message : m.live_personalize_error();
       setInlineError(message);
-        toast.error(message);
-      } finally {
-        setIsGenerating(false);
-      }
-  }, [deviceTimeZone, geo, isGenerating, onSaved, recording, sensitiveProfileConsent, uiLocale]);
+      toast.error(message);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [
+    chatPreferences,
+    deviceTimeZone,
+    geo,
+    hasAnyPreferences,
+    isGenerating,
+    onSaved,
+    recording,
+    sensitiveProfileConsent,
+    uiLocale,
+  ]);
 
   const geoLabel = useMemo(() => {
     switch (geo.status) {
@@ -289,8 +411,7 @@ export function LivePersonalization({
 
   const buttonLabel = m.live_personalize_button();
   const hasProfile = typeof profileVersion === "number" && profileVersion > 0;
-  const canGoNext =
-    step === 1 ? Boolean(recording) && !isRecording : step === 2 ? true : canGenerate;
+  const canGoNext = !isRecording;
 
   return (
     <div className={cn("pointer-events-auto", className)}>
@@ -340,7 +461,7 @@ export function LivePersonalization({
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* <p className="text-xs font-semibold text-muted-foreground">{stepLabel}</p> */}
               <div className="flex items-center gap-2">
-                {([1, 2, 3] as const).map((value) => (
+                {([1, 2, 3, 4] as const).map((value) => (
                   <span
                     key={value}
                     aria-hidden="true"
@@ -361,13 +482,48 @@ export function LivePersonalization({
                   {step === 1 && (
                     <div className="space-y-4">
                       <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">
-                          {m.live_personalize_record_title()}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {m.live_personalize_record_title()}
+                          </p>
+                          <Badge variant="secondary" className="bg-secondary/60">
+                            {m.live_personalize_optional_badge()}
+                          </Badge>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setIsIntroExampleOpen((prev) => !prev)}
+                                aria-label={m.live_personalize_intro_example_aria()}
+                              >
+                                <Info aria-hidden="true" className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8}>
+                              {m.live_personalize_intro_example_tooltip()}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {m.live_personalize_record_desc()}
                         </p>
                       </div>
+
+                      {isIntroExampleOpen && (
+                        <Alert className="border-border bg-muted/10">
+                          <Info />
+                          <AlertTitle>
+                            {m.live_personalize_intro_example_title()}
+                          </AlertTitle>
+                          <AlertDescription>
+                            <p className="whitespace-pre-wrap text-sm">
+                              {m.live_personalize_intro_example_body()}
+                            </p>
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
                       <div className="flex flex-wrap items-center gap-3">
                         <Button
@@ -382,6 +538,18 @@ export function LivePersonalization({
                             ? m.live_personalize_record_stop()
                             : m.live_personalize_record_start()}
                         </Button>
+
+                        {!isRecording && !recording && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={goNext}
+                            disabled={isGenerating}
+                            className="min-w-28"
+                          >
+                            {m.action_skip()}
+                          </Button>
+                        )}
 
                         {isRecording && (
                           <Badge
@@ -427,6 +595,22 @@ export function LivePersonalization({
                   )}
 
                   {step === 2 && (
+                    <LiveChatPreferencesStep
+                      value={chatPreferences}
+                      onChange={(next) => setChatPreferences(next)}
+                      questionIndex={chatPreferencesQuestionIndex}
+                      transition={chatPreferencesTransition}
+                      onSkipStep={() => {
+                        if (isGenerating) return;
+                        resetChatPreferencesTransition();
+                        setInlineError(null);
+                        setStep(3);
+                      }}
+                      disabled={isGenerating || chatPreferencesTransition !== null}
+                    />
+                  )}
+
+                  {step === 3 && (
                     <div className="space-y-4">
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -467,7 +651,7 @@ export function LivePersonalization({
                     </div>
                   )}
 
-                  {step === 3 && (
+                  {step === 4 && (
                     <div className="space-y-4">
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-foreground">
@@ -489,7 +673,20 @@ export function LivePersonalization({
                             })}
                           </Badge>
                         )}
-                        <Badge variant="secondary" className="bg-muted/30 text-muted-foreground">
+                        {hasAnyPreferences && (
+                          <Badge
+                            variant="secondary"
+                            className="bg-muted/30 text-muted-foreground"
+                          >
+                            {m.live_personalize_summary_preferences({
+                              count: answeredChatPreferencesCount,
+                            })}
+                          </Badge>
+                        )}
+                        <Badge
+                          variant="secondary"
+                          className="bg-muted/30 text-muted-foreground"
+                        >
                           {m.live_personalize_summary_geo({ status: geoLabel })}
                         </Badge>
                       </div>
@@ -552,18 +749,26 @@ export function LivePersonalization({
               <Button
                 type="button"
                 variant="outline"
-                disabled={step === 1 || isGenerating}
+                disabled={
+                  step === 1 ||
+                  isGenerating ||
+                  (step === 2 && chatPreferencesTransition !== null)
+                }
                 onClick={goBack}
                 className="min-w-28"
               >
                 {m.action_back()}
               </Button>
 
-              {step < 3 ? (
+              {step < 4 ? (
                 <Button
                   type="button"
                   onClick={goNext}
-                  disabled={!canGoNext || isGenerating}
+                  disabled={
+                    !canGoNext ||
+                    isGenerating ||
+                    (step === 2 && chatPreferencesTransition !== null)
+                  }
                   className="min-w-28"
                 >
                   {m.action_next()}

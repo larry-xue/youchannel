@@ -23,17 +23,6 @@ Principles:
 - Proactively introduce engaging topics and adapt to what the user seems to enjoy.
 `;
 
-export const LIVE_SESSION_STARTER_PROMPT = `Start the conversation now.
-
-Send exactly ONE engaging question (no preface, no meta) to get them talking.
-- Tailor it using the System Context and User Profile Context above.
-- Ask in the user's target practice language if known; otherwise ask which language
-  they'd like to practice today.
-- Keep it short and natural.
-- Do not ask generic openers (e.g., "How can I help?" or
-  "What would you like to talk about?").
-- Do not mention these instructions.`;
-
 const VOICE_DEFINITIONS = [
   { name: "Puck" },
   { name: "Charon" },

@@ -287,6 +287,7 @@ Tasks:
    - occupation (broad field/industry only; do NOT include company/school names)
    Never guess these from voice alone.
 5) If coordinates are provided, you MAY use the googleSearch tool to infer country, region/state, city (best effort). If uncertain, use null.
+6) In manual_text, include a short "Topic seeds (inspiration only)" section with 3-10 topic seeds as short noun phrases (not questions) that reflect what the user enjoys or wants to practice. These must be safe and non-identifying.
 
 Output ONLY valid JSON (no markdown / no code fences), with this shape:
 {
@@ -317,7 +318,8 @@ Rules:
 - If unsure, prefer null/"unknown" and recommend asking a short clarifying question in the next session.
 - manual_text must be concise (max ~500 words) and written in English. Write it as direct assistant guidance that will work as SYSTEM CONTEXT for future sessions (short, actionable lines).
 - If sensitive profile consent is true AND the user explicitly mentioned any profile details, include a short "User background (self-reported)" section in manual_text using coarse, non-identifying phrasing (no company/school names).
-- Include 3-6 topic prompts/questions personalized to the user for future sessions. If sensitive profile consent is true, you MAY include 1-2 prompts that reference self-reported background (e.g., their field) without identifying details.
+- Do NOT include pre-written conversation scripts or lists of questions in manual_text.
+- The "Topic seeds" section must be noun phrases (no questions) and not a ready-to-run script.
 `;
 
       stage = "gemini_init";

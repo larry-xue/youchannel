@@ -28,7 +28,6 @@ import { SessionBlocker } from "~/lib/dashboard/live/components/SessionBlocker";
 import {
   DEFAULT_VOICE_NAME,
   LIVE_ASSISTANT_NAME,
-  LIVE_SESSION_STARTER_PROMPT,
   LIVE_SYSTEM_PROMPT,
   isVoiceName,
 } from "~/lib/dashboard/live/constants";
@@ -72,6 +71,8 @@ const MAIN_PANEL_MIN_SIZE = "55%";
 
 const liveUserProfileDataSchema = z
   .object({
+    practice_language: z.string().nullable().optional(),
+    practice_language_proficiency: z.string().nullable().optional(),
     ui_locale: z.string().optional(),
     device_time_zone: z.string().optional(),
     geo: z
@@ -551,7 +552,7 @@ export function LivePage() {
         startRecording();
       }
       if (!hasSentGreetingRef.current) {
-        sendText(LIVE_SESSION_STARTER_PROMPT, true);
+        sendText("Hello!", true);
         hasSentGreetingRef.current = true;
       }
     } else if (status === "disconnected" || status === "error") {
@@ -795,6 +796,8 @@ User Profile Context (High Priority):
 Profile Summary:
 - Profile Version: ${liveProfile.currentVersion}
 - Profile Created At: ${liveProfile.createdAt}
+${profileData?.practice_language ? `- Practice Language: ${profileData.practice_language}` : ""}
+${profileData?.practice_language_proficiency ? `- Practice Language Proficiency: ${profileData.practice_language_proficiency}` : ""}
 ${profileData?.ui_locale ? `- Profile UI Locale: ${profileData.ui_locale}` : ""}
 ${geo?.time_zone ? `- Profile TimeZone: ${geo.time_zone}` : ""}
 ${approxRegion ? `- Approx Region: ${approxRegion}` : ""}

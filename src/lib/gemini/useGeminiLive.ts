@@ -244,8 +244,6 @@ export function useGeminiLive({
           inputAudioTranscription: {},
           proactivity: { proactiveAudio: false },
           sessionResumption,
-          temperature: 0.8,
-          topP: 0.9
         };
 
         sessionRef.current = await clientRef.current.live.connect({

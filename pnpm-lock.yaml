@@ -136,8 +136,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.12
       '@inlang/paraglide-js':
-        specifier: 2.7.1
-        version: 2.7.1
+        specifier: 2.7.2
+        version: 2.7.2
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@4.1.18)
@@ -634,8 +634,8 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  '@inlang/paraglide-js@2.7.1':
-    resolution: {integrity: sha512-wCpnS9iRTRYMilvWBjB0ndf8+moon+AXz23Uh4wbpQjWhRJyvCytkGFzm7jeqAGggK4v3oeuyjva91TDMS+qhw==}
+  '@inlang/paraglide-js@2.7.2':
+    resolution: {integrity: sha512-tUkzcK7yCuJsQCeSHLlCaISFFX65efYeYdFBXtTXyorl1PClH2/BxFg4MqCsemXiX7KZWgbvIfjnsDiVTrj7bQ==}
     hasBin: true
 
   '@inlang/recommend-sherlock@0.2.1':
@@ -3440,6 +3440,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -3949,7 +3950,7 @@ snapshots:
     transitivePeerDependencies:
       - babel-plugin-macros
 
-  '@inlang/paraglide-js@2.7.1':
+  '@inlang/paraglide-js@2.7.2':
     dependencies:
       '@inlang/recommend-sherlock': 0.2.1
       '@inlang/sdk': 2.4.10

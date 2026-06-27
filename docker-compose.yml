@@ -7,4 +7,4 @@ services:
       - ./db:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=secret
+      - POSTGRES_PASSWORD=local_dev_password

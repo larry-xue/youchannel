@@ -3,29 +3,29 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>YouChannel, an open-source AI language learning experiment</title>
+    <title>Deploy YouChannel, complete open-source setup guide</title>
     <meta
       name="description"
-      content="YouChannel was an open-source experiment that turned YouTube videos into AI-assisted language learning sessions."
+      content="Deploy the complete YouChannel stack: user web app, Supabase database, YouTube OAuth, Gemini analysis, jobs service, admin console, and OpenAPI docs."
     />
-    <meta property="og:title" content="YouChannel" />
+    <meta property="og:title" content="Deploy YouChannel" />
     <meta
       property="og:description"
-      content="What we built, why we built it, and why we stopped."
+      content="A complete deployment guide for the YouChannel open-source stack."
     />
     <style>
       :root {
         color-scheme: light;
         --ink: #15120f;
-        --muted: #60564c;
-        --paper: #f8f4eb;
-        --panel: #fffaf0;
-        --line: #d9c8b5;
-        --rust: #b85f38;
-        --blue: #2d6f86;
-        --green: #6b7f45;
-        --black: #0f0d0b;
-        --shadow: 0 8px 22px rgba(49, 34, 22, 0.12);
+        --muted: #5d635b;
+        --paper: #f6f7f4;
+        --surface: #ffffff;
+        --surface-2: #eef2f4;
+        --line: #d3ddd6;
+        --green: #176b54;
+        --blue: #2f5f9d;
+        --rust: #a15c22;
+        --black: #11120f;
       }
 
       * {
@@ -38,22 +38,31 @@
 
       body {
         margin: 0;
-        color: var(--ink);
         background:
-          radial-gradient(circle at 15% 5%, rgba(184, 95, 56, 0.18), transparent 30rem),
-          radial-gradient(circle at 85% 8%, rgba(45, 111, 134, 0.16), transparent 28rem),
-          linear-gradient(180deg, #fffaf0 0%, var(--paper) 44%, #efe5d5 100%);
+          linear-gradient(90deg, color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 1px),
+          linear-gradient(color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 1px),
+          var(--paper);
+        background-size: 52px 52px;
+        color: var(--ink);
         font-family:
-          ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-        line-height: 1.65;
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
       }
 
       a {
         color: inherit;
       }
 
+      code,
+      pre,
+      .mono {
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
+      }
+
       .shell {
-        width: min(1160px, calc(100% - 36px));
+        width: min(1180px, calc(100% - 36px));
         margin: 0 auto;
       }
 
@@ -61,37 +70,33 @@
         position: sticky;
         top: 0;
         z-index: 10;
-        border-bottom: 1px solid rgba(21, 18, 15, 0.1);
-        background: rgba(255, 250, 240, 0.86);
+        border-bottom: 1px solid var(--line);
+        background: color-mix(in srgb, var(--paper) 90%, transparent);
         backdrop-filter: blur(12px);
       }
 
       .nav-inner {
         display: flex;
+        min-height: 66px;
         align-items: center;
         justify-content: space-between;
-        min-height: 68px;
-        gap: 24px;
+        gap: 1rem;
       }
 
       .brand {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+        gap: 0.7rem;
         font-weight: 800;
         text-decoration: none;
-        letter-spacing: 0;
       }
 
       .brand img {
         width: 38px;
         height: 38px;
         border: 1px solid var(--line);
-        border-radius: 10px;
-        background: white;
+        border-radius: 8px;
+        background: var(--surface);
         object-fit: cover;
       }
 
@@ -99,358 +104,336 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: flex-end;
-        gap: 10px 18px;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+        gap: 0.45rem 1rem;
+        color: var(--muted);
         font-size: 0.92rem;
         font-weight: 650;
       }
 
       .nav-links a {
-        color: var(--muted);
         text-decoration: none;
       }
 
       .hero {
         display: grid;
-        grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-        gap: clamp(36px, 6vw, 86px);
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: clamp(2rem, 6vw, 5rem);
         align-items: center;
-        min-height: calc(100svh - 68px);
-        padding: clamp(56px, 8vw, 96px) 0 clamp(44px, 7vw, 78px);
+        padding: clamp(4rem, 8vw, 7rem) 0 clamp(3rem, 7vw, 5rem);
       }
 
       .status {
         display: inline-flex;
-        align-items: center;
-        gap: 10px;
         width: fit-content;
-        border: 1px solid rgba(184, 95, 56, 0.28);
+        align-items: center;
+        gap: 0.6rem;
+        border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line));
         border-radius: 999px;
-        background: rgba(184, 95, 56, 0.09);
-        padding: 8px 12px;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+        padding: 0.45rem 0.7rem;
+        background: color-mix(in srgb, var(--green) 8%, var(--surface));
+        color: var(--green);
         font-size: 0.86rem;
-        font-weight: 700;
-        color: #723314;
+        font-weight: 760;
       }
 
       .dot {
-        width: 8px;
-        height: 8px;
+        width: 0.5rem;
+        height: 0.5rem;
         border-radius: 999px;
-        background: var(--rust);
+        background: var(--green);
       }
 
       h1,
       h2,
       h3 {
         margin: 0;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        letter-spacing: -0.03em;
+        line-height: 1.02;
+        letter-spacing: 0;
         text-wrap: balance;
       }
 
       h1 {
-        margin-top: 28px;
-        max-width: 11ch;
-        font-size: clamp(3.2rem, 10vw, 6rem);
-        line-height: 0.92;
+        max-width: 12ch;
+        margin-top: 1.4rem;
+        font-size: clamp(3rem, 8vw, 5.8rem);
+        font-weight: 820;
+      }
+
+      h2 {
+        max-width: 14ch;
+        font-size: clamp(2rem, 5vw, 3.7rem);
+        font-weight: 780;
+      }
+
+      h3 {
+        font-size: 1.05rem;
+        font-weight: 780;
       }
 
       .lede {
-        max-width: 66ch;
-        margin: 26px 0 0;
-        color: #42382f;
-        font-size: clamp(1.08rem, 2vw, 1.28rem);
+        max-width: 68ch;
+        margin: 1.35rem 0 0;
+        color: color-mix(in srgb, var(--ink) 74%, transparent);
+        font-size: clamp(1.05rem, 2vw, 1.22rem);
       }
 
       .actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 34px;
+        gap: 0.75rem;
+        margin-top: 2rem;
       }
 
       .button {
         display: inline-flex;
+        min-height: 2.8rem;
         align-items: center;
         justify-content: center;
-        min-height: 46px;
         border: 1px solid var(--black);
-        border-radius: 10px;
-        padding: 0 18px;
+        border-radius: 8px;
+        padding: 0 1rem;
         background: var(--black);
-        color: #fffaf0;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+        color: var(--paper);
         font-weight: 760;
         text-decoration: none;
       }
 
       .button.secondary {
-        background: transparent;
+        border-color: var(--line);
+        background: var(--surface);
         color: var(--black);
       }
 
-      .artifact {
-        border: 1px solid rgba(21, 18, 15, 0.14);
-        border-radius: 16px;
-        background: rgba(255, 250, 240, 0.76);
-        box-shadow: var(--shadow);
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--surface) 92%, transparent);
+      }
+
+      .repo-panel {
         overflow: hidden;
       }
 
-      .artifact-top {
+      .repo-head {
         display: grid;
-        grid-template-columns: 88px 1fr;
-        gap: 18px;
+        grid-template-columns: 84px 1fr;
+        gap: 1rem;
         align-items: center;
-        border-bottom: 1px solid rgba(21, 18, 15, 0.12);
-        padding: 22px;
+        border-bottom: 1px solid var(--line);
+        padding: 1rem;
       }
 
-      .artifact-top img {
-        width: 88px;
-        height: 88px;
+      .repo-head img {
+        width: 84px;
+        height: 84px;
         border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #fff;
+        border-radius: 8px;
+        background: var(--surface);
         object-fit: cover;
       }
 
-      .artifact-title {
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        font-size: 1.08rem;
-        font-weight: 800;
+      .repo-head strong {
+        display: block;
+        font-size: 1.05rem;
       }
 
-      .artifact-copy {
-        margin: 4px 0 0;
+      .repo-head span {
+        display: block;
+        margin-top: 0.25rem;
         color: var(--muted);
-        font-size: 0.96rem;
       }
 
-      .flow {
+      .repo-list {
         display: grid;
-        gap: 1px;
-        background: rgba(21, 18, 15, 0.1);
       }
 
-      .flow-row {
+      .repo-row {
         display: grid;
-        grid-template-columns: 122px 1fr;
-        gap: 16px;
-        padding: 18px 22px;
-        background: rgba(255, 250, 240, 0.88);
+        grid-template-columns: 13rem minmax(0, 1fr);
+        gap: 1rem;
+        border-top: 1px solid var(--line);
+        padding: 1rem;
       }
 
-      .flow-row strong {
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+      .repo-row:first-child {
+        border-top: 0;
+      }
+
+      .repo-row strong {
         color: var(--blue);
       }
 
+      .repo-row p {
+        margin: 0;
+        color: var(--muted);
+      }
+
       section {
-        padding: clamp(48px, 7vw, 84px) 0;
+        padding: clamp(3.5rem, 7vw, 6rem) 0;
       }
 
       .section-head {
         display: grid;
-        grid-template-columns: minmax(0, 0.8fr) minmax(300px, 1.2fr);
-        gap: clamp(24px, 5vw, 64px);
+        grid-template-columns: minmax(0, 0.72fr) minmax(300px, 1.28fr);
+        gap: clamp(1.5rem, 5vw, 4rem);
         align-items: start;
-        margin-bottom: 34px;
+        margin-bottom: 2rem;
       }
 
       .label {
-        margin: 0;
+        margin: 0 0 0.65rem;
         color: var(--rust);
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        font-size: 0.9rem;
-        font-weight: 780;
-      }
-
-      h2 {
-        max-width: 12ch;
-        font-size: clamp(2rem, 5vw, 4rem);
-        line-height: 1;
+        font-size: 0.86rem;
+        font-weight: 800;
       }
 
       .section-copy {
+        max-width: 70ch;
         margin: 0;
-        color: #40372f;
-        font-size: 1.08rem;
-        max-width: 68ch;
+        color: color-mix(in srgb, var(--ink) 72%, transparent);
+        font-size: 1.04rem;
       }
 
-      .strip {
+      .grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        border: 1px solid rgba(21, 18, 15, 0.14);
-        border-radius: 16px;
-        overflow: hidden;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
       }
 
-      .strip article {
-        min-height: 190px;
-        padding: 22px;
-        background: rgba(255, 250, 240, 0.78);
+      .card {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1rem;
+        background: color-mix(in srgb, var(--surface) 88%, transparent);
       }
 
-      .strip article + article {
-        border-left: 1px solid rgba(21, 18, 15, 0.14);
-      }
-
-      .strip h3 {
-        margin-bottom: 14px;
-        font-size: 1.12rem;
-      }
-
-      .strip p {
-        margin: 0;
+      .card p {
+        margin: 0.65rem 0 0;
         color: var(--muted);
       }
 
-      .system-map {
+      .steps {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 12px;
+        gap: 1rem;
       }
 
-      .node {
-        border: 1px solid rgba(21, 18, 15, 0.16);
-        border-radius: 14px;
-        min-height: 130px;
-        padding: 18px;
-        background: #fffaf0;
-      }
-
-      .node:nth-child(2n) {
-        background: rgba(45, 111, 134, 0.1);
-      }
-
-      .node:nth-child(3n) {
-        background: rgba(107, 127, 69, 0.12);
-      }
-
-      .node strong {
-        display: block;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        font-size: 1rem;
-      }
-
-      .node span {
-        display: block;
-        margin-top: 10px;
-        color: var(--muted);
-      }
-
-      .decision {
+      .step {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-        align-items: stretch;
+        grid-template-columns: 3.5rem minmax(0, 1fr);
+        gap: 1rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1rem;
+        background: color-mix(in srgb, var(--surface) 90%, transparent);
       }
 
-      .decision-card {
-        border: 1px solid rgba(21, 18, 15, 0.16);
-        border-radius: 16px;
-        padding: clamp(22px, 4vw, 34px);
-        background: rgba(255, 250, 240, 0.84);
-      }
-
-      .decision-card.stop {
-        background: #1a1510;
-        color: #fffaf0;
-      }
-
-      .decision-card p {
-        margin: 16px 0 0;
-        color: inherit;
-      }
-
-      .decision-card.stop p {
-        color: #e8dac8;
-      }
-
-      .timeline {
+      .step-num {
         display: grid;
-        gap: 12px;
-      }
-
-      .time-row {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        gap: 18px;
-        border-top: 1px solid rgba(21, 18, 15, 0.18);
-        padding-top: 16px;
-      }
-
-      .time-row strong {
-        color: var(--rust);
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-      }
-
-      .time-row p {
-        margin: 0;
-        color: var(--muted);
-      }
-
-      .blog-link {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 22px;
-        align-items: center;
-        border: 1px solid rgba(21, 18, 15, 0.16);
-        border-radius: 16px;
-        padding: clamp(24px, 5vw, 42px);
+        place-items: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 999px;
         background: var(--black);
-        color: #fffaf0;
-        text-decoration: none;
+        color: var(--paper);
+        font-weight: 820;
       }
 
-      .blog-link p {
-        max-width: 68ch;
-        margin: 12px 0 0;
-        color: #e9dccb;
+      .step p {
+        max-width: 72ch;
+        margin: 0.55rem 0 0;
+        color: var(--muted);
       }
 
-      .arrow {
-        font-size: 2rem;
+      pre {
+        overflow-x: auto;
+        margin: 0.9rem 0 0;
+        border: 1px solid color-mix(in srgb, var(--black) 16%, var(--line));
+        border-radius: 8px;
+        padding: 1rem;
+        background: #11120f;
+        color: #f6f7f4;
+        font-size: 0.88rem;
+        line-height: 1.55;
+      }
+
+      code {
+        font-size: 0.92em;
+      }
+
+      .env-table {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        background: var(--surface);
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 0.8rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--surface-2);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .checklist {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checklist li {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.85rem;
+        background: color-mix(in srgb, var(--surface) 90%, transparent);
+      }
+
+      .note {
+        border: 1px solid color-mix(in srgb, var(--rust) 28%, var(--line));
+        border-radius: 8px;
+        padding: 1rem;
+        background: color-mix(in srgb, var(--rust) 8%, var(--surface));
+      }
+
+      .note p {
+        margin: 0;
+        color: color-mix(in srgb, var(--ink) 76%, transparent);
       }
 
       footer {
-        padding: 36px 0 48px;
+        border-top: 1px solid var(--line);
+        padding: 2rem 0 3rem;
         color: var(--muted);
       }
 
       @media (max-width: 900px) {
         .hero,
         .section-head,
-        .decision,
-        .blog-link {
+        .grid,
+        .checklist {
           grid-template-columns: 1fr;
         }
 
-        .strip,
-        .system-map {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        .repo-row {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -462,27 +445,16 @@
         }
 
         .nav-inner {
-          padding: 14px 0;
+          padding: 0.85rem 0;
         }
 
-        .strip,
-        .system-map {
-          grid-template-columns: 1fr;
-        }
-
-        .strip article + article {
-          border-left: 0;
-          border-top: 1px solid rgba(21, 18, 15, 0.14);
-        }
-
-        .flow-row,
-        .time-row,
-        .artifact-top {
+        .repo-head,
+        .step {
           grid-template-columns: 1fr;
         }
 
         h1 {
-          max-width: 9ch;
+          font-size: 2.7rem;
         }
       }
 
@@ -501,10 +473,11 @@
           <span>YouChannel</span>
         </a>
         <div class="nav-links" aria-label="Primary navigation">
-          <a href="#what">What it was</a>
-          <a href="#system">System</a>
-          <a href="#stopped">Why we stopped</a>
-          <a href="/blog/why-we-stopped/">Blog</a>
+          <a href="#repos">Repos</a>
+          <a href="#local">Local setup</a>
+          <a href="#production">Production</a>
+          <a href="#checklist">Checklist</a>
+          <a href="https://larryxue.dev/blog/posts/youchannel-product-architecture-postmortem/">Postmortem</a>
         </div>
       </div>
     </nav>
@@ -512,140 +485,74 @@
     <main>
       <header class="shell hero">
         <div>
-          <div class="status"><span class="dot"></span> Open-source product archive</div>
-          <h1>YouTube became the classroom.</h1>
+          <div class="status"><span class="dot"></span> Complete deployment guide</div>
+          <h1>Deploy the full YouChannel stack.</h1>
           <p class="lede">
-            YouChannel was an experiment in turning real YouTube videos into
-            AI-assisted language practice: playlist import, video analysis,
-            contextual chat, live speaking sessions, shadowing drills, and progress
-            history.
+            This page is the practical entry point for running YouChannel end to end:
+            the learner-facing web app, Supabase Auth/Postgres, YouTube OAuth,
+            Gemini analysis and Live practice, async jobs, admin tooling, and the
+            OpenAPI analysis endpoint.
           </p>
           <div class="actions">
-            <a class="button" href="/blog/why-we-stopped/">Read the postmortem</a>
-            <a class="button secondary" href="https://github.com/larry-xue/youchannel"
-              >View source</a
-            >
+            <a class="button" href="#production">Start production deployment</a>
+            <a class="button secondary" href="https://github.com/larry-xue/youchannel">Open user app repo</a>
           </div>
         </div>
 
-        <aside class="artifact" aria-label="Product flow preview">
-          <div class="artifact-top">
+        <aside class="panel repo-panel" aria-label="Deployment summary">
+          <div class="repo-head">
             <img src="/assets/logo.png" alt="YouChannel logo mark" />
             <div>
-              <div class="artifact-title">One product, four learning loops</div>
-              <p class="artifact-copy">
-                The prototype connected video understanding, conversation,
-                pronunciation practice, and learner memory.
-              </p>
+              <strong>Supported deployment path</strong>
+              <span>Supabase + Fly.io for the app and service. Cloudflare Pages hosts this guide.</span>
             </div>
           </div>
-          <div class="flow">
-            <div class="flow-row">
-              <strong>Import</strong>
-              <span>Connect YouTube, select playlist videos, normalize metadata.</span>
+          <div class="repo-list">
+            <div class="repo-row">
+              <strong>Database/Auth</strong>
+              <p>Supabase project with migrations applied from the <code>youchannel</code> repository.</p>
             </div>
-            <div class="flow-row">
-              <strong>Analyze</strong>
-              <span>Use Gemini to extract summaries, scenes, speakers, and transcripts.</span>
+            <div class="repo-row">
+              <strong>User app</strong>
+              <p>React frontend built with TanStack Start, deployed as a Node server with public build args and runtime secrets.</p>
             </div>
-            <div class="flow-row">
-              <strong>Practice</strong>
-              <span>Chat with the material and run live speaking sessions.</span>
+            <div class="repo-row">
+              <strong>Jobs service</strong>
+              <p>Fastify + pg-boss worker service that owns video analysis, admin APIs, and the admin SPA.</p>
             </div>
-            <div class="flow-row">
-              <strong>Reflect</strong>
-              <span>Score shadowing attempts and track progress over time.</span>
+            <div class="repo-row">
+              <strong>Provider setup</strong>
+              <p>Google OAuth with YouTube Data API enabled, plus Gemini API keys for analysis and live practice.</p>
             </div>
           </div>
         </aside>
       </header>
 
-      <section class="shell" id="what">
+      <section class="shell" id="repos">
         <div class="section-head">
           <div>
-            <p class="label">The product idea</p>
-            <h2>Authentic input needed a practice loop.</h2>
+            <p class="label">Repository map</p>
+            <h2>Three repos make the full product.</h2>
           </div>
           <p class="section-copy">
-            Most language apps begin with scripted lessons. YouChannel started from the
-            opposite direction: real videos learners already cared about. The goal was
-            to turn that messy material into structured practice without removing the
-            texture that made it worth watching.
+            Use the user app repository as the source of truth for the complete
+            Supabase schema. The service repository runs the async backend and admin
+            console. The OpenAPI docs repository documents the external analysis API.
           </p>
         </div>
 
-        <div class="strip">
-          <article>
-            <h3>Library</h3>
-            <p>Imported YouTube videos became a searchable learning library.</p>
+        <div class="grid">
+          <article class="card">
+            <h3><a href="https://github.com/larry-xue/youchannel">larry-xue/youchannel</a></h3>
+            <p>User-facing web app, Supabase migrations, YouTube OAuth, library, learning UI, live practice, quota display, and Fly config.</p>
           </article>
-          <article>
-            <h3>Analysis</h3>
-            <p>Each video could produce summaries, timestamps, characters, and transcript data.</p>
+          <article class="card">
+            <h3><a href="https://github.com/larry-xue/youchannel-service">larry-xue/youchannel-service</a></h3>
+            <p>Fastify jobs API, pg-boss workers, Gemini video analysis, admin API, admin console, and OpenAPI ingestion endpoint.</p>
           </article>
-          <article>
-            <h3>Live</h3>
-            <p>Gemini Live powered real-time voice practice around a learner profile.</p>
-          </article>
-          <article>
-            <h3>Shadowing</h3>
-            <p>Practice drills turned recent conversations into repeatable speaking exercises.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="shell" id="system">
-        <div class="section-head">
-          <div>
-            <p class="label">How it was built</p>
-            <h2>A serious prototype, not a mockup.</h2>
-          </div>
-          <p class="section-copy">
-            The repository includes a TanStack Start app, Supabase schema, YouTube OAuth,
-            background jobs, admin tooling, quota tables, and a documented OpenAPI analysis
-            endpoint. The system worked as a product-shaped experiment, which is exactly why
-            its operating costs became visible.
-          </p>
-        </div>
-
-        <div class="system-map" aria-label="System map">
-          <div class="node"><strong>TanStack Start</strong><span>User app and routes.</span></div>
-          <div class="node"><strong>Supabase</strong><span>Auth, Postgres, RLS, quotas.</span></div>
-          <div class="node"><strong>YouTube API</strong><span>OAuth and playlist import.</span></div>
-          <div class="node"><strong>Gemini</strong><span>Video analysis and live voice.</span></div>
-          <div class="node"><strong>Jobs service</strong><span>Fastify, pg-boss, admin console.</span></div>
-        </div>
-      </section>
-
-      <section class="shell" id="stopped">
-        <div class="section-head">
-          <div>
-            <p class="label">The decision</p>
-            <h2>We stopped before pretending it was simple.</h2>
-          </div>
-          <p class="section-copy">
-            The product direction was compelling, but the shape was too expensive and too
-            dependent on external platforms for the stage it was in. Continuing would have
-            meant building a business around quota design, support, model cost, and content
-            uncertainty instead of the learning loop itself.
-          </p>
-        </div>
-
-        <div class="decision">
-          <article class="decision-card">
-            <h3>What worked</h3>
-            <p>
-              Real video material created richer practice than canned lesson scripts. Live
-              conversation, shadowing, and learner memory pointed toward a useful product.
-            </p>
-          </article>
-          <article class="decision-card stop">
-            <h3>What did not scale</h3>
-            <p>
-              Video analysis was costly, live voice was sensitive to model behavior, YouTube
-              access created platform risk, and the backend needed operational care beyond
-              a small experiment.
-            </p>
+          <article class="card">
+            <h3><a href="https://github.com/larry-xue/youchannel-openapi-analysis-docs">larry-xue/youchannel-openapi-analysis-docs</a></h3>
+            <p>Scalar documentation for <code>POST /openapi/analysis</code>, including request shape, auth headers, and response fields.</p>
           </article>
         </div>
       </section>
@@ -653,48 +560,293 @@
       <section class="shell">
         <div class="section-head">
           <div>
-            <p class="label">Timeline</p>
-            <h2>The arc in four moves.</h2>
+            <p class="label">Prerequisites</p>
+            <h2>Prepare these before you deploy.</h2>
           </div>
-          <div class="timeline">
-            <div class="time-row">
-              <strong>Prototype</strong>
-              <p>Connect a real YouTube library to AI analysis.</p>
-            </div>
-            <div class="time-row">
-              <strong>Practice</strong>
-              <p>Add live voice, personalization, and speaking drills.</p>
-            </div>
-            <div class="time-row">
-              <strong>Operate</strong>
-              <p>Build jobs, quotas, admin views, and public API documentation.</p>
-            </div>
-            <div class="time-row">
-              <strong>Archive</strong>
-              <p>Publish the code and the product lessons without forcing a launch.</p>
-            </div>
+          <p class="section-copy">
+            YouChannel is not a static-only app. The complete version needs a database,
+            OAuth configuration, long-running workers, and provider secrets.
+          </p>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <h3>Runtime and tools</h3>
+            <p>Node.js 22 for the user app, Node.js 20+ for the service, pnpm 9+, Docker, Supabase CLI 2+, Fly CLI, and GitHub access to the repos.</p>
+          </article>
+          <article class="card">
+            <h3>Cloud accounts</h3>
+            <p>A hosted Supabase project, a Google Cloud OAuth client with YouTube Data API enabled, a Gemini API key, and a Fly.io account.</p>
+          </article>
+          <article class="card">
+            <h3>Domains</h3>
+            <p>One domain for the user app and one domain for the service/admin console. The Google redirect URI must end with <code>/playlists</code>.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell" id="local">
+        <div class="section-head">
+          <div>
+            <p class="label">Local setup</p>
+            <h2>Run the full stack locally first.</h2>
           </div>
+          <p class="section-copy">
+            Local development uses Supabase CLI, the jobs service on port 4000,
+            the admin console on port 5173, and the user app on port 3000.
+          </p>
+        </div>
+
+        <div class="steps">
+          <article class="step">
+            <span class="step-num">1</span>
+            <div>
+              <h3>Clone the repositories side by side</h3>
+              <p>The relative paths in the docs assume this layout.</p>
+              <pre><code>git clone https://github.com/larry-xue/youchannel.git
+git clone https://github.com/larry-xue/youchannel-service.git
+git clone https://github.com/larry-xue/youchannel-openapi-analysis-docs.git</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">2</span>
+            <div>
+              <h3>Start Supabase and apply the complete schema</h3>
+              <p>Use the <code>youchannel</code> repo migrations as the canonical schema.</p>
+              <pre><code>cd youchannel
+pnpm install
+supabase start
+supabase db reset
+supabase status</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">3</span>
+            <div>
+              <h3>Configure and run the jobs service</h3>
+              <p>Copy the sample env files, fill Supabase, Postgres, shared key, and Gemini values, then start jobs and admin.</p>
+              <pre><code>cd ../youchannel-service
+pnpm install
+cp apps/jobs/.env.example apps/jobs/.env
+cp apps/admin/.env.example apps/admin/.env
+pnpm -C apps/jobs dev
+pnpm -C apps/admin dev</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">4</span>
+            <div>
+              <h3>Configure and run the user-facing web app</h3>
+              <p>Set <code>OPENAPI_BASE_URL=http://localhost:4000</code> and use the same <code>OPENAPI_SHARED_KEY</code> as the jobs service.</p>
+              <pre><code>cd ../youchannel
+cp .env.example .env
+pnpm dev</code></pre>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell" id="production">
+        <div class="section-head">
+          <div>
+            <p class="label">Production</p>
+            <h2>Deploy the complete hosted version.</h2>
+          </div>
+          <p class="section-copy">
+            The current documented production path is Fly.io for both Node services
+            and hosted Supabase for Auth/Postgres. A Cloudflare-native rewrite would
+            need different worker and queue architecture.
+          </p>
+        </div>
+
+        <div class="steps">
+          <article class="step">
+            <span class="step-num">1</span>
+            <div>
+              <h3>Create hosted Supabase and push migrations</h3>
+              <p>Run this from the user app repo after creating a Supabase project.</p>
+              <pre><code>cd youchannel
+supabase link --project-ref &lt;project-ref&gt;
+supabase db push</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">2</span>
+            <div>
+              <h3>Configure Google OAuth and YouTube Data API</h3>
+              <p>Create a Google OAuth client, enable the YouTube Data API, and add the exact production redirect URI.</p>
+              <pre><code>https://&lt;your-app-domain&gt;/playlists</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">3</span>
+            <div>
+              <h3>Deploy the jobs service and admin console</h3>
+              <p>The service container serves both the Fastify API and the built admin SPA.</p>
+              <pre><code>cd youchannel-service
+fly apps create youchannel-service
+fly secrets set \
+  DATABASE_URL='&lt;supabase postgres url&gt;' \
+  SUPABASE_URL='https://&lt;project-ref&gt;.supabase.co' \
+  SUPABASE_SERVICE_ROLE_KEY='&lt;supabase service role key&gt;' \
+  OPENAPI_SHARED_KEY='&lt;shared key&gt;' \
+  GEMINI_API_KEY='&lt;gemini key&gt;' \
+  GEMINI_MODEL='gemini-2.5-flash' \
+  ADMIN_ORIGIN='https://&lt;your-service-domain&gt;'
+fly deploy \
+  --build-arg VITE_SUPABASE_URL=https://&lt;project-ref&gt;.supabase.co \
+  --build-arg VITE_SUPABASE_ANON_KEY=&lt;supabase anon key&gt;</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">4</span>
+            <div>
+              <h3>Bootstrap the first admin user</h3>
+              <p>Create or confirm a Supabase Auth user, then grant admin access in SQL.</p>
+              <pre><code>insert into public.admin_users (user_id)
+select id from auth.users
+where email = 'admin@your-domain.example'
+on conflict (user_id) do nothing;</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">5</span>
+            <div>
+              <h3>Deploy the user-facing web app</h3>
+              <p>Runtime secrets stay in Fly. Public client values are passed as Docker build args.</p>
+              <pre><code>cd youchannel
+fly apps create youchannel
+fly secrets set \
+  VITE_BASE_URL=https://&lt;your-app-domain&gt; \
+  SUPABASE_URL=https://&lt;project-ref&gt;.supabase.co \
+  SUPABASE_ANON_KEY=&lt;supabase anon key&gt; \
+  SUPABASE_SERVICE_ROLE_KEY=&lt;supabase service role key&gt; \
+  GOOGLE_API_KEY=&lt;gemini key&gt; \
+  GOOGLE_LIVE_API_KEY=&lt;gemini live key&gt; \
+  GEMINI_MODEL=gemini-2.5-flash \
+  GOOGLE_OAUTH_CLIENT_ID=&lt;google oauth client id&gt; \
+  GOOGLE_OAUTH_CLIENT_SECRET=&lt;google oauth client secret&gt; \
+  GOOGLE_OAUTH_REDIRECT_URI=https://&lt;your-app-domain&gt;/playlists \
+  OPENAPI_BASE_URL=https://&lt;your-service-domain&gt; \
+  OPENAPI_SHARED_KEY=&lt;shared key&gt;
+fly deploy \
+  --build-arg VITE_SUPABASE_URL=https://&lt;project-ref&gt;.supabase.co \
+  --build-arg VITE_SUPABASE_ANON_KEY=&lt;supabase anon key&gt; \
+  --build-arg VITE_GOOGLE_OAUTH_CLIENT_ID=&lt;google oauth client id&gt;</code></pre>
+            </div>
+          </article>
+
+          <article class="step">
+            <span class="step-num">6</span>
+            <div>
+              <h3>Update Supabase Auth URLs</h3>
+              <p>Set the production Site URL and include local plus production redirect URLs.</p>
+              <pre><code>Site URL: https://&lt;your-app-domain&gt;
+Additional redirects:
+  http://localhost:3000
+  http://localhost:3000/playlists
+  https://&lt;your-app-domain&gt;
+  https://&lt;your-app-domain&gt;/playlists</code></pre>
+            </div>
+          </article>
         </div>
       </section>
 
       <section class="shell">
-        <a class="blog-link" href="/blog/why-we-stopped/">
+        <div class="section-head">
           <div>
-            <h2>Read the full MDX postmortem.</h2>
-            <p>
-              A detailed English write-up with component sections, architecture notes,
-              decision tables, and the practical reasons the project became an archive.
-            </p>
+            <p class="label">Environment map</p>
+            <h2>Keep public and private values separate.</h2>
           </div>
-          <span class="arrow" aria-hidden="true">→</span>
-        </a>
+          <p class="section-copy">
+            <code>VITE_*</code> values are exposed to the browser or build. Service role keys,
+            database URLs, OAuth client secrets, and provider keys must stay in
+            deployment secrets.
+          </p>
+        </div>
+
+        <div class="panel env-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Required values</th>
+                <th>Where to set them</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>User app build</td>
+                <td><code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code>, <code>VITE_GOOGLE_OAUTH_CLIENT_ID</code></td>
+                <td>Fly deploy build args.</td>
+              </tr>
+              <tr>
+                <td>User app runtime</td>
+                <td><code>SUPABASE_SERVICE_ROLE_KEY</code>, Gemini keys, Google OAuth secret, <code>OPENAPI_SHARED_KEY</code></td>
+                <td>Fly secrets for the <code>youchannel</code> app.</td>
+              </tr>
+              <tr>
+                <td>Jobs service</td>
+                <td><code>DATABASE_URL</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>GEMINI_API_KEY</code>, <code>OPENAPI_SHARED_KEY</code></td>
+                <td>Fly secrets for the <code>youchannel-service</code> app.</td>
+              </tr>
+              <tr>
+                <td>Admin console</td>
+                <td><code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code></td>
+                <td>Build args when deploying the service container.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="shell" id="checklist">
+        <div class="section-head">
+          <div>
+            <p class="label">Smoke test</p>
+            <h2>Verify the product, not just the deploy.</h2>
+          </div>
+          <p class="section-copy">
+            A deploy is only complete when sign-in, YouTube connection, analysis
+            enqueueing, workers, quotas, and admin visibility all work together.
+          </p>
+        </div>
+
+        <ul class="checklist">
+          <li>Open <code>https://&lt;service-domain&gt;/health</code> and confirm the jobs service is healthy.</li>
+          <li>Sign in to the user app through Supabase Auth.</li>
+          <li>Connect YouTube and confirm the OAuth redirect lands on <code>/playlists</code>.</li>
+          <li>Import at least one playlist video into the user library.</li>
+          <li>Confirm the app can call <code>POST /openapi/analysis</code> with the shared key.</li>
+          <li>Watch the admin console for queued, completed, failed, or skipped analysis records.</li>
+          <li>Check quota display and per-video limits for the test user.</li>
+          <li>Start a Gemini Live practice session and confirm microphone permissions and session history.</li>
+        </ul>
+      </section>
+
+      <section class="shell">
+        <div class="note">
+          <p>
+            Need the product/architecture story rather than deployment commands?
+            Read the full postmortem on
+            <a href="https://larryxue.dev/blog/posts/youchannel-product-architecture-postmortem/">larryxue.dev</a>.
+          </p>
+        </div>
       </section>
     </main>
 
     <footer>
       <div class="shell">
-        YouChannel is an open-source experiment. The static page is intentionally
-        small, durable, and deployable without secrets.
+        This Cloudflare Pages site documents deployment for the archived YouChannel
+        open-source stack. The full product requires Supabase, Google OAuth, Gemini,
+        and long-running Node services.
       </div>
     </footer>
   </body>

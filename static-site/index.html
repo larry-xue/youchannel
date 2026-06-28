@@ -6,12 +6,12 @@
     <title>Deploy YouChannel, complete open-source setup guide</title>
     <meta
       name="description"
-      content="Deploy the complete YouChannel stack: user web app, Supabase database, YouTube OAuth, Gemini analysis, jobs service, admin console, and OpenAPI docs."
+      content="Deploy the complete YouChannel stack and see how it led to Zota, the follow-up project that moves from video-based learning into scenario-based communication practice."
     />
     <meta property="og:title" content="Deploy YouChannel" />
     <meta
       property="og:description"
-      content="A complete deployment guide for the YouChannel open-source stack."
+      content="A complete deployment guide for the YouChannel open-source stack, plus its relationship to Zota."
     />
     <style>
       :root {
@@ -474,10 +474,12 @@
         </a>
         <div class="nav-links" aria-label="Primary navigation">
           <a href="#repos">Repos</a>
+          <a href="#lineage">Lineage</a>
           <a href="#local">Local setup</a>
           <a href="#production">Production</a>
           <a href="#checklist">Checklist</a>
           <a href="https://larryxue.dev/blog/posts/youchannel-product-architecture-postmortem/">Postmortem</a>
+          <a href="https://larryxue.dev/blog/posts/zota-ai-communication-training-cockpit/">Zota</a>
         </div>
       </div>
     </nav>
@@ -491,11 +493,14 @@
             This page is the practical entry point for running YouChannel end to end:
             the learner-facing web app, Supabase Auth/Postgres, YouTube OAuth,
             Gemini analysis and Live practice, async jobs, admin tooling, and the
-            OpenAPI analysis endpoint.
+            OpenAPI analysis endpoint. It is also the starting point for the later
+            Zota work, which takes the same durable-learning-state idea from videos
+            into scenario-based communication practice.
           </p>
           <div class="actions">
             <a class="button" href="#production">Start production deployment</a>
             <a class="button secondary" href="https://github.com/larry-xue/youchannel">Open user app repo</a>
+            <a class="button secondary" href="https://larryxue.dev/blog/posts/zota-ai-communication-training-cockpit/">Read the Zota follow-up</a>
           </div>
         </div>
 
@@ -527,6 +532,37 @@
           </div>
         </aside>
       </header>
+
+      <section class="shell" id="lineage">
+        <div class="section-head">
+          <div>
+            <p class="label">Project lineage</p>
+            <h2>From authentic media to scenario-based learning.</h2>
+          </div>
+          <p class="section-copy">
+            YouChannel asked how a learner could turn one real YouTube video into
+            analysis, study material, Live practice, and durable learning records.
+            Zota keeps that durable-state lesson but changes the learning object:
+            instead of a video, the object is the real room the learner is preparing
+            to enter.
+          </p>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <h3><a href="https://larryxue.dev/blog/posts/youchannel-product-architecture-postmortem/">YouChannel postmortem</a></h3>
+            <p>The architecture note for the original video-based learning system: agent loops, YouTube data, Gemini analysis, Live practice, quotas, and why the product became too broad too early.</p>
+          </article>
+          <article class="card">
+            <h3><a href="https://larryxue.dev/blog/posts/zota-ai-communication-training-cockpit/">Zota follow-up</a></h3>
+            <p>The next step: memory-led, scenario-based practice where model-generated page material is rendered by stable frontend components.</p>
+          </article>
+          <article class="card">
+            <h3><a href="https://zota-product.pages.dev/">Zota static reference</a></h3>
+            <p>A public project explainer for the successor product, focused on session memory, generated surfaces, Advisor tools, and Live voice drills.</p>
+          </article>
+        </div>
+      </section>
 
       <section class="shell" id="repos">
         <div class="section-head">
